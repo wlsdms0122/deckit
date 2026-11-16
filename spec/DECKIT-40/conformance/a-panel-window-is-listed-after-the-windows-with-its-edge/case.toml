@@ -1,0 +1,28 @@
+case = 26
+name = "a-panel-window-is-listed-after-the-windows-with-its-edge"
+note = "Each mod-a opens the windows the case says, each filled by a text field: main, the window 1 at 283, 107, 720 by 480. The desktop is the base shell, 1280 by 800, and ada sits at s1. mod-a also opens a panel window, 120 wide. The desktop is read: the panel window is a line panel after the normal window, with its mod name for a title and the edge top before its frame."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "desktop" }
+
+[step.expect]
+answers = { text = "desktop 1280x800 mark 9\nseat local \"Deckit conformance\" blue\nseat s1 \"Ada Lovelace\" green (you)\ndock (1 items)\n  item \"mod-a\" [running] dock.mod-a\nwindow w1 \"mod-a\" mod-a at 283,107 720x480\npanel w2 \"mod-a\" mod-a top at 1152,0 120x0", mark = 9 }

@@ -1,0 +1,45 @@
+case = 27
+name = "a-remove-takes-an-item-that-came-away-and-the-capsule-closes"
+note = "The host ships the status bar by its id, on the base shell, 1280 by 800, under a bar 32 high. Each mod-* is granted deckit.panel-windows and uses status-bar/items; one with a command runs it by opening https://said.test/<id>/ran/<command> outside the app, and opens the view view, 320 by 200, activates false, under the anchor { mod = \"status-bar\", id = <its id> } as the event <id>:go tells it, its didAppear, didDisappear and didClose opening https://said.test/<id>/view/<callback>. mod-b declares none, sets { name = \"Beta\", icon = \"users\" }, and removes it: the capsule stands while it lays Beta, and closes as it lays no item."
+
+[host]
+base = "shell"
+api = "1.0.0"
+mods = ["status-bar"]
+ship = ["mod-b"]
+bar = 32
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "dependencies.onConnect"
+args = ["status-bar/items"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "set"
+handed = true
+args = [{ name = "Beta", icon = "users" }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "status-bar", name = "bar", level = "panel", frame = { x = 1236, y = 2, width = 36, height = 28 }, key = false, minimized = false }]
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "remove"
+handed = true
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = []

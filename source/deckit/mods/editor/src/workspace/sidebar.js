@@ -59,8 +59,15 @@ function sidebar({
         icon: ui.icon('folders', { size: 16 }),
         actions: [{ icon: ui.icon('folderOpen', { size: 16 }), title: 'Open', run: openMenu }],
     });
-    const workspaceRows = ui.list({ maxRows: 4, key: (item) => item.key, create: workspaceRowOf });
+    const workspaceRows = ui.list({
+        maxRows: 4,
+        role: 'listbox',
+        name: 'Workspaces',
+        key: (item) => item.key,
+        create: workspaceRowOf,
+    });
     const modes = ui.segmented({
+        name: 'Navigator',
         items: [
             {
                 key: 'files',
@@ -82,7 +89,7 @@ function sidebar({
     });
     const navigatorHead = ui.element('div', { className: 'editor-navigator-head' });
     const navigatorBody = ui.element('div', { className: 'editor-navigator' });
-    const looseFiles = ui.list({ key: (item) => item.file, create: looseRowOf });
+    const looseFiles = ui.list({ role: 'listbox', name: 'Files', key: (item) => item.file, create: looseRowOf });
 
     section.body.append(workspaceRows.element);
     ui.sortable(workspaceRows, { onReorder });

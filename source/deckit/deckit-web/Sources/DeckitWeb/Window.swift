@@ -310,8 +310,14 @@ private final class KeyedWindow: NSWindow {
     }
 }
 
+// A panel answers Escape itself, which a page in it that left the key would count as handled, and the key would
+// never be told as unhandled (InputMonitor): it passes the command on, and does nothing with it.
 private final class KeyedPanel: NSPanel {
     override func makeFirstResponder(_ responder: NSResponder?) -> Bool {
         WebPageView.mayTake(responder) && super.makeFirstResponder(responder)
+    }
+
+    override func cancelOperation(_ sender: Any?) {
+        nextResponder?.doCommand(by: #selector(cancelOperation(_:)))
     }
 }

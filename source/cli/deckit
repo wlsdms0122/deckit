@@ -11,14 +11,28 @@ deckit: a library a host app embeds to take mods, the way a game does
   style            hold the styles deckit writes to the rules of its look: a line for each problem, by its rule
   dev [<Electron's arguments>]
                    Deckit.app from the sources, built again when one changes
-  test [--port <port>]
-                   deckit built, then the core's tests, then Deckit.app from it, through its scenario
+  test [--port <port>] [--list] [<area> ...]
+                   deckit built, then the core's tests, then Deckit.app from it, through its scenario; with areas,
+                   such as \`deckit test outside reading\`, only their checks, and --list prints the areas
   shots [--port <port>]
                    deckit built, then Deckit.app from it, each surface drawn in light and in dark into .build/shots/,
                    over a blurred wallpaper drawn from code, a stand-in for what is behind the app's window
   install          Deckit.app built, then put into /Applications
   conformance [--spec <folder>] [<DECKIT-N | case name> ...]
                    deckit built, then the specification's cases run on it: the live set's, or those named
+  key add|remove|list <principal> [<key>] [--name <name>] [--home <folder>]
+                   the keys that may authenticate as a principal from outside the app, kept in deckit's folder:
+                   Deckit.app's, or the one --home names; <key> is the base64 of an Ed25519 public key
+  user add|remove|list [<id>] [--name <name>] [--key <file>] [--home <folder>]
+                   the users that may sit at a seat of the app, kept in deckit's folder; with --key, a new key pair
+                   is registered for the user and its private half written to <file>
+  seat attach <user> --key <file> [--home <folder>]
+                   sits at a seat of the app as the user, until detached or interrupted
+  seat detach | read | changes | capture | move | press | drag | scroll | key | type | watch
+                   what the attached user does and reads at its seat (deckit seat, alone, lists each)
+  seat asking [on | off] [--home <folder>]
+                   whether a user that attaches waits until a seated user lets it sit: prints which, set first
+                   where a word says so
 
 For work on deckit itself, and kept out of manifest.toml:
 

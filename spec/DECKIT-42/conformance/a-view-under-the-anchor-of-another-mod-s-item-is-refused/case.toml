@@ -1,0 +1,25 @@
+case = 27
+name = "a-view-under-the-anchor-of-another-mod-s-item-is-refused"
+note = "The host ships the status bar by its id, on the base shell, 1280 by 800, under a bar 32 high. Each mod-* is granted deckit.panel-windows and uses status-bar/items; one with a command runs it by opening https://said.test/<id>/ran/<command> outside the app, and opens the view view, 320 by 200, activates false, under the anchor { mod = \"status-bar\", id = <its id> } as the event <id>:go tells it, its didAppear, didDisappear and didClose opening https://said.test/<id>/view/<callback>. mod-a declares Alpha, mod-b Beta, each with a glyph. mod-a opens view under the anchor { mod = \"status-bar\", id = \"mod-b\" }: it throws NOT_PERMITTED."
+
+[host]
+base = "shell"
+api = "1.0.0"
+mods = ["status-bar"]
+ship = ["mod-a", "mod-b"]
+bar = 32
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { anchor = { mod = "status-bar", id = "mod-b" } }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/mod-a/view/threw/NOT_PERMITTED", activates = true }]

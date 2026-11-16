@@ -1,0 +1,28 @@
+case = 25
+name = "connection-let-go-that-leaves-out-a-key-is-refused"
+note = "One rule refuses the params of every request a party asks, at call with INVALID_ARGUMENT, those answered true among them: params that leave out a key of the row. A party of ada asks connection/let-go with no count."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "connection/let-go"
+params = { connection = 1, number = 0 }
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

@@ -20,6 +20,18 @@ extension Refusal {
                 "INVALID_ARGUMENT"
             }
 
+        case let error as AuthenticationError:
+            switch error {
+            case .notAuthenticated:
+                "NOT_AUTHENTICATED"
+
+            case .notANonce, .notAPrincipal, .notAKey:
+                "INVALID_ARGUMENT"
+
+            case .unreadable:
+                "UNREADABLE"
+            }
+
         case let error as EventError:
             switch error {
             case .reserved:
@@ -99,6 +111,9 @@ extension Refusal {
 
             case .notLaunched:
                 "NOT_LAUNCHED"
+
+            case .alreadyRunning:
+                "ALREADY_RUNNING"
             }
 
         case let error as DeclarationError:
@@ -144,6 +159,30 @@ extension Refusal {
 
             case .reserved:
                 "RESERVED"
+            }
+
+        case let error as UserError:
+            switch error {
+            case .notAPrincipal:
+                "INVALID_ARGUMENT"
+
+            case .isMod:
+                "REFUSED"
+
+            case .notAUser:
+                "NOT_FOUND"
+            }
+
+        case let error as SeatError:
+            switch error {
+            case .refused, .localOpen:
+                "REFUSED"
+
+            case .notAsking:
+                "NOT_FOUND"
+
+            case .notATime:
+                "INVALID_ARGUMENT"
             }
 
         case let error as StateError:

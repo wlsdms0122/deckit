@@ -1,0 +1,15 @@
+case = 25
+name = "a-user-the-host-is-refused-refuses-the-start"
+note = "A refusal of a user the host makes is the answer to the first start. users names an id that is no id, and the start is refused at call."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "Not An Id", name = "Ada Lovelace" }]
+
+[[step]]
+input = "start"
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

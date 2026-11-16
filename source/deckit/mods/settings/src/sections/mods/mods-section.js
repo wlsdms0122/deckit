@@ -240,6 +240,7 @@ function modsSection({
         let open = false;
 
         const element = ui.element('div', { className: 'settings-mod' });
+        element.setAttribute('role', 'listitem');
         const row = ui.row();
         const caret = ui.element('span', { className: 'settings-caret' });
         const name = ui.element('span', { className: 'settings-mod-name' });
@@ -298,6 +299,7 @@ function modsSection({
             current = mod;
             const labels = mod.contributions;
             name.textContent = name.title = mod.name;
+            element.setAttribute('aria-label', mod.name);
             const drawn = icons.of(mod.id);
             if (icon.dataset.drawn !== drawn) {
                 const next = ui.appIcon(drawn, { size: 'row' });

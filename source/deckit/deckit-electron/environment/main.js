@@ -5,6 +5,7 @@
 import * as LISTENER from '../listener/index.js';
 import { createReports } from './reports.js';
 import * as CONNECTION from '../core/connection.js';
+import * as SOCKET from '../socket/main.js';
 import * as LOG_FILE from '../log/file.js';
 import * as FILES from '../files/index.js';
 import * as ORIGIN from '../sandbox/model/origin.js';
@@ -17,8 +18,10 @@ import { createStages } from '../stage/main.js';
 import { createNotifications } from '../notification/main.js';
 import { createLoader } from '../main-process/loader.js';
 import { createWeb } from '../web/main.js';
+import { createRead, SCRIPT as READER } from '../read/main.js';
 
 // MARK: - Property
+const FRAME = 16; // ms
 // UI Events' names for the input deck is told of, by the module's.
 const INPUT = { keyDown: 'keydown', keyUp: 'keyup', mouseDown: 'mousedown', mouseUp: 'mouseup' };
 // Electron's accelerator key for each key code a spec names that is not a letter, a digit or a function key.
@@ -69,11 +72,15 @@ function createEnvironment({ core, preload, openWindow }) {
         guard,
     });
     const FOLDER = createFolder();
+    const READ = createRead({ LOG });
     // WebKit's module is the core's neighbour in the archive.
     const WEBKIT = createWebKit({
         path: require('path').join(require('path').dirname(core), 'deckit-web.node'),
+        folder: require('electron').app.getPath('userData'),
         LOG,
         containerOf: (page) => WEB.containerOf(page),
+        always: [READER],
+        posted: READ.told,
     });
     const MESSAGES = createMessages();
     const WINDOWS = createWindows({ LOG, WEBKIT, openWindow });
@@ -89,9 +96,13 @@ function createEnvironment({ core, preload, openWindow }) {
     const pins = new WeakMap(); // a pinned page -> { address }, the address its first load committed
     let answer = null; // how a load of deck's scheme is answered, once deck serves (serve)
     let script = null; // the preload's source
+    const hearing = new Set(); // what hears the machine's input (listen)
+    const moved = { last: null, timer: null }; // the move not told yet
+    let hardware; // the source of the machine's own pointer and keyboard, once told (machine)
     hear();
     // A page that runs no mod is named as a host is, with no dot, so its origin is never a mod's. It is clear where it
-    // draws nothing, as the windows it opens are.
+    // draws nothing, as the windows it opens are. Every page has the keyboard only as it is given it or pressed, as the
+    // windows it opens do: its document focusing an element takes it from nothing.
     const make = ({ modId = null, name = null, keepsDrawing = false } = {}) => {
         const owned = modId !== null;
         const origin = owned ? ORIGIN.originOf(modId) : ORIGIN.pageOriginOf(name);
@@ -100,6 +111,7 @@ function createEnvironment({ core, preload, openWindow }) {
             store: storeFor(CONFIG.id, origin),
             scheme: ORIGIN.SCHEME,
             clear: true,
+            takesKeyboard: false,
             fullSpeed: owned || keepsDrawing,
             delegate: delegateOf(asked),
         });
@@ -140,10 +152,19 @@ function createEnvironment({ core, preload, openWindow }) {
             countStorage: (modId) => countStorage(WEBKIT, CONFIG.id, modId),
         }),
         keys: Object.freeze({
-            capture: (page, handler) => capture(guard, page, handler),
-            unhandled: (page, handler) => unhandled(guard, page, handler),
+            capture: (page, handler) => capture(guard, page, handler, sourceOf),
+            unhandled: (page, handler) => unhandled(guard, page, handler, sourceOf),
             hotkey,
             focused: () => WEBKIT.focusedPage(),
+            reserve: (page, on) => void (page.isDestroyed() || WEBKIT.native().reserveKeyboard(page.id, !!on)),
+        }),
+        input: Object.freeze({ listen, put, machine }),
+        read: Object.freeze({
+            outline: READ.outline,
+            node: READ.node,
+            changes: READ.changes,
+            place: READ.place,
+            listen: READ.listen,
         }),
         open: Object.freeze({ url: openURL, file: openFile, appFor }),
         notifications: Object.freeze({ show: NOTIFICATIONS.show }),
@@ -195,6 +216,13 @@ function createEnvironment({ core, preload, openWindow }) {
             restartPending: LOADER.restartPending,
         }),
         core: Object.freeze({ open: (listeners) => CONNECTION.open(core, listeners) }),
+        transport: Object.freeze({
+            listen: (where, listeners) => {
+                const listener = SOCKET.listen(where, listeners);
+                app.once('quit', listener.close);
+                return listener;
+            },
+        }),
         folders: Object.freeze({ user: require('os').homedir() }),
         files: Object.freeze({
             readText: FILES.readText,
@@ -210,7 +238,8 @@ function createEnvironment({ core, preload, openWindow }) {
             onQuit: (hold) => {
                 guard(app, 'will-quit', (event) => hold() && event.preventDefault());
             },
-            quit: () => app.quit(),
+            // The engine drops a quit asked while it decides one, as a hold may ask it: it is asked once that is decided.
+            quit: () => setImmediate(() => app.quit()),
         }),
         about: Object.freeze({
             app: Object.freeze({ name: app.getName(), version: app.getVersion() }),
@@ -220,6 +249,73 @@ function createEnvironment({ core, preload, openWindow }) {
             ]),
         }),
     });
+
+    // The machine's pointer and keyboard, each event told as the app has it, `{ event: 'pointer', type, x, y, button,
+    // buttons, modifiers, count, dx, dy }` or `{ event: 'key', type, code, key, modifiers, repeat }`, with `page`, the
+    // page it is delivered to, the point from that page's top left, or null and the point from its window's content's,
+    // and `carried: true`: the page has it already. Moves are told once a frame, the last of them, and before whatever
+    // follows them. Answers its off.
+    function listen(handler) {
+        if (!hearing.size) WEBKIT.native().listenInput((_name, event) => heard(event));
+        hearing.add(handler);
+        return () => hearing.delete(handler);
+    }
+
+    function heard(event) {
+        const told = Object.freeze({
+            ...event,
+            page: event.page === null ? null : WEBKIT.pageById(event.page),
+            carried: true,
+        });
+        if (told.event === 'pointer' && told.type === 'move') {
+            moved.last = told;
+            moved.timer ??= setTimeout(flush, FRAME);
+            return;
+        }
+        flush();
+        tell(told);
+    }
+
+    function flush() {
+        clearTimeout(moved.timer);
+        const last = moved.last;
+        moved.timer = null;
+        moved.last = null;
+        if (last) tell(last);
+    }
+
+    function tell(event) {
+        for (const listener of [...hearing]) {
+            try {
+                listener(event);
+            } catch (error) {
+                LOG.error('a listener of the input failed', error);
+            }
+        }
+    }
+
+    // `event`, as `listen` tells one or `{ event: 'text', type, text }`, `type` `insert`, `compose`, `commit` or
+    // `cancel`, with `source`, an opaque word of the caller's for the devices it came from, put into `page` at a point
+    // from its top left: the page is not given the keyboard, what the page tells of the event carries `source`, and a
+    // key the page does not handle is told as its own unhandled key and reaches nothing else.
+    function put(page, event) {
+        if (typeof event?.source !== 'string' || !event.source)
+            throw new Error('[deckit] an event is put with a source');
+        if (isGone(page)) return;
+        WEBKIT.native().putInput(page.id, event);
+    }
+
+    // The source of the machine's own pointer and keyboard from now on: what a page tells of a key of theirs carries
+    // it.
+    function machine(source) {
+        if (typeof source !== 'string' || !source) throw new Error("[deckit] the machine's source is a word");
+        hardware = source;
+    }
+
+    // The source of what a page told: the one an event was put with, or the machine's.
+    function sourceOf(source) {
+        return source ?? hardware;
+    }
 
     // What a page of deck's asks of main: a load of its scheme, its own files or a question, what it posts, where it
     // goes, and the window it opens. `asked.page` is the page, known once it is made. It is given no permission of the
@@ -390,19 +486,20 @@ function watchInput(guard, page, listener) {
 }
 
 // A key, told before it reaches the page, taken from it when `handler` answers true. Told after what watchInput
-// watches, when that watch began first.
-function capture(guard, page, handler) {
-    guard(page, 'key', ({ type, code, meta, control, alt, shift }, take) => {
-        const pressed = { type: INPUT[type], code, meta: !!meta, control: !!control, alt: !!alt, shift: !!shift };
-        if (handler(Object.freeze(pressed))) take();
+// watches, when that watch began first. Its `source` is the one it was put with, or the machine's (`sourceOf`).
+function capture(guard, page, handler, sourceOf) {
+    guard(page, 'key', ({ type, code, meta, control, alt, shift, source }, take) => {
+        const held = { meta: !!meta, control: !!control, alt: !!alt, shift: !!shift };
+        if (handler(Object.freeze({ type: INPUT[type], code, ...held, source: sourceOf(source) }))) take();
     });
 }
 
 // A key down the page did not handle, told after the page had it, taken from the rest of the app when `handler`
 // answers true.
-function unhandled(guard, page, handler) {
-    guard(page, 'unhandled', ({ code, meta, control, alt, shift }, take) => {
-        if (handler(Object.freeze({ code, meta: !!meta, control: !!control, alt: !!alt, shift: !!shift }))) take();
+function unhandled(guard, page, handler, sourceOf) {
+    guard(page, 'unhandled', ({ code, meta, control, alt, shift, source }, take) => {
+        const held = { meta: !!meta, control: !!control, alt: !!alt, shift: !!shift };
+        if (handler(Object.freeze({ code, ...held, source: sourceOf(source) }))) take();
     });
 }
 

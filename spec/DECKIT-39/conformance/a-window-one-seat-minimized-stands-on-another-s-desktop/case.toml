@@ -1,0 +1,39 @@
+case = 26
+name = "a-window-one-seat-minimized-stands-on-another-s-desktop"
+note = "mod-a opens the window main and ada sits at s1. The person minimizes main: the look windows of the local seat answers it minimized, and that of s1 answers it not minimized."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "minimize"
+
+[[step]]
+look = "windows"
+seat = "local"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = false, minimized = true }]
+
+[[step]]
+look = "windows"
+seat = "s1"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = false, minimized = false }]

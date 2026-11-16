@@ -1,0 +1,53 @@
+case = 27
+name = "a-press-on-an-item-runs-its-command-launching-its-mod"
+note = "The host ships the status bar by its id, on the base shell, 1280 by 800, under a bar 32 high. ada sits at s1. Each mod-* is granted deckit.panel-windows and uses status-bar/items; one with a command runs it by opening https://said.test/<id>/ran/<command> outside the app, and opens the view view, 320 by 200, activates false, under the anchor { mod = \"status-bar\", id = <its id> } as the event <id>:go tells it, its didAppear, didDisappear and didClose opening https://said.test/<id>/view/<callback>. The host ships the owner of deckit/commands. mod-a, which does not run in the background, declares the command ping and the item Alpha with the glyph bell and the command ping. ada reads the capsule and presses Alpha: ping runs on mod-a, which launches."
+
+[host]
+base = "shell"
+api = "1.0.0"
+owners = ["deckit/commands"]
+mods = ["status-bar"]
+ship = ["mod-a"]
+bar = 32
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w1" }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", ref = "1.2", button = 0 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", ref = "1.2", button = 0 }
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/mod-a/ran/ping", activates = true }]
+
+[[step]]
+look = "run"
+mod = "mod-a"
+
+[step.expect]
+answers = "running"

@@ -1,0 +1,34 @@
+case = 26
+name = "a-pointer-that-moves-raises-no-mark"
+note = "Each mod-a opens the windows the case says, each filled by a text field: main, the window 1 at 283, 107, 720 by 480. The desktop is the base shell, 1280 by 800, and ada sits at s1. It moves its pointer to 100, 100, over the desktop, and reads changes since 7, the mark before: the mark is still 7 and no line is listed, though its own line now holds where its pointer is."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "move", x = 100, y = 100 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "changes", since = 7 }
+
+[step.expect]
+answers = { text = "changes 7 to 7", mark = 7 }

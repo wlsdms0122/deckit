@@ -1,0 +1,28 @@
+case = 26
+name = "an-item-of-the-dock-reads-as-a-node-with-its-marks"
+note = "Each mod-a opens the windows the case says, each filled by a text field: main, the window 1 at 283, 107, 720 by 480. The desktop is the base shell, 1280 by 800, and ada sits at s1. It reads the node dock.mod-a: the item reads as on the desktop, without its indent, then its place."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "node", ref = "dock.mod-a" }
+
+[step.expect]
+answers = { text = "item \"mod-a\" [running] dock.mod-a at 8,374 48x48", mark = 7 }

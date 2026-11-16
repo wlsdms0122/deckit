@@ -101,13 +101,16 @@ function menu({ items, anchor = null, point = null, onClose }) {
 }
 
 // One of `options` ({ value, label, font, icon, hint }), chosen from a menu. A choice is reported; the caller sets it.
-function select({ options, value = null, size = 'medium', onChange }) {
+// It is named by `label`, the words beside it, and its value is the chosen option's label.
+function select({ options, value = null, size = 'medium', label: name = '', onChange }) {
     let current = value;
     let choices = options;
     let shown = null;
     const element = tag('button', 'deckit-select');
     element.type = 'button';
     element.dataset.size = size;
+    element.setAttribute('role', 'combobox');
+    if (name) element.setAttribute('aria-label', name);
     element.setAttribute('aria-haspopup', 'listbox');
     element.setAttribute('aria-expanded', 'false');
     const glyph = tag('span', 'deckit-select-icon');
@@ -118,7 +121,7 @@ function select({ options, value = null, size = 'medium', onChange }) {
     const set = (next) => {
         current = next;
         const option = choices.find((candidate) => candidate.value === current);
-        label.textContent = option ? option.label : '';
+        label.textContent = element.value = option ? option.label : '';
         label.style.fontFamily = option?.font || '';
         glyph.style.display = option?.icon ? '' : 'none';
         glyph.innerHTML = option?.icon ? iconMarkup(option.icon) : '';

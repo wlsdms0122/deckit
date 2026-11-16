@@ -20,6 +20,8 @@ public enum LaunchError: Refusal, Equatable {
     case timedOut(mod: String, problem: String)
     // Its run did not launch, and why.
     case notLaunched(mod: String, problem: String)
+    // The principal a transport connection is verified as runs already.
+    case alreadyRunning(String)
 
     // MARK: - Property
     public var message: String {
@@ -35,6 +37,9 @@ public enum LaunchError: Refusal, Equatable {
 
         case let .timedOut(mod, problem), let .notLaunched(mod, problem):
             "\(mod) did not launch: \(problem)"
+
+        case let .alreadyRunning(principal):
+            "\(principal) runs already"
         }
     }
 

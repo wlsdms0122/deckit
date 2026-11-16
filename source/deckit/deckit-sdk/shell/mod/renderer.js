@@ -9,6 +9,7 @@ import { filesOf } from '../files/renderer.js';
 import * as PAGE from '../page/renderer.js';
 import { createRegion, viewProblem } from '../region/renderer.js';
 import { createDock } from '../dock/renderer.js';
+import { createSeats } from '../seats/renderer.js';
 import { createDrop } from '../drop/renderer.js';
 import { createWindows } from '../window/renderer.js';
 
@@ -28,7 +29,8 @@ const UNREGISTERED = Object.freeze({
 // `dropDestination(element, options)`, `web`, `keys`, which takes a chord for the mod with the permission its scope
 // picks, records the keys pressed in the page and with deckit.shell-keys changes the shell's own, `active()`, whether
 // the app is in front, `dialogs`, which asks the person for folders, `reveal(path)`, which shows a path where it lies,
-// `fonts`, whose `set` deckit.fonts guards, the Dock on `mods`, which deckit.mods guards, `view.register()`, which
+// `fonts`, whose `set` deckit.fonts guards, the Dock on `mods`, which deckit.mods guards, `seats`, who sits at the
+// desktop and who asks to, which deckit.seats guards, `view.register()`, which
 // registers a view for a mod whose manifest fields give its view a parent, and `styles.register()`, which registers
 // styles for a mod granted deckit.styles. A request is refused as deckit's handle refuses one (deckit/request), a
 // member that answers at once throws its refusal, and a registration answers nothing and is never refused: one that
@@ -49,6 +51,7 @@ function shellOf({ channels, drags }) {
         const REGION = createRegion({ running, deliver, channels, windowOf: WINDOWS.windowOf });
         const DROP = createDrop({ deliver, channels });
         const KEYS = createKeys({ channels });
+        const SEATS = createSeats({ mod: running.id, granted, channels, deliver });
         // What it tells of the run: nothing until its lifecycle has joined, nothing on screen once it has ended.
         const ENDED = Object.freeze({
             summary: { view: false, styles: [] },
@@ -163,6 +166,7 @@ function shellOf({ channels, drags }) {
                 }),
                 fonts: FONTS.tool({ channels, request: live }),
                 mods: createDock({ channels, request: live }).mods,
+                seats: SEATS.forScope(scope, { request: live }),
                 keys: KEYS.forScope(scope, { request: live }),
                 active: KEYS.activeOf({ request: live }),
                 ...filesOf({ channels, request: live }),

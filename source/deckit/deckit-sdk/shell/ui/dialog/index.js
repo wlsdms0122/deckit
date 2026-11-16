@@ -152,6 +152,7 @@ function switchOf(ui, field, values) {
     const name = element('span', '');
     name.textContent = field.label;
     const control = ui.toggle({
+        label: field.label,
         value: values[field.key],
         onChange: (on) => {
             values[field.key] = on;

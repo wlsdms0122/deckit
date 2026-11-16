@@ -119,6 +119,17 @@ const SYNTAX = Object.freeze({
         invalid: '#cf222e',
     },
 });
+// The colours seats are told apart by, by name, in the order they are taken: each an ink that keeps the text minimum
+// on the look's background, so what is written in the background's colour over it reads too.
+const SEAT = Object.freeze({
+    blue: { light: '#2a6fdb', dark: '#4b8bf4' },
+    green: { light: '#1a7f55', dark: '#2eb67d' },
+    orange: { light: '#b45309', dark: '#e8912d' },
+    purple: { light: '#8250df', dark: '#b392f0' },
+    pink: { light: '#bf3989', dark: '#f778ba' },
+    teal: { light: '#0e7c86', dark: '#39c5cf' },
+});
+const SEAT_COLOURS = Object.freeze(Object.keys(SEAT));
 // The type scale: each step's size in px and its line height, the title's tracking; `label` is what names a group
 // or a column, drawn in `muted` in sentence case.
 const TYPE = Object.freeze({
@@ -231,6 +242,7 @@ function tokenOf(theme, fonts = {}) {
             ...look.shadow,
         },
         syntax: { ...SYNTAX[dark ? 'dark' : 'light'] },
+        seat: mapped(SEAT, (colour) => colour[dark ? 'dark' : 'light']),
         motion: MOTION,
         get glass() {
             return opaque() ? 1 : look.glass;
@@ -260,6 +272,7 @@ function propertiesOf(token) {
         ),
         rim: token.rim,
         ...prefixed('shadow-', token.shadow),
+        ...prefixed('seat-', token.seat),
         ...prefixed(
             'app-icon-',
             mapped(token.appIcon, (value) => value + 'px')
@@ -417,4 +430,16 @@ function deepFreeze(value) {
     return Object.freeze(value);
 }
 
-export { FALLBACK_THEME, SPRING, MOTION, APP_ICON, tokenOf, propertiesOf, springAt, lengthOf, opaque, whenOpaque };
+export {
+    FALLBACK_THEME,
+    SPRING,
+    MOTION,
+    APP_ICON,
+    SEAT_COLOURS,
+    tokenOf,
+    propertiesOf,
+    springAt,
+    lengthOf,
+    opaque,
+    whenOpaque,
+};

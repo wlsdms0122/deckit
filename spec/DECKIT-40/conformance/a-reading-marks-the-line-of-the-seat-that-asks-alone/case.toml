@@ -1,0 +1,40 @@
+case = 26
+name = "a-reading-marks-the-line-of-the-seat-that-asks-alone"
+note = "Each mod-a opens the windows the case says, each filled by a text field: main, the window 1 at 283, 107, 720 by 480. The desktop is the base shell, 1280 by 800, and ada sits at s1. bob sits at s2. ada moves its pointer to 100, 100 and bob reads the desktop: the line of s1 holds where its pointer is, bob has the third colour, and (you) is on the line of s2 alone."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }, { id = "bob", name = "Bob Kahn" }]
+keys = [{ principal = "ada", key = "first" }, { principal = "bob", key = "second" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "attach"
+party = "q"
+principal = "bob"
+key = "second"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "move", x = 100, y = 100 }
+
+[[step]]
+input = "ask"
+party = "q"
+method = "seat/read"
+params = { of = "desktop" }
+
+[step.expect]
+answers = { text = "desktop 1280x800 mark 8\nseat local \"Deckit conformance\" blue\nseat s1 \"Ada Lovelace\" green at 100,100\nseat s2 \"Bob Kahn\" orange (you)\ndock (1 items)\n  item \"mod-a\" [running] dock.mod-a\nwindow w1 \"mod-a\" mod-a at 283,107 720x480", mark = 8 }

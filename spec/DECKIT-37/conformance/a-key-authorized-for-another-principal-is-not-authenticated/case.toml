@@ -1,0 +1,22 @@
+case = 25
+name = "a-key-authorized-for-another-principal-is-not-authenticated"
+note = "A key is authorized for a principal, not for the host. The host registers the pair second for bob alone; a party that proves ada with it is refused at call as with any key not authorized for ada."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }, { id = "bob", name = "Bob Kahn" }]
+keys = [{ principal = "ada", key = "first" }, { principal = "bob", key = "second" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "second"
+
+[step.expect]
+refuses = "call"
+kind = "NOT_AUTHENTICATED"

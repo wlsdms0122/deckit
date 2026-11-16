@@ -1,0 +1,29 @@
+case = 26
+name = "a-reading-of-a-window-none-has-is-refused-not-found"
+note = "Each mod-a opens the windows the case says, each filled by a text field: main, the window 1 at 283, 107, 720 by 480. The desktop is the base shell, 1280 by 800, and ada sits at s1. It reads the window 9, and no window has that id. It is refused at call with kind NOT_FOUND."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "9" }
+
+[step.expect]
+refuses = "call"
+kind = "NOT_FOUND"

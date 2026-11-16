@@ -1,0 +1,83 @@
+case = 26
+name = "two-parties-of-one-user-that-wait-are-two-asks"
+note = "Each party that waits is an ask of its own, though both attach as one user. With asking true on the base shell, two parties attach as ada and wait: the shell tells two asks under two ids. The first answered yes, ada sits at s1 and the second ask waits still. Answered yes in its turn, it is held to the first item again: ada sits, so its authenticate is refused ALREADY_RUNNING."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+seats = { asking = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+waits = true
+
+[[step]]
+input = "attach"
+party = "q"
+principal = "ada"
+key = "first"
+waits = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.asks"
+handle = "shell"
+
+[step.expect]
+answers = [{ id = "2", name = "Ada Lovelace" }, { id = "3", name = "Ada Lovelace" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.answer"
+handle = "shell"
+args = ["2", true]
+
+[step.expect]
+answers = true
+
+[[step]]
+look = "admitted"
+party = "p"
+part = "seat"
+
+[step.expect]
+answers = { id = "s1", local = false, user = { id = "ada", name = "Ada Lovelace" } }
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.asks"
+handle = "shell"
+
+[step.expect]
+answers = [{ id = "3", name = "Ada Lovelace" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.answer"
+handle = "shell"
+args = ["3", true]
+
+[step.expect]
+answers = true
+
+[[step]]
+look = "admitted"
+party = "q"
+
+[step.expect]
+refuses = "call"
+kind = "ALREADY_RUNNING"

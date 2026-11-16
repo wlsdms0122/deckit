@@ -76,6 +76,14 @@ const MAIN = Object.freeze({
         // the last line it sent; what is sent after is dropped
         open: 'function',
     },
+    transport: {
+        // listen({ path, limit }, { opened, failed }) -> { close() }: a local stream socket at `path`, a message a line
+        // each way, which only the account that runs the app can open, gone as the app quits. Each transport connection
+        // that arrives is handed to `opened({ send(line), close(), limit(bytes) })`, which answers `{ onMessage(line),
+        // onEnd() }`: a line longer than its limit, `limit` at first, closes it, and `onEnd` hears once that it closed.
+        // `failed(why)` hears that nothing listens
+        listen: 'function',
+    },
     folders: {
         user: 'string', // the person's home folder
     },
@@ -108,7 +116,8 @@ const MAIN = Object.freeze({
         // onQuit(hold): `hold()` is asked as the app is about to quit, once the quit is decided; answering true keeps
         // it from quitting, until it is asked to quit again
         onQuit: 'function',
-        quit: 'function', // quit(): the app asked to quit
+        // quit(): the app asked to quit; asked while `hold` is asked, it is a quit asked once that one is decided
+        quit: 'function',
     },
 });
 

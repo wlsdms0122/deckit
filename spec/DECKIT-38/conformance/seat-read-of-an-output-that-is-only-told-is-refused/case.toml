@@ -1,0 +1,28 @@
+case = 25
+name = "seat-read-of-an-output-that-is-only-told-is-refused"
+note = "seat/read is refused at call with INVALID_ARGUMENT where of names no output that seat/read reads: held is told and never read."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "held" }
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

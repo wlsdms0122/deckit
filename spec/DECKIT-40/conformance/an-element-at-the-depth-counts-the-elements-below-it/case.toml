@@ -1,0 +1,28 @@
+case = 26
+name = "an-element-at-the-depth-counts-the-elements-below-it"
+note = "mod-a opens the window 1 at 283, 107, 720 by 480, with no title. Its content holds, each in a box of its own: the heading Notes, the button Bold, not pressed, the field Name with the value say \"a\", b, the empty field Find, the checkbox Done, the list Days of Mon, Tue and Wed, and the region Log, 60 high, that scrolls three paragraphs 40 high each. The desktop is the base shell, 1280 by 800, and ada sits at s1. It reads the window with depth 0: the list, at that level, lists none of its items and writes how many elements are below it."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w1", depth = 0 }
+
+[step.expect]
+answers = { text = "window w1 \"mod-a\" mod-a at 283,107 720x480 mark 7\n  button \"Close\" w1.close\n  button \"Minimize\" w1.minimize\n  button \"Zoom\" w1.zoom\n  titlebar w1.bar\n  document 1 content 720x480\n    heading \"Notes\" [level 1] 1.1\n    button \"Bold\" [not pressed] 1.2\n    textbox \"Name\" [value \"say \\\"a\\\", b\"] 1.3\n    textbox \"Find\" [value \"\"] 1.4\n    checkbox \"Done\" [unchecked] 1.5\n    list \"Days\" (3 elements below) 1.6\n    region \"Log\" (3 elements below) 1.7", mark = 7 }

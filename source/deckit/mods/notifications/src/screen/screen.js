@@ -1,19 +1,15 @@
-// The notifications on screen: the toasts `center` lets out, stacked in the mod's overlay window over every app, open
-// while it shows any, each as tall as what it holds, which leave the keyboard where it is; and on `showList()` the
-// notification center, the record newest first to press, remove or clear, in a panel window along the right edge of
-// the desktop, open only with the keyboard: it takes it as it opens, closes at once where it opens without it, as
-// Notifications may not activate (DECKIT-32), and goes as the keyboard leaves it or Escape is pressed. Its rows are a
-// list the pointer and the arrows move along: Return runs the row's notification as a press does and Command-Delete
-// removes it. No toast shows while the center is open, which holds them all. A toast with actions stays until one is
-// pressed or it is closed; any other leaves after a time. A press on a toast, a row or an action is the center's.
-const WIDTH = 360;
-const GAP = 8;
-// Room around the cards in the window for the shadow they cast, deeper below, where the shadow falls.
-const ROOM = 16;
-const ROOM_BELOW = 24;
-// What a toast is drawn in at most, its title, two lines of body and a row of actions: the window's height for each
-// until they are measured.
-const TOAST_MOST = 112;
+const MODEL = require('./model/screen.js');
+
+// The notifications on screen, in two views the mod draws. The toasts `center` lets out stand stacked in a view at
+// the top right of the stage, open while it holds any and as high as they are, on every person's screen, where it
+// takes no keyboard. The notification center, the record newest first to press, remove or clear, is a view under the
+// mod's item in the status bar: `toggle()` shows it for the person who asked or puts it away, `showList()` shows it,
+// and it holds that person's keyboard while it is shown, so the arrows move along its rows, Return runs the row's
+// notification as a press does and Command-Delete removes it. The shell puts it away at Escape and at a press
+// outside it. A toast with actions stays until one is pressed or it is closed; any other leaves after a time. A
+// press on a toast, a row or an action is the center's.
+// The item of the status bar the center's view stands under: the mod's own, which the bar names by the mod's id.
+const ANCHOR = Object.freeze({ mod: 'status-bar', id: 'notifications' });
 // How far a toast slides from the right edge as it comes and goes.
 const SLIDE = 16;
 // How long a toast with no actions stays.
@@ -24,10 +20,10 @@ const STYLE = `
     .notifications {
         display: flex;
         flex-direction: column;
-        gap: ${GAP}px;
+        gap: ${MODEL.GAP}px;
         box-sizing: border-box;
         height: 100%;
-        padding: ${ROOM}px ${ROOM}px ${ROOM_BELOW}px;
+        padding: ${MODEL.ROOM.center}px;
         overflow-y: auto;
         color: var(--deckit-text);
         font: var(--deckit-type-body);
@@ -45,17 +41,19 @@ const STYLE = `
         box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
         cursor: default;
     }
-    /* The center lies on the panel window's material: its head and the empty record on it, the rows on cards. */
-    .notifications-center { padding-bottom: ${ROOM}px; }
+    /* Both views lie on the material the shell draws: the center's head and the empty record on it, the rows and
+       the toasts on cards. A toast alone in a view higher than it fills the view. */
+    .notifications-toasts { padding: ${MODEL.ROOM.toasts}px; overflow: hidden; }
+    .notifications-toasts .notifications-card { flex: 1 0 auto; }
     .notifications-head {
         display: flex;
         flex: 0 0 auto;
         align-items: center;
         justify-content: space-between;
-        min-height: 32px;
+        min-height: ${MODEL.HEAD}px;
         font: 600 var(--deckit-type-heading);
     }
-    .notifications-rows { display: flex; flex-direction: column; gap: ${GAP}px; }
+    .notifications-rows { display: flex; flex: 0 0 auto; flex-direction: column; gap: ${MODEL.GAP}px; }
     /* A row under the pointer or the keys is washed over its card, pressed deeper, and ringed while the keys moved
        to it. */
     .notifications-rows .notifications-card[data-active] {
@@ -95,22 +93,38 @@ const STYLE = `
     .notifications-close { position: absolute; top: 10px; right: 6px; }
 `;
 
-function screen(shell, center, { onCenter = () => {} } = {}) {
+function screen(shell, center) {
     // MARK: - Property
     const { ui } = shell;
     const content = document.createElement('div'); // the toasts
-    content.className = 'notifications';
+    content.className = 'notifications notifications-toasts';
     const list = document.createElement('div'); // the notification center
     list.className = 'notifications notifications-center';
+    list.setAttribute('role', 'region');
+    list.setAttribute('aria-label', 'Notifications');
     shell.ui.addStyle(STYLE);
-    // The center's rows, by the notification's id, and the one the pointer or the keys are on.
+    // The center's rows, by the notification's id, and the one the pointer or the keys are on. A row that shows what
+    // it showed is left as it is, so what a reader named in it stands while the record changes around it.
+    const drew = new Map(); // a row's notification id -> what its card showed as it was last drawn (shows)
     const rows = ui.list({
+        role: 'listbox',
         key: (notification) => notification.id,
         create: (notification) => card(notification, { row: true }),
-        update: (made, notification) => made.replaceChildren(...partsOf(notification, { row: true })),
+        update: (made, notification) => {
+            if (drew.get(notification.id) !== shows(notification)) fill(made, notification, { row: true });
+        },
         animated: true,
     });
     rows.element.classList.add('notifications-rows');
+    // The center's head, its button and the empty record's words, each made once.
+    const head = element('div', 'notifications-head');
+    const heading = element('span', '', 'Notifications');
+    const clear = button('Clear All', () => center.clear());
+    const empty = ui.emptyState({
+        icon: ui.icon('bell', { size: 44 }),
+        title: 'No notifications',
+        hint: 'Notifications from your mods appear here.',
+    }).element;
     let shown = []; // the notifications the rows show, in order
     // A row is pressed as the press is let go, by its card's click, not as the list picks on the press.
     const choice = ui.listbox(rows.element, {
@@ -120,8 +134,8 @@ function screen(shell, center, { onCenter = () => {} } = {}) {
     const toasts = new Map(); // id -> { notification, timer, leaving }
     const toastCards = new Map(); // id -> its toast's card, kept while it shows
     const icons = new Map(); // a sending mod's id -> its app icon, as the shell reads it
-    let window = null; // the toasts' window, while it is open
-    let panel = null; // the center's window, while it is open
+    let window = null; // the toasts' view, while it holds any
+    let panel = null; // the center's view, once it opened
     const offs = [
         center.drawWith({ show: showToast, hide: (id) => hideToast(id, { told: false }), active: shell.active }),
         center.onChange(() => panel && drawList()),
@@ -129,46 +143,14 @@ function screen(shell, center, { onCenter = () => {} } = {}) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // The center opened, or made key where it is open; `onCenter(open)` hears it open and close.
+    // The center shown for the person who asked, with the keyboard.
     async function showList() {
-        await Promise.all(center.list().map((notification) => iconRead(notification.mod.id)));
-        if (panel) return panel.makeKeyAndOrderFront();
-        drawList();
-        const opened = shell.windows.open({
-            name: 'center',
-            content: list,
-            level: 'panel',
-            edge: 'right',
-            width: WIDTH,
-            didAppear: () => panel === opened && !opened.isKey && closeList(),
-            didResignKey: () => panel === opened && closeList(),
-            didClose: () => panel === opened && closed(),
-        });
-        panel = opened;
-        list.ownerDocument.addEventListener('keydown', (event) => {
-            if (event.defaultPrevented || panel !== opened) return;
-            const row = shown[choice.active()];
-            const plain = !event.metaKey && !event.ctrlKey && !event.altKey;
-            if (event.key === 'Escape') closeList();
-            else if (plain && (event.key === 'ArrowDown' || event.key === 'ArrowUp'))
-                choice.move(event.key === 'ArrowDown' ? 1 : -1);
-            else if (plain && event.key === 'Enter' && row) center.press(row.id);
-            else if (event.metaKey && event.key === 'Backspace' && row) center.remove(row.id);
-            else return;
-            event.preventDefault();
-        });
-        toToasts();
-        onCenter(true);
+        if (await opened()) panel.makeKeyAndOrderFront();
     }
 
-    // The center opened where it is closed, or closed where it is open: answers whether it is open after.
+    // The center shown for the person who asked where it is not on that person's screen, or put away where it is.
     async function toggle() {
-        if (panel) {
-            closeList();
-            return false;
-        }
-        await showList();
-        return true;
+        if (await opened()) panel.toggle();
     }
 
     function end() {
@@ -178,18 +160,45 @@ function screen(shell, center, { onCenter = () => {} } = {}) {
     }
 
     // MARK: - Private
-    function closeList() {
-        const was = panel;
-        if (!was) return;
-        closed();
-        was.close();
+    // The center's view as it is first asked for, opened for the person who asked: answers whether it stood before.
+    // The senders' icons are read first, so the default icon never stands in for one.
+    async function opened() {
+        await Promise.all(center.list().map((notification) => iconRead(notification.mod.id)));
+        if (panel) return true;
+        drawList();
+        panel = shell.windows.open({
+            name: 'center',
+            content: list,
+            level: 'panel',
+            anchor: ANCHOR,
+            ...MODEL.centerSize(shown.map(MODEL.guessOf)),
+            didAppear: fitList,
+        });
+        list.ownerDocument.addEventListener('keydown', keyed);
+        return false;
     }
 
-    // The toasts held back while the center was open show again.
-    function closed() {
-        panel = null;
-        toToasts();
-        onCenter(false);
+    function keyed(event) {
+        if (event.defaultPrevented) return;
+        const row = shown[choice.active()];
+        const plain = !event.metaKey && !event.ctrlKey && !event.altKey;
+        if (plain && (event.key === 'ArrowDown' || event.key === 'ArrowUp'))
+            choice.move(event.key === 'ArrowDown' ? 1 : -1);
+        else if (plain && event.key === 'Enter' && row) center.press(row.id);
+        else if (event.metaKey && event.key === 'Backspace' && row) center.remove(row.id);
+        else return;
+        event.preventDefault();
+    }
+
+    // The center's view as high as its rows, once they are laid out in it: a view on no screen measures nothing.
+    function fitList() {
+        list.ownerDocument.defaultView.requestAnimationFrame(() => {
+            if (!panel || !list.isConnected) return;
+            const heights = shown.map(({ id }) => rows.elementOf(id)?.getBoundingClientRect().height ?? 0);
+            if (heights.some((height) => !height)) return;
+            const { width, height } = MODEL.centerSize(heights);
+            panel.resize(width, height);
+        });
     }
 
     // A toast shows once its sender's icon is read, so the default icon never stands in for it first.
@@ -213,47 +222,44 @@ function screen(shell, center, { onCenter = () => {} } = {}) {
             ui.motion.glide([...content.children], toToasts);
         };
         const card = toastCards.get(id);
-        if (panel || !card?.isConnected) return gone();
+        if (!card?.isConnected) return gone();
         ui.motion.go(card, { x: SLIDE }).finished.then(gone);
     }
 
-    // The toasts' window, open while it shows any and the center is closed.
+    // The toasts' view, open while it holds any.
     function toToasts() {
         drawToasts();
-        if (!toasts.size || panel) {
+        if (!toasts.size) {
             window?.close();
             window = null;
             return;
         }
-        if (!window) open(around(toasts.size * TOAST_MOST, toasts.size));
+        if (!window)
+            open(MODEL.toastsSize([...toasts.values()].map(({ notification }) => MODEL.guessOf(notification))));
         fit();
     }
 
-    // The window as tall as the toasts it shows, once they are laid out in it.
+    // The view as high as the toasts it holds, once they are laid out in it.
     function fit() {
         const view = content.ownerDocument.defaultView;
         view.requestAnimationFrame(() => {
-            if (panel || !window || !content.isConnected) return;
-            const cards = [...content.children];
-            const height = cards.reduce((sum, card) => sum + card.getBoundingClientRect().height, 0);
-            window.resize(WIDTH, Math.ceil(around(height, cards.length)));
+            if (!window || !content.isConnected) return;
+            const cards = [...content.children].map((card) => card.getBoundingClientRect().height);
+            if (cards.some((height) => !height)) return;
+            const { width, height } = MODEL.toastsSize(cards);
+            window.resize(width, height);
         });
     }
 
-    // The height of `cards` cards `height` tall in all, with the gaps between them and the room around them.
-    function around(height, cards) {
-        return height + Math.max(0, cards - 1) * GAP + ROOM + ROOM_BELOW;
-    }
-
-    // The toasts' window opened `height` tall, leaving the keyboard where it is. One closed where the screen did not
-    // ask opens again with the next toast.
-    function open(height) {
+    // The toasts' view opened at `size`, at the top right of the stage for every person, the keyboard left where it
+    // is. One closed where the screen did not ask opens again with the next toast.
+    function open(size) {
         const opened = shell.windows.open({
-            name: 'main',
+            name: 'toasts',
             content,
-            level: 'overlay',
-            width: WIDTH,
-            height,
+            level: 'panel',
+            place: 'top-right',
+            ...size,
             activates: false,
             didClose: () => window === opened && (window = null),
         });
@@ -267,20 +273,29 @@ function screen(shell, center, { onCenter = () => {} } = {}) {
 
     // The row the pointer or the keys are on stays on its index as rows come and go.
     function drawList() {
-        const head = element('div', 'notifications-head', 'Notifications');
         shown = center.list();
-        if (shown.length) head.append(button('Clear All', () => center.clear()));
+        for (const id of [...drew.keys()]) if (!shown.some((each) => each.id === id)) drew.delete(id);
         rows.set(shown);
         choice.set(
             shown.map(({ id }) => ({ element: rows.elementOf(id), disabled: false })),
             { active: Math.min(choice.active(), shown.length - 1) }
         );
-        const empty = ui.emptyState({
-            icon: ui.icon('bell', { size: 44 }),
-            title: 'No notifications',
-            hint: 'Notifications from your mods appear here.',
-        }).element;
-        list.replaceChildren(head, shown.length ? rows.element : empty);
+        hold(head, shown.length ? [heading, clear] : [heading]);
+        hold(list, [head, shown.length ? rows.element : empty]);
+        fitList();
+    }
+
+    // `parent` holds `children` in that order: left untouched where it does already.
+    function hold(parent, children) {
+        const now = parent.children;
+        if (now.length === children.length && children.every((child, at) => now[at] === child)) return;
+        parent.replaceChildren(...children);
+    }
+
+    // What the card of `notification` shows (MODEL.cardOf), a row's with when it came, as one text.
+    function shows(notification, { row = true } = {}) {
+        const given = { icon: icons.get(notification.mod.id) ?? '', time: row ? when(notification) : '' };
+        return JSON.stringify(MODEL.cardOf(notification, given));
     }
 
     // Made once per toast, coming in from the right edge, where it lives, by the kit's `come`; it leaves by its `go`
@@ -299,27 +314,34 @@ function screen(shell, center, { onCenter = () => {} } = {}) {
     function card(notification, { row }) {
         const made = element('div', 'notifications-card');
         made.dataset.deckitSolid = ''; // opaque on the panel's material: the plain inks
-        made.append(...partsOf(notification, { row }));
+        if (!row) made.setAttribute('role', 'alert');
+        fill(made, notification, { row });
         made.addEventListener('click', () => center.press(notification.id));
         return made;
     }
 
-    // What a card shows: the sender's icon, the title, the body, the actions and the close button. A row tells when
-    // its notification came.
+    // A card called by its title and its body, holding what it shows.
+    function fill(made, notification, { row }) {
+        made.setAttribute('aria-label', JSON.parse(shows(notification, { row })).name);
+        made.replaceChildren(...partsOf(notification, { row }));
+    }
+
+    // What a card shows (MODEL.cardOf): the sender's icon, the title, the body, the actions and the close button. A row
+    // tells when its notification came, and what it shows is kept to tell whether it is to be drawn anew.
     function partsOf(notification, { row }) {
+        const text = shows(notification, { row });
+        if (row) drew.set(notification.id, text);
+        const { title, body, sender, icon, time, actions } = JSON.parse(text);
         const words = element('div', 'notifications-words');
         const titleRow = element('div', 'notifications-title-row');
-        titleRow.append(element('div', 'notifications-title', notification.title || notification.mod.name));
-        if (row) titleRow.append(element('div', 'notifications-time', when(notification)));
+        titleRow.append(element('div', 'notifications-title', title));
+        if (time) titleRow.append(element('div', 'notifications-time', time));
         words.append(titleRow);
-        if (notification.body) words.append(element('div', 'notifications-body', notification.body));
-        const icon = ui.appIcon(icons.get(notification.mod.id) ?? '', { alt: notification.mod.name });
-        if (notification.actions.length) {
-            const actions = element('div', 'notifications-actions');
-            notification.actions.forEach((action, index) =>
-                actions.append(button(action.title, () => center.press(notification.id, index)))
-            );
-            words.append(actions);
+        if (body) words.append(element('div', 'notifications-body', body));
+        if (actions.length) {
+            const line = element('div', 'notifications-actions');
+            actions.forEach((label, index) => line.append(button(label, () => center.press(notification.id, index))));
+            words.append(line);
         }
         const close = ui.iconButton({
             icon: ui.icon('x', { size: 14 }),
@@ -329,7 +351,7 @@ function screen(shell, center, { onCenter = () => {} } = {}) {
         }).element;
         close.classList.add('notifications-close');
         heldBack(close);
-        return [icon, words, close];
+        return [ui.appIcon(icon, { alt: sender }), words, close];
     }
 
     // The app icon of the mod `id` read once, and kept: '' where it has none or it is not read.

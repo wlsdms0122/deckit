@@ -1,0 +1,75 @@
+case = 26
+name = "a-window-a-seat-that-closed-held-is-held-by-none"
+note = "A seat that closes holds nothing any more. ada's seat presses main and holds it, and ada's party leaves: the window is key for no seat, bob's seat is told nothing, and bob's press makes it bob's key window."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }, { id = "bob", name = "Bob Kahn" }]
+keys = [{ principal = "ada", key = "first" }, { principal = "bob", key = "second" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "attach"
+party = "q"
+principal = "bob"
+key = "second"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
+
+[step.expect]
+answers = { over = 1, key = "key", holder = "s1", at = { x = 600, y = 300 } }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.onChange"
+handle = "shell"
+listener = true
+
+[[step]]
+input = "detach"
+party = "p"
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = false, minimized = false }]
+
+[[step]]
+look = "told"
+party = "q"
+part = "messages"
+
+[step.expect]
+answers = []
+
+[[step]]
+input = "ask"
+party = "q"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
+
+[step.expect]
+answers = { over = 1, key = "key", holder = "s2", at = { x = 600, y = 300 } }

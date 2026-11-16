@@ -41,6 +41,23 @@ struct PrincipalStateTests {
         #expect(FileManager.default.fileExists(atPath: other.path()))
     }
 
+    @Test("a name lists the principals it keeps anything of, by id, and none of another name's")
+    func nameListsItsPrincipals() throws {
+        // Given
+        try sut.reserve("layer")
+        try sut.reserve("other-layer")
+        try sut.write("layer", principal: "notes", text: "{}")
+        try sut.write("layer", principal: "editor", text: "{}")
+        try sut.write("other-layer", principal: "other", text: "[]")
+
+        // When
+        let principals = try sut.principals("layer")
+
+        // Then
+        #expect(principals == ["editor", "notes"])
+        #expect(try sut.principals("never").isEmpty)
+    }
+
     @Test("a name reserved again, or one that is no name, is refused")
     func nameIsReservedOnce() throws {
         // Given

@@ -1,0 +1,15 @@
+case = 25
+name = "registering-a-key-for-a-principal-that-is-no-id-is-refused"
+note = "Registering a key is refused at call with INVALID_ARGUMENT where principal is no id. The host registers a pair for a principal written with capitals and spaces, and its first start is refused with that."
+
+[host]
+base = "system"
+api = "1.0.0"
+keys = [{ principal = "Not An Id", key = "first" }]
+
+[[step]]
+input = "start"
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

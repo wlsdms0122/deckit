@@ -1,0 +1,15 @@
+case = 25
+name = "a-host-defining-deckit-seat-refuses-the-start"
+note = "A host that defines a permission of the id deckit.seat is refused the start with PERMISSION."
+
+[host]
+base = "system"
+api = "1.0.0"
+permissions = [{ id = "deckit.seat", name = "Seat", description = "Sits at a seat." }]
+
+[[step]]
+input = "start"
+
+[step.expect]
+refuses = "call"
+kind = "PERMISSION"

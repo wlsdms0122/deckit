@@ -20,7 +20,7 @@ extension Job {
         self.init(
             principal: mod.manifest.id,
             revision: mod.revision,
-            entry: entry,
+            host: .page(entry: entry),
             permissions: permissions,
             reaches: permissions.contains(Deckit.reachMods.id) ? .every : .only([]),
             uses: mod.manifest.uses,

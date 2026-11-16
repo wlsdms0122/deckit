@@ -1,5 +1,5 @@
 // The Settings mod's Activity section (mods/settings/src/sections/activity): the mods it lists as running, how long
-// each ran, and what is wrong with it. Exits 1 with a line for each check that failed.
+// each ran, what is wrong with it, and that a row drawn again writes only what changed. Exits 1 with a line for each check that failed.
 const path = require('path');
 
 async function main() {
@@ -56,6 +56,23 @@ async function main() {
     );
     const none = ACTIVITY.problemsOf({ run: { problem: null, refusal: null } }, undefined);
     check('a run with nothing wrong tells nothing', none.length === 0, none);
+
+    // An element that counts what is written to it.
+    const written = [];
+    const element = {
+        text: 'Less than a minute',
+        get textContent() {
+            return this.text;
+        },
+        set textContent(next) {
+            written.push(next);
+            this.text = next;
+        },
+    };
+    ACTIVITY.write(element, 'Less than a minute');
+    ACTIVITY.write(element, '1 min');
+    ACTIVITY.write(element, '1 min');
+    check('a row drawn again writes its text only where it reads otherwise', written.join() === '1 min', written);
 
     if (failed.length) {
         for (const line of failed) console.error(line);

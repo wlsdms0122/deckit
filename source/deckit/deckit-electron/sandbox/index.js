@@ -1,5 +1,4 @@
 import * as ORIGIN from './model/origin.js';
-import { storeOf } from '../webkit/index.js';
 
 // MARK: - Property
 // Every page of deck's. What runs a mod runs in deckit's world, whose code the policy leaves alone; the page's own
@@ -38,10 +37,10 @@ const TYPES = Object.freeze({
 
 // MARK: - Initializer
 // MARK: - Public
-// Where a page of deck's keeps its storage, apart from the host app's and each from the others: one for each mod and
-// one for each page that runs none, by `name`, under the environment's `id`.
+// The name of the data store a page of deck's keeps its storage in, apart from the host app's and each from the others:
+// one for each mod and one for each page that runs none, by `name`, under the environment's `id`.
 export function storeFor(id, name) {
-    return storeOf(`deckit:${id}:${name}`);
+    return `deckit:${id}:${name}`;
 }
 
 // What a mod's pages kept: their storage, taken.

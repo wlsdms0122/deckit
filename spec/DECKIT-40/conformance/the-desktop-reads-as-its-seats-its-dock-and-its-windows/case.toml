@@ -1,0 +1,28 @@
+case = 26
+name = "the-desktop-reads-as-its-seats-its-dock-and-its-windows"
+note = "Each mod-a opens the windows the case says, each filled by a text field: main, the window 1 at 283, 107, 720 by 480, and second, titled Second, the window 2 at 307, 131, in front of it; mod-b opens none. The desktop is the base shell, 1280 by 800, and ada sits at s1. It reads the desktop: the desktop line with the mark, a line a seat in the order they opened with its colour and (you) on its own, the Dock with its items, and the windows front to back, the titled one by its title and the other by its mod."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "desktop" }
+
+[step.expect]
+answers = { text = "desktop 1280x800 mark 10\nseat local \"Deckit conformance\" blue\nseat s1 \"Ada Lovelace\" green (you)\ndock (2 items)\n  item \"mod-a\" [running] dock.mod-a\n  item \"mod-b\" [running] dock.mod-b\nwindow w2 \"Second\" mod-a at 307,131 720x480\nwindow w1 \"mod-a\" mod-a at 283,107 720x480", mark = 10 }

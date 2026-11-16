@@ -89,7 +89,7 @@ An app is **opened** for the person in these steps:
 
 ### The person's hand
 
-A **click** on an item is input reaching its app, as [activation](../DECKIT-32/SPEC.md) fixes input, and opens the app. Each item has a menu, whose choices are these, each in the implementation's words and offered where the table says:
+A **click** on an item is input reaching its app, as [activation](../DECKIT-32/SPEC.md) fixes input, and opens the app. Where more than one seat is open, a click, a menu and a drag are one seat's, and the app is opened for that seat, as [seats at the desktop](../DECKIT-39/SPEC.md) reads these rules for each seat. Each item has a menu, whose choices are these, each in the implementation's words and offered where the table says:
 
 | choice | offered | what it does |
 |---|---|---|
@@ -97,6 +97,8 @@ A **click** on an item is input reaching its app, as [activation](../DECKIT-32/S
 | quit | where the app runs | asks the end of its run, as [the lifecycle](../DECKIT-5/SPEC.md)'s `quit` asks it |
 | keep in the Dock | where the app is not kept | keeps it in the Dock |
 | take out of the Dock | where the app is kept | takes it out of the Dock |
+
+The menu of an item opens on a press of the second button on the item, as the button goes down. A press of the main button on a kept item becomes a drag once the pointer is 4 or more to a side of the point it was pressed at, or 4 or more above or below it; let go on the item before that, it is a click. An item that is not kept is not dragged.
 
 ### mods
 

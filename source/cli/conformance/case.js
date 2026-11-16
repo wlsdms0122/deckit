@@ -5,7 +5,7 @@ const path = require('path');
 const TOML = require('./toml.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 24;
+const FORMAT = 27;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -13,6 +13,8 @@ const KIND = /^[A-Z][A-Z_]*$/;
 const MEMBER = /^[A-Za-z][A-Za-z0-9]*(\.[A-Za-z][A-Za-z0-9]*)*$/;
 // The name of a standard interface, as the bundle names an interface.
 const STANDARD = /^deckit\/[a-z][a-z0-9-]*$/;
+// A mod's id, as the bundle writes one: holding no `..`.
+const ID = /^(?!.*\.\.)[a-z0-9][a-z0-9._-]{0,63}$/;
 // A site's address, as a call writes it: a site's name, then a path on it, if any.
 const SITE_ADDRESS = /^([a-z][a-z0-9-]*)(\/(?!\/)[\x21-\x7e]*)?$/;
 // A file of a bundle, as a show writes it: a bundle's name, then a path in it.
@@ -71,9 +73,36 @@ const is = {
             ([key, one]) => key === 'code' || (['meta', 'control', 'alt', 'shift'].includes(key) && is.boolean(one))
         ),
     strings: (value) => Array.isArray(value) && value.every(is.string),
+    // The users a host keeps, each `{ id, name }`, and the keys it registers, each `{ principal, key }`, `key` the name
+    // of a key pair of the case: format 25.
+    users: (value) =>
+        Array.isArray(value) &&
+        value.every(
+            (one) => TOML.isTable(one) && Object.keys(one).sort().join() === 'id,name' && is.strings(Object.values(one))
+        ),
+    keys: (value) =>
+        Array.isArray(value) &&
+        value.every(
+            (one) =>
+                TOML.isTable(one) &&
+                Object.keys(one).sort().join() === 'key,principal' &&
+                is.string(one.principal) &&
+                is.name(one.key)
+        ),
+    // The seats' settings a host sets, `{ idleTime, asking }`, either left out: format 26.
+    seats: (value) =>
+        TOML.isTable(value) &&
+        Object.entries(value).every(
+            ([key, one]) => (key === 'idleTime' && is.integer(one)) || (key === 'asking' && is.boolean(one))
+        ),
     standards: (value) =>
         Array.isArray(value) &&
         value.every((one) => typeof one === 'string' && STANDARD.test(one)) &&
+        new Set(value).size === value.length,
+    // The ids of the mods the implementation ships that a host ships: format 27.
+    ids: (value) =>
+        Array.isArray(value) &&
+        value.every((one) => typeof one === 'string' && ID.test(one)) &&
         new Set(value).size === value.length,
 };
 
@@ -154,6 +183,20 @@ const INPUTS = {
             true,
         ],
     },
+    attach: {
+        party: [is.name, true],
+        principal: [is.string, true],
+        key: [is.name, true],
+        waits: [is.boolean, false],
+        part: [is.string, false],
+    },
+    ask: {
+        party: [is.name, true],
+        method: [is.string, true],
+        params: [is.table, false],
+        part: [is.string, false],
+    },
+    detach: { party: [is.name, true] },
 };
 const LOOKS = {
     mod: { mod: [is.string, true], part: [is.string, false] },
@@ -165,10 +208,12 @@ const LOOKS = {
     delegated: { mod: [is.string, true], part: [is.string, false] },
     downloaded: {},
     revealed: {},
-    windows: {},
-    desktop: {},
-    dock: {},
+    windows: { seat: [is.string, false] },
+    desktop: { seat: [is.string, false] },
+    dock: { seat: [is.string, false] },
     regions: {},
+    told: { party: [is.name, true], part: [is.string, false] },
+    admitted: { party: [is.name, true], part: [is.string, false] },
     worn: {
         mod: [is.string, false],
         properties: [
@@ -212,6 +257,11 @@ const ADDED = {
     worn: 21,
     drop: 22,
     regions: 22,
+    attach: 25,
+    ask: 25,
+    detach: 25,
+    told: 25,
+    admitted: 26,
 };
 // The format that added a key of an input or a look, where it is a later one than the step's.
 const KEYS_ADDED = {
@@ -226,6 +276,8 @@ const KEYS_ADDED = {
     delegated: 13,
     answered: 14,
     outside: 20,
+    seat: 26,
+    waits: 26,
 };
 // The format that added a key of the host, where it is not 1.
 const HOST_KEYS_ADDED = {
@@ -239,9 +291,40 @@ const HOST_KEYS_ADDED = {
     appearance: 21,
     bar: 23,
     refusing: 24,
+    users: 25,
+    keys: 25,
+    seats: 26,
+    mods: 27,
 };
 // The inputs answered with nothing.
-const ANSWERLESS = ['start', 'quit', 'press', 'show', 'activate', 'window', 'key', 'dock', 'appearance', 'drop'];
+const ANSWERLESS = [
+    'start',
+    'quit',
+    'press',
+    'show',
+    'activate',
+    'window',
+    'key',
+    'dock',
+    'appearance',
+    'drop',
+    'detach',
+];
+// The inputs a case hands only while the host app is started.
+const WHILE_STARTED = [
+    'call',
+    'press',
+    'show',
+    'activate',
+    'window',
+    'key',
+    'dock',
+    'appearance',
+    'drop',
+    'attach',
+    'ask',
+    'detach',
+];
 
 // The case in `folder`: `{ name, note, host, steps, bundles, sites }`, `bundles` each bundle's folder by its name,
 // and `sites` each site's `{ folder, answers }`: the folder whose files it serves, or null, and what its file writes
@@ -374,7 +457,11 @@ function hostOf(host, format, refuse) {
             unavailable: (value) => Array.isArray(value) && value.every(is.keystroke),
             appearance: (value) => APPEARANCES.includes(value),
             bar: (value) => is.integer(value) && value >= 0,
+            users: is.users,
+            keys: is.keys,
+            seats: is.seats,
             owners: is.standards,
+            mods: is.ids,
             sites: (value) => Array.isArray(value) && value.every(is.name),
             refusing: (value) => Array.isArray(value) && value.every(is.name),
             delegate: (value) =>
@@ -418,6 +505,7 @@ function hostOf(host, format, refuse) {
         system,
         sources: host.sources ?? [],
         owners: host.owners ?? [],
+        mods: host.mods ?? [],
         sites: host.sites ?? [],
         refusing,
         delegate: host.delegate ?? {},
@@ -427,6 +515,9 @@ function hostOf(host, format, refuse) {
         unavailable: host.unavailable ?? [],
         appearance: host.appearance ?? 'dark',
         bar: host.bar ?? 0,
+        users: host.users ?? [],
+        keys: host.keys ?? [],
+        seats: host.seats ?? {},
     };
 }
 
@@ -472,9 +563,13 @@ function stepOf(step, number, format, refuse) {
 // after a start that is refused, a call's `of` an earlier call or show of its mod, an activate's an earlier show of
 // it, a call's `answered` an earlier call, no `of` beside `handed`, nor `handle` beside either, `delegated` beside none
 // of the three, at most one of `site`, `url` and `file`, a hand's `edge` beside a resize alone and `by` beside a
-// move or a resize alone, and a Dock's `to` beside a drag alone.
+// move or a resize alone, a Dock's `to` beside a drag alone, an attach's `party` one no earlier attach wrote, any
+// other step's `party` one an earlier attach wrote, no `part` beside an attach that waits, and an admitted's `party`
+// one of an attach that waits.
 function order(steps, refuse) {
     let up = false;
+    const parties = new Set();
+    const waiting = new Set();
     for (const [index, step] of steps.entries()) {
         if (index === 0 && step.what !== 'start') refuse('step 1 is no start');
         const of = step.of && steps[step.of - 1];
@@ -496,10 +591,17 @@ function order(steps, refuse) {
             refuse(`step ${step.number}: by is written beside a move or a resize only`);
         if (step.what === 'dock' && (step.action === 'drag') !== 'to' in step)
             refuse(`step ${step.number}: to is written beside a drag, and only there`);
-        if (
-            step.kind !== 'input' ||
-            ['call', 'press', 'show', 'activate', 'window', 'key', 'dock', 'appearance', 'drop'].includes(step.what)
-        ) {
+        if (step.what === 'attach' && parties.has(step.party))
+            refuse(`step ${step.number}: party names the party of an earlier attach`);
+        if (step.what !== 'attach' && 'party' in step && !parties.has(step.party))
+            refuse(`step ${step.number}: party names the party of no earlier attach`);
+        if (step.what === 'attach') parties.add(step.party);
+        if (step.what === 'attach' && step.waits && 'part' in step)
+            refuse(`step ${step.number}: part is written beside no attach that waits`);
+        if (step.what === 'attach' && step.waits) waiting.add(step.party);
+        if (step.what === 'admitted' && parties.has(step.party) && !waiting.has(step.party))
+            refuse(`step ${step.number}: party names the party of no earlier attach that waits`);
+        if (step.kind !== 'input' || WHILE_STARTED.includes(step.what)) {
             if (!up) refuse(`step ${step.number} ${step.kind === 'input' ? step.what + 's' : 'looks'} after a quit`);
             continue;
         }

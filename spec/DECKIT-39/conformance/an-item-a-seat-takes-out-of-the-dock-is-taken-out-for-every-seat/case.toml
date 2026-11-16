@@ -1,0 +1,68 @@
+case = 26
+name = "an-item-a-seat-takes-out-of-the-dock-is-taken-out-for-every-seat"
+note = "The Dock's items and which are kept are kept once, for every seat. A party's seat opens the menu of mod-b's item, which is kept, and clicks the choice that takes it out: mod-b runs, so its item follows those kept, not kept, for the local seat and for the party's seat alike."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b", "mod-c"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", ref = "dock.mod-b", button = 2, count = 1 }
+part = "over"
+
+[step.expect]
+answers = "dock"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", ref = "dock.mod-b", button = 2, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", ref = "dock-menu.keep", button = 0, count = 1 }
+part = "over"
+
+[step.expect]
+answers = "dock"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", ref = "dock-menu.keep", button = 0, count = 1 }
+part = "over"
+
+[step.expect]
+answers = "dock"
+
+[[step]]
+look = "dock"
+
+[step.expect]
+answers = [{ mod = "mod-a", pinned = true, running = true, attention = false, active = false }, { mod = "mod-c", pinned = true, running = true, attention = false, active = false }, { mod = "mod-b", pinned = false, running = true, attention = false, active = false }]
+
+[[step]]
+look = "dock"
+seat = "s1"
+
+[step.expect]
+answers = [{ mod = "mod-a", pinned = true, running = true, attention = false, active = false }, { mod = "mod-c", pinned = true, running = true, attention = false, active = false }, { mod = "mod-b", pinned = false, running = true, attention = false, active = false }]

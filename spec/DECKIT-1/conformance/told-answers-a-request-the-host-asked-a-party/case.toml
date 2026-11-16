@@ -1,0 +1,30 @@
+case = 25
+name = "told-answers-a-request-the-host-asked-a-party"
+note = "A message the host sent a party that is a request is told with request true, the party answers it with a null at once, and closed says the transport connection has closed by either end. A party asks runner/quit; the host asks it runner/stop, is answered, and closes the transport connection."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "runner/quit"
+
+[[step]]
+look = "told"
+party = "p"
+
+[step.expect]
+answers = { messages = [{ method = "runner/stop", params = {}, request = true }], closed = true }

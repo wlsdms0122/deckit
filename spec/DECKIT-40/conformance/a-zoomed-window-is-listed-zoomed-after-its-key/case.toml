@@ -1,0 +1,40 @@
+case = 26
+name = "a-zoomed-window-is-listed-zoomed-after-its-key"
+note = "Each mod-a opens the windows the case says, each filled by a text field: main, the window 1 at 283, 107, 720 by 480. The desktop is the base shell, 1280 by 800, and ada sits at s1. It presses the button w1.zoom and reads the desktop: the window is at the frame it zoomed to, with the states key and the seat, then zoomed."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", ref = "w1.zoom", button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", ref = "w1.zoom", button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "desktop" }
+
+[step.expect]
+answers = { text = "desktop 1280x800 mark 11\nseat local \"Deckit conformance\" blue\nseat s1 \"Ada Lovelace\" green at 347,131 key w1 (you)\ndock (1 items)\n  item \"mod-a\" [running, active] dock.mod-a\nwindow w1 \"mod-a\" mod-a at 6,0 1274x800 [key s1, zoomed]", mark = 11 }

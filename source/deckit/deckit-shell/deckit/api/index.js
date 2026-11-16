@@ -18,6 +18,7 @@ export function createApi({
     PERMISSION,
     MANIFEST_FIELD,
     SETUP,
+    SEAT,
 }) {
     // MARK: - Property
     const NOTIFICATIONS = Object.freeze([...LIFECYCLE.NOTIFICATIONS]);
@@ -27,10 +28,10 @@ export function createApi({
     // MARK: - Initializer
 
     // MARK: - Public
-    // What a host app and the UI shell on deckit reach of deckit, in main: the mods and their runs, the pages,
-    // permissions for what the UI adds and the manifest fields it reads, their own state, opening outside the app for a
-    // mod, the log, and the layers stacked over deckit on a mod's page. No more of deckit is theirs. Every value it
-    // hands out is a frozen copy. `onStart(listener)` is how deckit is told what starts with it, `whenStarted()` when
+    // What a host app and the UI shell on deckit reach of deckit, in main: the mods and their runs, the pages, the
+    // seats, permissions for what the UI adds and the manifest fields it reads, their own state, opening outside the
+    // app for a mod, the log, and the layers stacked over deckit on a mod's page. No more of deckit is theirs. Every
+    // value it hands out is a frozen copy. `onStart(listener)` is how deckit is told what starts with it, `whenStarted()` when
     // it has started, and `restart()` the host app's.
     function make({ onStart, whenStarted, restart }) {
         return Object.freeze({
@@ -133,6 +134,38 @@ export function createApi({
                 // onSandbox(listener(page, id)) -> off: each mod's sandbox page as it is made, known as the page of
                 // the mod `id` and before it loads, so what its owner sets up is in place before the mod's code runs.
                 onSandbox: (listener) => RUNNER.onSandbox((page, mod) => listener(page, mod.id)),
+            }),
+            // The seats: where a user sits while a run of theirs is hosted, each `{ id, user: { id, name }, local,
+            // source }`, `local` for the one whose devices are this machine's hardware and `source` the word every
+            // event of its devices carries.
+            seats: Object.freeze({
+                // The local seat, or null where it did not open.
+                get local() {
+                    return SEAT.local();
+                },
+                // Every seat open, in the order they opened.
+                list: () => Object.freeze(SEAT.list()),
+                // onOpen(listener(seat)) -> off, onClose(listener(seat)) -> off: a seat as it opens, and as it closes.
+                onOpen: SEAT.onOpen,
+                onClose: SEAT.onClose,
+                // Whether the seat's devices gave no input for the idle time.
+                isIdle: SEAT.isIdle,
+                // settings({ idleTime?, asking? }) -> Promise of `{ idleTime, asking }`, the seats' settings as they
+                // are kept: the seconds a seat's devices give no input for before it is idle, and whether a user that
+                // attaches waits until a seated user lets it sit. Each one named is set and kept first.
+                settings: SEAT.settings,
+                // input(seat, event) -> Promise of what the seat can see happened: the entry of what a seat's devices
+                // did, which the shell calls for what the environment's hardware tells; `event` is one of `pointer`,
+                // `key` and `text`, named under `event` beside its fields. Answered by what is served.
+                input: SEAT.input,
+                // serve({ input, read, onAsk }): what the shell answers the entry and the users at the seats with,
+                // each once: `input(seat, event)`, `event` with the seat's `source`, and `read(seat, { of, ...query
+                // })`, an output asked once, each handed plain data and answering what the user is answered, and
+                // `onAsk({ user }, { signal }) -> Promise of boolean`, whether a seated user lets `user` sit, `signal`
+                // aborted once no answer is waited for. What is not served is refused, and so is a user that waits
+                // for an ask nothing serves. Answers `{ tell(seat, output) }`, what the shell tells a seat: `output`
+                // is `{ of: 'changes', mark }` or `{ of: 'held', window, holder }`, and reaches a seat that watches it.
+                serve: SEAT.serve,
             }),
             permissions: Object.freeze({ define: PERMISSION.define }),
             // define(key): a top-level manifest key the UI reads, named before deckit starts.

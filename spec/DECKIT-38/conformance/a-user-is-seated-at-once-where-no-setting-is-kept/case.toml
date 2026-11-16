@@ -1,0 +1,29 @@
+case = 25
+name = "a-user-is-seated-at-once-where-no-setting-is-kept"
+note = "asking is false where no setting is kept, and a user is then seated at once: authenticate answers its result and the party is sent no attach/asking. ada attaches on a host that keeps no setting, and what its party was told holds no message."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+part = "principal"
+
+[step.expect]
+answers = "ada"
+
+[[step]]
+look = "told"
+party = "p"
+
+[step.expect]
+answers = { messages = [], closed = false }

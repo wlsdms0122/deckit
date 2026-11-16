@@ -1,6 +1,6 @@
-// What the mods post to deckit/notifications: kept in a record, let through at a rate for each sender, queued, and
-// shown as a toast while the app is in front and a drawer for toasts is there, or else as a notification of the
-// system's. A press runs the command of the sender's it names, and takes the notification away.
+// What the mods post to deckit/notifications: kept in a record, let through at a rate for each sender, and shown as a
+// toast while a drawer for toasts is there, and as a notification of the system's besides while the app is not in
+// front. A press runs the command of the sender's it names, and takes the notification away.
 const KEY = 'notifications';
 // How many the record keeps: the oldest goes.
 const KEEP = 100;
@@ -16,7 +16,8 @@ function center(deckit, { commands = () => null, now = Date.now } = {}) {
     // MARK: - Property
     const kept = deckit.storage.records.get(KEY, []); // newest first
     const sent = new Map(); // mod id -> when its notifications were shown, within the rate's window
-    const queue = []; // what waits to be shown
+    const fresh = []; // what was let through and is not shown yet, in the order posted
+    const queue = []; // what waits for room among the toasts
     const toasts = new Set(); // ids on screen as toasts
     const listeners = new Set();
     let drawer = null; // { show(notification), hide(id), active() }
@@ -85,18 +86,18 @@ function center(deckit, { commands = () => null, now = Date.now } = {}) {
     }
 
     // What draws toasts, while the screen lifecycle lasts, `active()` resolving to whether the app is in front; answers
-    // its off. A toast it took away lets the next out.
+    // its off, which lets go of what it drew and of what waited for room. A toast it took away lets the next out.
     function drawWith(given) {
         drawer = given;
-        drain();
         return () => {
             if (drawer === given) drawer = null;
             toasts.clear();
+            queue.length = 0;
         };
     }
 
     function toastGone(id) {
-        if (toasts.delete(id)) drain();
+        if (toasts.delete(id)) fill();
     }
 
     // MARK: - Private
@@ -124,7 +125,7 @@ function center(deckit, { commands = () => null, now = Date.now } = {}) {
         kept.splice(KEEP);
         changed();
         if (allowed(mod.id)) {
-            queue.push(notification);
+            fresh.push(notification);
             drain();
         }
         return notification.id;
@@ -170,21 +171,22 @@ function center(deckit, { commands = () => null, now = Date.now } = {}) {
         return lets;
     }
 
-    // One at a time, in the order posted: a toast waits while the screen is full.
+    // One at a time, in the order posted: each is a toast while a drawer is there, and the system's too while the app
+    // is not in front, which waits for no room among the toasts.
     function drain() {
         if (draining) return;
         draining = true;
         (async () => {
             try {
-                while (queue.length) {
-                    const toasting = !!drawer && (await drawer.active());
-                    if (toasting && toasts.size >= TOASTS) break;
-                    const next = queue.shift();
+                while (fresh.length) {
+                    const next = fresh.shift();
+                    const front = !!drawer && (await drawer.active());
                     if (!kept.includes(next)) continue;
-                    if (toasting) {
-                        toasts.add(next.id);
-                        drawer.show(next);
-                    } else await showOnSystem(next);
+                    if (drawer) {
+                        queue.push(next);
+                        fill();
+                    }
+                    if (!front) showOnSystem(next);
                 }
             } catch (error) {
                 console.error('[notifications] the queue stopped', error);
@@ -192,6 +194,16 @@ function center(deckit, { commands = () => null, now = Date.now } = {}) {
                 draining = false;
             }
         })();
+    }
+
+    // A toast waits while the screen is full.
+    function fill() {
+        while (drawer && queue.length && toasts.size < TOASTS) {
+            const next = queue.shift();
+            if (!kept.includes(next)) continue;
+            toasts.add(next.id);
+            drawer.show(next);
+        }
     }
 
     async function showOnSystem(notification) {
@@ -214,7 +226,7 @@ function center(deckit, { commands = () => null, now = Date.now } = {}) {
         kept.splice(place, 1);
         if (toasts.delete(notification.id)) drawer?.hide(notification.id);
         changed();
-        drain();
+        fill();
     }
 
     function changed() {

@@ -1,0 +1,53 @@
+case = 26
+name = "a-down-and-an-up-at-the-ref-of-an-item-are-a-click-on-it"
+note = "A ref is a place as a point is: a down and an up both at the ref of an item of the Dock are the seat's click on it. mod-a's window main is key for no seat that opens after it; ada's seat presses the item of mod-a at its ref and lets go there, and the window is key for that seat."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+look = "windows"
+seat = "s1"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = false, minimized = false }]
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", ref = "dock.mod-a", button = 0, count = 1 }
+part = "over"
+
+[step.expect]
+answers = "dock"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", ref = "dock.mod-a", button = 0, count = 1 }
+part = "over"
+
+[step.expect]
+answers = "dock"
+
+[[step]]
+look = "windows"
+seat = "s1"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = true, minimized = false }]

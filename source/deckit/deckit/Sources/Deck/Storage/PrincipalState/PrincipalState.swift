@@ -39,6 +39,19 @@ public final class PrincipalState {
         try store.write(text, to: file(name, principal: principal))
     }
 
+    // The principals `name` keeps anything of, by id.
+    package func principals(_ name: String) throws -> [String] {
+        let folder = root.appending(path: name, directoryHint: .isDirectory)
+
+        return try store.names(in: folder)
+            .compactMap { file in
+                let file = URL(filePath: file)
+                let principal = file.deletingPathExtension().lastPathComponent
+                return file.pathExtension == fileExtension && store.isName(principal) ? principal : nil
+            }
+            .sorted()
+    }
+
     // The names the principal has anything kept under, in the order they were reserved.
     func kept(principal: String) -> [String] {
         names.filter { name in store.exists(file(name, principal: principal)) }

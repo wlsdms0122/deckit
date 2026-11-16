@@ -1,6 +1,6 @@
 // The stage pages are laid on (deckit-electron/stage), checked over a stand-in for WebKit's module: what it is asked
 // to lay, in what order, where, cut to what and shown or not, each page's web pages over it, and where it is placed in
-// its window, and the materials laid among them.
+// its window, the materials laid among them, and the page a press reaches as read from a list of layers.
 // Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -65,9 +65,10 @@ async function main() {
     const { createStages } = await import(STAGE);
     const native = moduleOf();
     const webPages = new Map(); // page -> [{ page, frame }]
+    const known = new Map(); // id -> page, those a press is asked of
     const STAGES = createStages({
         LOG: { error: () => {} },
-        WEBKIT: { native: () => native },
+        WEBKIT: { native: () => native, pageById: (id) => known.get(id) || null },
         idOf: (window) => window.id,
         webPagesIn: (page) => webPages.get(page) || [],
     });
@@ -253,6 +254,54 @@ async function main() {
     );
     stage.close();
     check('a closed stage leaves the module', asked.removed, asked);
+
+    // The page a press reaches, read from a list that is laid nowhere.
+    const reader = STAGES.stage();
+    const [low, high, shown, cut] = [21, 22, 23, 24].map((id) => pageOf(id));
+    for (const page of [low, high, shown, cut]) known.set(page.id, page);
+    webPages.set(high, [{ page: shown, frame: { x: 10, y: 10, width: 50, height: 50 } }]);
+    const order = [
+        { page: low, rect: { x: 0, y: 0, width: 400, height: 300 } },
+        { material: 'menu', rect: { x: 0, y: 0, width: 400, height: 300 } },
+        {
+            page: high,
+            rect: { x: 100, y: 100, width: 200, height: 100 },
+            input: [{ x: 0, y: 0, width: 200, height: 80 }],
+        },
+        {
+            page: cut,
+            rect: { x: 300, y: 0, width: 100, height: 100 },
+            clip: { x: 300, y: 0, width: 100, height: 100, cornerRadius: 20 },
+        },
+        { page: pageOf(25), hidden: true },
+    ];
+    const reached = (x, y) => {
+        const found = reader.hit(order, { x, y });
+        return found && [found.page.id, found.x, found.y];
+    };
+    check(
+        'a press reaches the topmost page at its point, from that page',
+        String(reached(150, 170)) === '22,50,70' && String(reached(5, 6)) === '21,5,6',
+        [reached(150, 170), reached(5, 6)]
+    );
+    check(
+        'a press outside what a page takes reaches the page under it, through a material',
+        String(reached(150, 190)) === '21,150,190',
+        reached(150, 190)
+    );
+    check(
+        "a press on a page's web page reaches the web page",
+        String(reached(120, 120)) === '23,10,10',
+        reached(120, 120)
+    );
+    check(
+        'a press in a rounded corner a page is cut by passes it',
+        String(reached(398, 2)) === '21,398,2' && String(reached(350, 50)) === '24,50,50',
+        [reached(398, 2), reached(350, 50)]
+    );
+    check('a press off every page reaches none', reached(500, 500) === null, reached(500, 500));
+    check('reading a press lays nothing', native.stages.get(native.stages.size).laid.length === 0, native.stages);
+    reader.close();
 
     for (const line of failed) console.error(line);
     if (failed.length) {

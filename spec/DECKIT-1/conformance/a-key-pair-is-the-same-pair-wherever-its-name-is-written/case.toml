@@ -1,0 +1,22 @@
+case = 25
+name = "a-key-pair-is-the-same-pair-wherever-its-name-is-written"
+note = "A case has one key pair for each key-name it writes. The host registers the pair first for ada and for bob, and a party attaches as bob with the pair first."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }, { id = "bob", name = "Bob" }]
+keys = [{ principal = "ada", key = "first" }, { principal = "bob", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "bob"
+key = "first"
+part = "principal"
+
+[step.expect]
+answers = "bob"

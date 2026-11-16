@@ -1,0 +1,18 @@
+case = 23
+name = "a-view-at-the-place-top-right-stands-8-inside-the-window-and-under-the-desktop-s-top"
+note = "mod-a's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event mod-a:go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. A view at the place top-right stands with y at the desktop's top plus 8 and x at the window's width less 8 less its width, and one opened with activates false is shown for every seat, so the look windows lists it: mod-a, granted deckit.panel-windows, opens v 320 by 240 at the level panel and the place top-right, activates false."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "v", level = "panel", frame = { x = 952, y = 60, width = 320, height = 240 }, key = false, minimized = false }]

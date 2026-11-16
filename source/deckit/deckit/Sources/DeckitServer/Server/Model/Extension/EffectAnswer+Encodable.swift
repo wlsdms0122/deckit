@@ -10,7 +10,8 @@ import Deck
 import Deckit
 
 // Each as `effect`, its name, with the mod's id as `mod` and a run's number as `run`, as main names them in what it
-// asks; the mod a sandbox opens for is `found`, as the catalog reads it. A run's `contributions` are deck's keys, and
+// asks; the mod a sandbox a page hosts opens for is `found`, as the catalog reads it, and one a transport connection
+// hosts opens with that connection as `transport` and its job's `permissions`. A run's `contributions` are deck's keys, and
 // what it is refused with at launch is `refusal`, `{ stage, kind, message }`, at the stage the refusal is at. An event
 // delivered is `name` and `listeners`, as `event/emit` answers it. A lifecycle that waits is `wait`, with the mod it
 // waits for as `mod`, the name it reaches it by as `name`, itself as `client`, and what it is told that mod is refused
@@ -22,6 +23,8 @@ extension EffectAnswer: Encodable {
         case effect
         case mod
         case found
+        case transport
+        case permissions
         case notification
         case run
         case state
@@ -48,7 +51,14 @@ extension EffectAnswer: Encodable {
         case let .open(job):
             try container.encode("open", forKey: .effect)
             try container.encode(job.principal, forKey: .mod)
-            try container.encodeIfPresent(found, forKey: .found)
+            switch job.host {
+            case .page:
+                try container.encodeIfPresent(found, forKey: .found)
+
+            case let .transport(transport):
+                try container.encode(transport, forKey: .transport)
+                try container.encode(job.permissions, forKey: .permissions)
+            }
 
         case let .loadPage(principal):
             try container.encode("loadPage", forKey: .effect)

@@ -1,0 +1,58 @@
+case = 26
+name = "a-view-shown-by-activation-is-on-the-screen-of-the-seat-its-mod-acts-for-alone"
+note = "Each mod's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as its event go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. A view opened with activates left out is shown by activation for the seat its mod acts for, and showing it for one seat leaves every other seat's screen as it is. A party attaches as ada, at the seat s1, and presses main, so mod-a acts for s1, and mod-a is told to open v 320 by 240 at the place top-right, at the level panel: v is shown by activation for s1, at { x = 952, y = 60 }, and s1 holds its keyboard. The look windows of s1 lists v, and main not key, told didResignKey as v took the keyboard; that of the local seat lists main alone."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { open = { name = "v", level = "panel", place = "top-right", width = 320, height = 240 } }]
+
+[[step]]
+look = "windows"
+seat = "s1"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 141, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "v", level = "panel", frame = { x = 952, y = 60, width = 320, height = 240 }, key = false, minimized = false }]
+
+[[step]]
+look = "windows"
+seat = "local"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 141, width = 720, height = 480 }, key = false, minimized = false }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/main/didAppear", activates = true }, { url = "https://said.test/main/didBecomeKey", activates = true }, { url = "https://said.test/main/didResignKey", activates = true }, { url = "https://said.test/v/didAppear", activates = true }, { url = "https://said.test/v/didBecomeKey", activates = true }]

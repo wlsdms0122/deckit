@@ -42,10 +42,15 @@ function generalSection({ ui, theme, fonts }) {
         rows.size.set(kept.size ?? theme.textSize);
     }
 
-    // `optionsOf()` answers the choices; a value kept that is not among them (a face chosen on another Mac) is labeled
-    // so it does not read as nothing chosen.
+    // `optionsOf()` answers the choices; a value kept that is not among them (a face chosen on another machine) is
+    // labeled so it does not read as nothing chosen.
     function choiceRow(key, { label, hint, optionsOf }) {
-        const select = ui.select({ options: optionsOf(), value: DEFAULT, onChange: (value) => change(key, value) });
+        const select = ui.select({
+            label,
+            options: optionsOf(),
+            value: DEFAULT,
+            onChange: (value) => change(key, value),
+        });
         return { element: settingRow(label, hint, select.element), set };
 
         function set(value) {
@@ -59,6 +64,7 @@ function generalSection({ ui, theme, fonts }) {
 
     function sizeRow({ label, hint }) {
         const stepper = ui.stepper({
+            label,
             value: theme.textSize,
             ...SIZE,
             unit: ' px',

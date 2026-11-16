@@ -1,0 +1,42 @@
+case = 23
+name = "resize-sets-the-size-a-view-asks-held-as-the-size-it-opened-at"
+note = "Each mod's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as its event go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. A view's size is the size resize set last, held as the size it opened at is, and it is told didResize as it changes size: mod-a opens v 320 by 240 at the place top-right, activates false, and is told to call resize(400, 300) of it, and v stands 400 by 300 at x 872, 1280 less 8 less 400; and then resize(2000, 10), and v stands 480 by 80 at x 792."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { do = "resize", name = "v", args = [400, 300] }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "v", level = "panel", frame = { x = 872, y = 60, width = 400, height = 300 }, key = false, minimized = false }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { do = "resize", name = "v", args = [2000, 10] }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "v", level = "panel", frame = { x = 792, y = 60, width = 480, height = 80 }, key = false, minimized = false }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/v/didAppear", activates = true }, { url = "https://said.test/v/didResize", activates = true }, { url = "https://said.test/v/didResize", activates = true }]

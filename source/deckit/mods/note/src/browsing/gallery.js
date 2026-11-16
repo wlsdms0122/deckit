@@ -106,9 +106,9 @@ function gallery({
     const body = ui.element('div', { className: 'note-gallery' });
     const resultHeading = ui.element('div', { className: 'note-gallery-heading' });
     const folderHeading = ui.element('div', { className: 'note-gallery-heading', text: 'Folders' });
-    const folderCards = ui.list({ key: (item) => item.path, create: folderCardOf });
+    const folderCards = ui.list({ name: 'Folders', key: (item) => item.path, create: folderCardOf });
     const noteHeading = ui.element('div', { className: 'note-gallery-heading', text: 'Notes' });
-    const noteCards = ui.list({ key: (item) => item.path, create: noteCardOf });
+    const noteCards = ui.list({ name: 'Notes', key: (item) => item.path, create: noteCardOf });
     const status = ui.element('div', { className: 'note-gallery-status' });
     const partialNotice = ui.element('div', {
         className: 'note-gallery-partial',
@@ -339,6 +339,7 @@ function gallery({
         const icon = ui.element('span', { className: 'note-card-icon' });
         const words = ui.element('div', { className: 'note-card-words' });
         const name = ui.element('div', { className: 'note-card-name', text: item.name });
+        card.setAttribute('role', 'listitem');
         markEntry(card, item);
         icon.innerHTML = ui.folderIcon({ open: false, size: 26 });
         // What a drag carries and an inline rename types over.
@@ -351,6 +352,8 @@ function gallery({
     function noteCardOf(item) {
         const card = ui.element('div', { className: 'note-card note-card-note' });
         const title = ui.element('div', { className: 'note-card-title', text: item.title });
+        card.setAttribute('role', 'listitem');
+        card.setAttribute('aria-label', item.title);
         markEntry(card, item);
         title.dataset.name = '';
         card.append(

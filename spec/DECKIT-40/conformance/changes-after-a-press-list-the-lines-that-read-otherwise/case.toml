@@ -1,0 +1,40 @@
+case = 26
+name = "changes-after-a-press-list-the-lines-that-read-otherwise"
+note = "Each mod-a opens the windows the case says, each filled by a text field: main, the window 1 at 283, 107, 720 by 480. The desktop is the base shell, 1280 by 800, and ada sits at s1. It presses at 600, 300, on the window, and reads changes since 7, the mark before: its own line, the item and the window are listed as changed, each as it reads now, and no other line."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "changes", since = 7 }
+
+[step.expect]
+answers = { text = "changes 7 to 9\n~ seat s1 \"Ada Lovelace\" green at 600,300 key w1 (you)\n~ item \"mod-a\" [running, active] dock.mod-a\n~ window w1 \"mod-a\" mod-a at 283,107 720x480 [key s1]", mark = 9 }

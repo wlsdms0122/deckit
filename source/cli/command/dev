@@ -33,7 +33,7 @@ const start = () => {
     const running = spawn(electron, [RUN, ...args], {
         cwd: root,
         stdio: 'inherit',
-        env: { ...process.env, DECKIT_DATA: path.join(root, '.dev') },
+        env: { ...process.env, DECKIT_DATA: process.env.DECKIT_DATA ?? path.join(root, '.dev') },
     });
     app = running;
     running.on('exit', (code) => {

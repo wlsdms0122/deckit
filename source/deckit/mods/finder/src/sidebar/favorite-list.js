@@ -24,7 +24,13 @@ function favoriteList({ ui, reveal, records, tildify, folds, onGo, onOpenInNewTa
             folds.set('favorites', collapsed);
         },
     });
-    const rows = ui.list({ key: (path) => path, create: createRow, update: updateRow, animated: true });
+    const rows = ui.list({
+        name: 'Favorites',
+        key: (path) => path,
+        create: createRow,
+        update: updateRow,
+        animated: true,
+    });
 
     section.body.append(rows.element);
     ui.sortable(rows, {

@@ -1,0 +1,30 @@
+case = 23
+name = "a-panel-window-is-told-its-room-as-another-opens-beside-it"
+note = "mod-a's code, in attach, opens the windows the case says, and tells of the window p alone, each time by opening an address outside the app: https://said.test/<name>/room/<room> as windows.open answers its handle and as the event mod-a:go asks for it, <room> the room the handle holds then, <width>x<height> or null; https://said.test/<name>/<callback> from a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose; and https://said.test/<name>/didChangeRoom/<room> from one for didChangeRoom. It opens a window as the event mod-a:go tells it, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. A panel window is told didChangeRoom as its room changes, less by the width of a panel window that opens and 8 beside it: mod-a, granted deckit.panel-windows, opens p 120 by 32 at the level panel in attach, and then q, 80 by 32 at the level panel."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { open = { name = "q", level = "panel", width = 80, height = 32 } }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/p/room/null", activates = true }, { url = "https://said.test/p/didAppear", activates = true }, { url = "https://said.test/p/didChangeRoom/1264x52", activates = true }, { url = "https://said.test/p/didChangeRoom/1176x52", activates = true }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "p", level = "panel", frame = { x = 1152, y = 10, width = 120, height = 32 }, key = false, minimized = false }, { mod = "mod-a", name = "q", level = "panel", frame = { x = 1064, y = 10, width = 80, height = 32 }, key = false, minimized = false }]

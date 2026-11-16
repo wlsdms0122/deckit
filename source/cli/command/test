@@ -1,29 +1,59 @@
 #!/usr/bin/env node
 // Checks the channels between main and a page, the stage pages are laid on, what an environment gives and connect
-// answers, deck's client of the core, its runner, the exports a page opens by interface, the mods a connection
-// launches, the scope a lifecycle cuts and the events a page hears, deckit as a layer on deck, the key map, the mods as
+// answers, the seats main keeps, deck's client of the core, its runner, the exports a page opens by interface, the
+// mods a connection launches, the scope a lifecycle cuts and the events a page hears, deckit as a layer on deck, the
+// key map, the local sockets under a folder of a long path, the wire a party from outside speaks, the mods as
 // the core reads them, an address offered to its handlers in turn, the web pages a mod shows, what a page is told as it
 // starts, the styles a page wears, the regions mods give their children, forge's runs, the commands, urls, keymap and
 // configuration mods, the Switcher's list, the Browser's game, Settings' Activity and the Mods mod's search, runs the core's tests, then
 // drives Deckit.app, put together from the archive it builds first, through the scenario, with data of its own that is
-// thrown away. Exits 1 with a line for each check that failed. Screenshots and the app's log are left in .build/test/.
+// thrown away. With areas named, only the unit files that go with them and their checks of the scenario run, with the
+// areas they need, in the scenario's order, on the app started once; `--list` prints the areas. Exits 1 with a line for
+// each check that failed. Screenshots and the app's log are left in .build/test/.
 const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '..', '..', '..');
 const { execFileSync } = require('child_process');
 const { start } = require(path.join(root, 'source', 'cli', 'test', 'start.js'));
-const { sleep } = require(path.join(root, 'source', 'cli', 'test', 'devtools.js'));
+const { until } = require(path.join(root, 'source', 'cli', 'test', 'devtools.js'));
 const SCENARIO = require(path.join(root, 'source', 'cli', 'test', 'scenario.js'));
 const OUT = path.join(root, '.build', 'test');
 const LIMIT = 300000;
 
+const USAGE = "usage: deckit test [--port <the main process's inspector port, default 9334>] [--list] [<area> ...]";
+const AREAS = SCENARIO.areas;
+// A unit file goes with the walk through the desktop unless it names the areas it goes with.
+const UNITS = {
+    'stage.js': ['input', 'outside', 'read'],
+    'seats.js': ['outside'],
+    'socket.js': ['outside'],
+    'outside-wire.js': ['outside'],
+    'core.js': ['core'],
+    'runner.js': ['core'],
+};
+const goesWith = (check) => UNITS[check] ?? ['desktop'];
+
 const args = process.argv.slice(2);
-const port = args.length ? Number(args[1]) : 9334;
-if ((args.length && (args.length !== 2 || args[0] !== '--port')) || !Number.isInteger(port) || port <= 0) {
-    console.error("usage: deckit test [--port <the main process's inspector port, default 9334>]");
+const at = args.indexOf('--port');
+const port = at < 0 ? 9334 : Number(args.splice(at, 2)[1]);
+const list = args.includes('--list');
+const named = args.filter((arg) => arg !== '--list');
+const unknown = named.filter((arg) => !AREAS.some(({ name }) => name === arg));
+if (unknown.length || !Number.isInteger(port) || port <= 0) {
+    console.error(USAGE);
+    if (unknown.length)
+        console.error(`no area ${unknown.join(', ')}: the areas are ${AREAS.map(({ name }) => name).join(', ')}`);
     process.exit(2);
 }
+if (list) {
+    for (const { name, says, needs = [] } of AREAS)
+        console.log(`${name.padEnd(8)} ${says}${needs.length ? ` (needs ${needs.join(', ')}, run first)` : ''}`);
+    process.exit(0);
+}
+const chosen = SCENARIO.areasFor(named);
+const runs = (name) => chosen.includes(name);
+const whole = chosen.length === AREAS.length;
 
 const main = async () => {
     execFileSync(path.join(__dirname, 'build'), { cwd: root, stdio: 'inherit' });
@@ -47,7 +77,12 @@ const main = async () => {
         'desktop.js',
         'window.js',
         'dock.js',
+        'status-bar.js',
         'host.js',
+        'seats.js',
+        'socket.js',
+        'outside-wire.js',
+        'seats-mod.js',
         'key.js',
         'style.js',
         'token.js',
@@ -64,33 +99,46 @@ const main = async () => {
         'activity.js',
         'all-mods.js',
     ];
-    for (const check of checks)
+    for (const check of checks.filter((check) => goesWith(check).some(runs)))
         execFileSync(process.execPath, ['--no-warnings', path.join(root, 'source', 'cli', 'test', check)], {
             stdio: 'inherit',
         });
     const core = path.join(root, 'source', 'deckit', 'deckit');
     const scratch = path.join(root, '.build', 'core-test');
-    execFileSync('swift', ['test', '--quiet', '--package-path', core, '--scratch-path', scratch], { stdio: 'inherit' });
+    if (runs('core'))
+        execFileSync('swift', ['test', '--quiet', '--package-path', core, '--scratch-path', scratch], {
+            stdio: 'inherit',
+        });
     fs.rmSync(OUT, { recursive: true, force: true });
     fs.mkdirSync(OUT, { recursive: true });
     const log = path.join(OUT, 'log.txt');
     const app = start({ seed: SCENARIO.seed, shots: OUT, log, port, limit: LIMIT });
-    const report = await SCENARIO.run(app);
+    const report = await SCENARIO.run(app, chosen);
     app.stop();
-    await sleep(1000);
+    // The app quits with its core ended, as the core area left it, and is killed 5 s after it was asked to: the socket
+    // is held to be gone only where both areas ran, as an app whose core still runs may take longer to quit.
+    if (runs('outside') && runs('core')) {
+        const gone = await until(() => !fs.existsSync(path.join(app.home, 'deckit.sock')), 4000);
+        report.push({ name: 'outside: the socket is gone once the app quit', ok: !!gone, detail: '' });
+    }
     fs.writeFileSync(path.join(OUT, 'report.json'), JSON.stringify(report, null, 4) + '\n');
 
     const failed = report.filter(({ ok }) => !ok);
     const shown = path.relative(root, OUT) + '/';
+    // A run of some areas says which, so it is not read as a run of all.
+    const ran = whole
+        ? `${report.length} checks`
+        : `${report.length} of ${report.length} checks in ${chosen.join(', ')}`;
+    const where = whole ? '' : ` in ${chosen.join(', ')}`;
     if (!failed.length) {
-        console.log(`ok: ${report.length} checks, on Deckit.app as it was just built (screenshots in ${shown})`);
+        console.log(`ok: ${ran}, on Deckit.app as it was just built (screenshots in ${shown})`);
         process.exit(0);
     }
     for (const { name, detail } of failed) console.error(`FAIL ${name}${detail ? ': ' + detail.slice(0, 300) : ''}`);
     const lines = fs.existsSync(log) ? fs.readFileSync(log, 'utf8').split('\n') : [];
     const worth = lines.filter((line) => /error|failed|threw|refused/i.test(line));
     if (worth.length) console.error('the app logged:\n' + worth.slice(0, 30).join('\n'));
-    console.error(`${failed.length} of ${report.length} checks failed (the app's log is ${shown}log.txt)`);
+    console.error(`${failed.length} of ${report.length} checks failed${where} (the app's log is ${shown}log.txt)`);
     process.exit(1);
 };
 

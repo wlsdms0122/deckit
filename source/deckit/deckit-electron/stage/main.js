@@ -3,6 +3,8 @@
 // pages a page shows are laid just over it, each over the element that holds its place and cut to the page and to
 // what the page is cut to (`webPagesIn(page)`, `[{ page, frame }]`, `frame` in the page), taking no pointer where the
 // page takes none. `idOf(window)` is a window's in the module.
+import { hitIn } from './hit.js';
+
 export function createStages({ LOG, WEBKIT, idOf, webPagesIn }) {
     // MARK: - Property
     const showing = new WeakMap(); // page -> the stage it is shown on, a page of deck's or a web page
@@ -73,6 +75,28 @@ export function createStages({ LOG, WEBKIT, idOf, webPagesIn }) {
             relay();
         }
 
+        // The page a press at `point` of the stage reaches were `layers` what is laid, as `lay` takes them, read from
+        // the list and from no view, so for an order that is not the one shown too: `{ page, x, y }`, the point from
+        // that page's top left, a web page a page shows answered as itself, or null where it reaches none.
+        function hit(layers, point) {
+            const found = hitIn(
+                layersOf(layers, () => {}),
+                point
+            );
+            return found && { ...found, page: WEBKIT.pageById(found.page) };
+        }
+
+        // `rect` of the stage, all of it where none is given, as it would be seen were `layers` what is laid, as `lay`
+        // takes them: a Promise of a PNG, `scale` pixels a point, 1 where it is not given, made from what each page
+        // draws and from no window, so for an order that is not the one shown too. A page is drawn where it is laid,
+        // cut and scaled as laid; a hidden page and a material leave nothing in it.
+        function capture(layers, { rect = null, scale = 1 } = {}) {
+            const of = layersOf(layers, () => {});
+            return native
+                .capture(of, { rect: rect ?? { x: 0, y: 0, ...size() }, scale })
+                .then((png) => Buffer.from(png, 'base64'));
+        }
+
         // The stage ended: its pages taken off and it out of its window.
         function close() {
             if (closed) return;
@@ -110,7 +134,13 @@ export function createStages({ LOG, WEBKIT, idOf, webPagesIn }) {
                 showing.set(page, record);
                 record.shown.add(page);
             };
-            const layers = laid.flatMap(({ page, material, rect, clip, input, opacity, scale, cornerRadius = 0 }) => {
+            native.layStage(id, layersOf(laid, show));
+        }
+
+        // `layers` as the native side lays them, each page's web pages just over it, `show(page)` told each page
+        // that has a place among them.
+        function layersOf(layers, show) {
+            return layers.flatMap(({ page, material, rect, clip, input, opacity, scale, cornerRadius = 0 }) => {
                 if (material) return [{ material, frame: rect, cornerRadius }];
                 if (page.isDestroyed()) return [];
                 if (!rect) return [{ page: page.id, hidden: true }];
@@ -129,7 +159,6 @@ export function createStages({ LOG, WEBKIT, idOf, webPagesIn }) {
                     ...over,
                 ];
             });
-            native.layStage(id, layers);
         }
 
         // How a page laid at `opacity` and `scale` is told to the native side: each left out where it draws it as laid.
@@ -141,7 +170,7 @@ export function createStages({ LOG, WEBKIT, idOf, webPagesIn }) {
         }
 
         const record = { relay, window: () => at?.window || null, shown: new Set() };
-        return Object.freeze({ place, size, whenResized, show, lay, close });
+        return Object.freeze({ place, size, whenResized, show, lay, hit, capture, close });
     }
 
     // A page's web pages moved, came or went: the stage it is shown on lays them again.

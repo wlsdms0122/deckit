@@ -1,0 +1,17 @@
+case = 26
+name = "a-setting-the-host-is-refused-refuses-the-start"
+note = "The host sets an idle time below 0 before the first start, which the system refuses: the refusal is what the first start comes to."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+seats = { idleTime = -1 }
+
+[[step]]
+input = "start"
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

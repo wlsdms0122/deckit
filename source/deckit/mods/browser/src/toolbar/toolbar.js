@@ -81,6 +81,7 @@ function toolbar({ ui, trailing, onBack, onForward, onReload, onSitePermissions,
     const place = ui.element('span', { className: 'browser-address-place' });
     address.append(place);
     const input = ui.element('input', { className: 'browser-address-input' });
+    input.setAttribute('aria-label', 'Address');
     input.spellcheck = false;
     const reload = ui.iconButton({
         icon: ui.icon('reload', { size: ICON_SIZE }),

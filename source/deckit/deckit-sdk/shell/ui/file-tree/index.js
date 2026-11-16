@@ -34,7 +34,7 @@ function make(theme, ui) {
 
 // MARK: - Private
 // A row of a tree: a caret when it folds, its mark, its name (marked `data-name`, what a rename types over).
-// `setOpen` shows a row that folds open or folded.
+// `setOpen` shows a row that folds open or folded. It is an item of a tree, `depth` levels in.
 function treeRow(
     ui,
     folderIcon,
@@ -43,6 +43,8 @@ function treeRow(
     const row = ui.row({ size, glyph: folder ? '' : glyph });
     const { element } = row;
     element.classList.add('deckit-tree-row');
+    element.setAttribute('role', 'treeitem');
+    element.setAttribute('aria-level', String(depth + 1));
     element.style.paddingLeft = 4 + depth * DEPTH_INDENT + 'px';
     element.toggleAttribute('data-folds', folds);
     const caret = document.createElement('span');

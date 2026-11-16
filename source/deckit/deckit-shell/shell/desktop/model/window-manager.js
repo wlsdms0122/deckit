@@ -8,9 +8,10 @@ const HELD = 'held';
 // The desktop's windows as every seat shares them, each with its frame, its minimum size and the seats that hold its
 // keyboard, and each seat's own: its order, back to front, its key window and the windows it minimized. A seat is one
 // user's pointer and keyboard, named by a token the caller keeps; every operation is one seat's. A window is held by
-// the seat whose key window it is: making key a window another seat holds leaves it to that seat and answers HELD.
+// the seat whose key window it is: making key a window another seat holds leaves it to that seat and answers HELD,
+// unless that seat is idle, as `isIdle(seat)` answers, which gives the window up: `onTaken(holder, id, by)` hears it.
 // Frames are `{ x, y, width, height }`, never below the window's `minimum` `{ width, height }`.
-function createWindowManager() {
+function createWindowManager({ isIdle = () => false, onTaken = () => {} } = {}) {
     // MARK: - Property
     // id -> { frame, minimum, zoomed, tiled, holders }: `zoomed` the frame zoom left, or null; `tiled`
     // `{ name, before }`, the tile it is in and the frame it had before, or null
@@ -70,12 +71,19 @@ function createWindowManager() {
         seat.order = behindKey(seat, id);
     }
 
-    // `by`'s key window, and held by it, unless another seat holds it: answers KEY or HELD.
+    // `by`'s key window, and held by it, unless another seat holds it and is not idle: answers KEY or HELD. An idle
+    // holder is left with no key window.
     function makeKey(by, id) {
         const seat = seats.get(by);
         const window = windows.get(id);
         if (!seat || !window || seat.minimized.has(id)) return null;
-        if ([...window.holders].some((holder) => holder !== by)) return HELD;
+        const others = [...window.holders].filter((holder) => holder !== by);
+        if (others.some((holder) => !isIdle(holder))) return HELD;
+        for (const holder of others) {
+            window.holders.delete(holder);
+            seats.get(holder).key = null;
+            onTaken(holder, id, by);
+        }
         if (seat.key !== null) windows.get(seat.key)?.holders.delete(by);
         seat.key = id;
         window.holders.add(by);
@@ -172,6 +180,11 @@ function createWindowManager() {
         return (windows.get(id)?.holders.size ?? 0) > 0;
     }
 
+    // The seat that holds the window's keyboard, or null.
+    function holderOf(id) {
+        return [...(windows.get(id)?.holders ?? [])][0] ?? null;
+    }
+
     function frameOf(id) {
         return windows.get(id)?.frame ?? null;
     }
@@ -233,6 +246,7 @@ function createWindowManager() {
         isMinimized,
         isShown,
         isKey,
+        holderOf,
         isZoomed,
         frameOf,
         tileNameOf,

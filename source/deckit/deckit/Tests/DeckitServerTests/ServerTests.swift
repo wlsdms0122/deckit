@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CryptoKit
 import Testing
 @testable import Deck
 @testable import Deckit
@@ -29,8 +30,8 @@ struct ServerTests {
     }
 
     // MARK: - Test
-    @Test("initialize answers where deck keeps the mods it installed, their data folders and how long a run is given")
-    func initializeAnswersFoldersAndTimeout() throws {
+    @Test("initialize answers where deck keeps the mods and their data, a run's times and the seats' settings")
+    func initializeAnswersFoldersAndTimes() throws {
         // Given
         // When
         let response = try send(initializeRequest, to: sut)
@@ -39,6 +40,7 @@ struct ServerTests {
         #expect(value(in: response, at: "result", "mods") == .string(home + "/mods"))
         #expect(value(in: response, at: "result", "data") == .string(home + "/data"))
         #expect(value(in: response, at: "result", "timeout") == (try json(#"{"launch":20,"end":5}"#)))
+        #expect(value(in: response, at: "result", "seats") == (try json(#"{"idleTime":300,"asking":false}"#)))
     }
 
     @Test("a call before initialize is refused")
@@ -650,6 +652,60 @@ struct ServerTests {
         #expect(
             value(in: mods[0], at: "manifest", "fields")
                 == .object(["view": .object(["caf\u{E9}": .number(1), "cafe\u{301}": .number(2)])])
+        )
+    }
+
+    @Test("with asking set on, a user that proves its key is answered as asking, and sits as it is let")
+    func admissionAsksThenSeats() throws {
+        // Given
+        let privateKey = Curve25519.Signing.PrivateKey()
+        let key = privateKey.publicKey.rawRepresentation.base64EncodedString()
+        let nonce = Data(repeating: 7, count: 32)
+        _ = try send(initializeRequest, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"user/add","params":{"id":"fable","name":"Fable"}}"#, to: sut)
+        let settings = try send(#"{"jsonrpc":"2.0","id":7,"method":"seat/settings","params":{"asking":true}}"#, to: sut)
+        _ = try send(
+            #"{"jsonrpc":"2.0","id":3,"method":"key/add","params":"#
+                + #"{"principal":"fable","scheme":"ed25519","key":"\#(key)","name":"test"}}"#,
+            to: sut
+        )
+        let challenged = try send(
+            #"{"jsonrpc":"2.0","id":4,"method":"authentication/challenge","params":"#
+                + #"{"transport":"t1","nonce":"\#(nonce.base64EncodedString())"}}"#,
+            to: sut
+        )
+        guard case let .string(text)? = value(in: challenged, at: "result", "challenge") else {
+            Issue.record("no challenge: \(challenged)")
+            return
+        }
+        let challenge = try #require(Data(base64Encoded: text))
+        let transcript = Data("deckit-authenticate-1".utf8) + [0] + Data("fable".utf8) + [0] + challenge + nonce
+        let signature = try privateKey.signature(for: transcript).base64EncodedString()
+
+        // When
+        let asking = try send(
+            #"{"jsonrpc":"2.0","id":5,"method":"authentication/verify","params":{"transport":"t1","#
+                + #""principal":"fable","scheme":"ed25519","key":"\#(key)","signature":"\#(signature)"}}"#,
+            to: sut
+        )
+        let seated = try send(
+            #"{"jsonrpc":"2.0","id":6,"method":"seat/answer","params":{"transport":"t1","allow":true}}"#,
+            to: sut
+        )
+
+        // Then
+        let user = #"{"id":"fable","name":"Fable"}"#
+        #expect(value(in: settings, at: "result") == (try json(#"{"idleTime":300,"asking":true}"#)))
+        #expect(value(in: asking, at: "result") == (try json(#"{"asking":{"user":\#(user)}}"#)))
+        #expect(value(in: seated, at: "result", "seat") == (try json(#"{"id":"s1","user":\#(user),"local":false}"#)))
+        guard case let .array(effects)? = value(in: seated, at: "result", "effects") else {
+            Issue.record("no effects: \(seated)")
+            return
+        }
+        #expect(
+            effects.first == (try json(
+                #"{"effect":"open","mod":"fable","transport":"t1","permissions":["deckit.seat"]}"#
+            ))
         )
     }
 

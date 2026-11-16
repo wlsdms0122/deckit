@@ -1,0 +1,30 @@
+case = 23
+name = "a-view-under-an-anchor-is-held-8-inside-the-window-s-left-side"
+note = "Each mod's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as its event go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. A view under an anchor stands with x no less than 8: mod-a opens main, at { x = 283, y = 141 }, names the anchor spot of it at { x = 0, y = 50, width = 40, height = 20 }, whose right edge is 323, and opens v 320 by 240 under it, activates false: 323 less 320 is 3, so v stands at x 8, and at y 219, 8 under the anchor's bottom."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { do = "setAnchors", name = "main", args = [[{ id = "spot", rect = { x = 0, y = 50, width = 40, height = 20 }, mod = "mod-a" }]] }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { open = { name = "v", level = "panel", activates = false, width = 320, height = 240, anchor = { mod = "mod-a", id = "spot" } } }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 141, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "v", level = "panel", frame = { x = 8, y = 219, width = 320, height = 240 }, key = false, minimized = false }]

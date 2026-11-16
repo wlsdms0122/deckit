@@ -5,8 +5,8 @@
 // for a mod granted the clipboard permission, and only the environment's, what a mod lets sites have and the
 // certificates it trusts, each refused whole for an entry that does not fit, a fetch's refusals, a site's
 // notifications, a mod's tabs held to the mod, its downloads told to its running run, and each web page told as it is
-// adopted, and the title a window showing a web page wears. Exits 1 with a line for each check that failed. The
-// packages are ES modules, so they are imported as such.
+// adopted, the title a window showing a web page wears, and a data store the system's own. Exits 1 with a line for
+// each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -885,6 +885,30 @@ async function main() {
         labelOf('', 'https://example.com/')
     );
     check('a page that is no site is its title', labelOf('Notes', 'file:///tmp/a.html') === 'Notes', '');
+
+    // A data store is the system's own: named by the key its folder keeps, the same as the system starts again, none
+    // of another folder's, nor of an earlier folder at the same place.
+    {
+        globalThis.require = require;
+        const { keyIn, storeOf } = await import(url('deckit-electron', 'webkit', 'model', 'store.js'));
+        const fs = require('fs');
+        const os = require('os');
+        const systems = fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-test-stores-'));
+        const [one, two] = ['one', 'two'].map((name) => path.join(systems, name));
+        const partition = 'persist:deckit-test:mod-a:main';
+        const first = storeOf(keyIn(one), partition);
+        check('a system started again has its stores', storeOf(keyIn(one), partition) === first, first);
+        check("a system has none of another's stores", storeOf(keyIn(two), partition) !== first, first);
+        fs.rmSync(one, { recursive: true, force: true });
+        const anew = storeOf(keyIn(one), partition);
+        check('a new folder at the place of an earlier one has none of its stores', anew !== first, anew);
+        check(
+            'a store is named as WebKit names one',
+            /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-/.test(anew),
+            anew
+        );
+        fs.rmSync(systems, { recursive: true, force: true });
+    }
 
     if (failed.length) {
         for (const line of failed) console.error(line);

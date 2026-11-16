@@ -1,0 +1,21 @@
+case = 25
+name = "a-principal-that-is-no-user-is-not-authenticated"
+note = "A proof does not verify where principal is no user. The host registers the pair first for ada and makes no user; a party that proves ada with that pair is refused at call, as with a key not authorized."
+
+[host]
+base = "system"
+api = "1.0.0"
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[step.expect]
+refuses = "call"
+kind = "NOT_AUTHENTICATED"

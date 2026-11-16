@@ -80,7 +80,12 @@ function columnView({ ui, icons, entryAt, onResize }) {
     let preview = null;
 
     const element = ui.element('div', { className: 'finder-columns' });
-    const columns = ui.list({ key: (folder) => folder, create: createColumn, update: updateColumn });
+    const columns = ui.list({
+        role: 'presentation',
+        key: (folder) => folder,
+        create: createColumn,
+        update: updateColumn,
+    });
 
     ui.addStyle(STYLE);
     columns.element.classList.add('finder-column-list');
@@ -147,7 +152,12 @@ function columnView({ ui, icons, entryAt, onResize }) {
         setWidth(column, widthOf(folder));
         // Rows scroll in a body of their own so the resize edge stays put.
         const body = ui.element('div', { className: 'finder-column-body' });
-        const rows = ui.list({ key: (entry) => entry.path, create: createCell, update: updateCell });
+        const rows = ui.list({
+            role: 'presentation',
+            key: (entry) => entry.path,
+            create: createCell,
+            update: updateCell,
+        });
         const message = ui.element('div', { className: 'finder-column-message' });
         const loading = ui.loading.skeleton({ rows: LOADING_ROWS, height: 28 }).element;
         body.append(rows.element, message);
@@ -210,6 +220,7 @@ function columnView({ ui, icons, entryAt, onResize }) {
     function createCell(entry) {
         const cell = ui.row({ size: 'small' });
         cell.element.classList.add('finder-column-cell');
+        cell.element.setAttribute('role', 'treeitem');
         cell.element.dataset.path = entry.path;
         cellParts.set(cell.element, cell);
         updateCell(cell.element, entry);

@@ -1,0 +1,32 @@
+case = 25
+name = "a-step-after-a-detach-finds-the-run-of-its-party-ended"
+note = "After a detach the host app has settled once the run the transport connection hosted has ended. A party attaches as ada and detaches, and the next step attaches a second party as ada, which is answered the second run of ada and not refused for one that runs."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "detach"
+party = "p"
+
+[[step]]
+input = "attach"
+party = "q"
+principal = "ada"
+key = "first"
+part = "run"
+
+[step.expect]
+answers = 2

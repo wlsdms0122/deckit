@@ -4,9 +4,12 @@ version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
 activationPolicy = "accessory"
+background = "Keeps the time in the status bar from the start."
 icon = "icon.svg"
 keywords = ["clock", "time", "date", "시계"]
-view = { parent = "status-bar/items" }
 
 [interfaces]
-uses = { "status-bar/items" = 1, "notifications/center" = 1 }
+uses = { "status-bar/items" = 2 }
+
+[[contributes."status-bar/items"]]
+name = "Clock"

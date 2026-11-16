@@ -49,12 +49,13 @@ const ROW_HEIGHT = Object.freeze({ medium: 28, small: 24 });
 // MARK: - Initializer
 // MARK: - Public
 function make() {
-    return { row, list };
+    return { row, list, tabs };
 }
 
 // MARK: - Private
 // A row of a list, washed under the pointer. `glyph`, an svg or an element, leads it in its slot (`glyph`), in
-// `muted`, and in the row's own ink while it is chosen; `setGlyph` shows another there. `setActive` marks it chosen;
+// `muted`, and in the row's own ink while it is chosen; `setGlyph` shows another there. `setActive` marks it chosen,
+// which it tells as selected, so the list that holds chosen rows is a `listbox`, a `tree` or `tabs`;
 // `setActionsShown` keeps its actions shown. Its actions take no room while they are hidden, as in any element marked
 // `data-deckit-row-actions`, which shows them as a row does, and keeps them shown while the mark is `shown`.
 function row({ size = 'medium', glyph = null } = {}) {
@@ -75,22 +76,46 @@ function row({ size = 'medium', glyph = null } = {}) {
         element,
         glyph: slot,
         setGlyph: slot ? setGlyph : () => {},
-        setActive: (on) => element.toggleAttribute('data-active', !!on),
+        setActive: (on) => {
+            element.toggleAttribute('data-active', !!on);
+            element.setAttribute('aria-selected', String(!!on));
+        },
         setActionsShown: (on) => element.toggleAttribute('data-actions-shown', !!on),
     };
 }
 
 // The kit's keyed list (`key(item)`, `create(item)`, `update(element, item)`, `animated`). With `maxRows`, as tall as
-// that many rows, scrolling past them.
-function list({ maxRows = 0, size = 'medium', key, create, update = null, animated = false }) {
+// that many rows, scrolling past them. `role` is what it is to whoever reads the page, `list`, `listbox` where its
+// rows are chosen, or `presentation` where what holds it is what its rows are items of, and `name` what it is called
+// there.
+function list({
+    maxRows = 0,
+    size = 'medium',
+    role = 'list',
+    name = '',
+    key,
+    create,
+    update = null,
+    animated = false,
+}) {
     const element = document.createElement('div');
     element.className = 'deckit-list';
+    element.setAttribute('role', role);
+    if (name) element.setAttribute('aria-label', name);
     if (maxRows) {
         element.dataset.scrolls = '';
         element.style.maxHeight = maxRows * ROW_HEIGHT[size] + 'px';
         SCROLL.edgeFade(element);
     }
     return LIST.list({ element, key, create, update, animated });
+}
+
+// A keyed list of tabs, called `name`, each item a tab: `select(tab, on)` tells which one is chosen.
+function tabs({ name = '', ...options }) {
+    return {
+        ...list({ ...options, role: 'tablist', name }),
+        select: (tab, on) => tab.setAttribute('aria-selected', String(!!on)),
+    };
 }
 
 export { STYLE, make };

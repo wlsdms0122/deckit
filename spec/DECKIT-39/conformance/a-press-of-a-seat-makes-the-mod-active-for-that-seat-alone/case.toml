@@ -1,0 +1,55 @@
+case = 26
+name = "a-press-of-a-seat-makes-the-mod-active-for-that-seat-alone"
+note = "Each mod's code opens the windows the case says, each filled by a text field, and opens https://said.test/<name>/<event>/<what> outside the app for what the window's content hears: mousedown and mouseup with <button>/<detail>/<modifiers>, mousemove with <buttons>, wheel with <deltaX>/<deltaY>, keydown and keyup with <code>/<key>/<modifiers>/<repeat>, compositionstart and compositionupdate with the text composed, compositionend with <the text>/<the field's value>, and inserted with the text of each input event of the type insertText. The desktop is the base shell's, 1280 by 800. ada sits at s1. ada presses main: the look desktop of s1 answers mod-a active, and that of the local seat no active mod. mod-b, which no input of s1 reached, then opens x: it is held back for s1 and asks for the attention of s1."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
+
+[step.expect]
+answers = { over = 1, key = "key", holder = "s1", at = { x = 600, y = 300 } }
+
+[[step]]
+look = "desktop"
+seat = "s1"
+
+[step.expect]
+answers = { active = "mod-a", attention = [] }
+
+[[step]]
+look = "desktop"
+seat = "local"
+
+[step.expect]
+answers = { attention = [] }
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "events.emit"
+args = ["go", { name = "x" }]
+
+[[step]]
+look = "desktop"
+seat = "s1"
+
+[step.expect]
+answers = { active = "mod-a", attention = ["mod-b"] }

@@ -103,7 +103,7 @@ function make(theme, ui) {
 // A heading over a body. With `collapsed` a boolean the heading folds the body: a press reports the fold asked
 // for and the caller sets it. With `onHeading` the heading is pressed. `actions` are { icon, title, run(button) }
 // at the heading's end; `actions` of the result are their buttons. `empty` is the line the body shows first while
-// `setEmpty(true)` says the section has no rows.
+// `setEmpty(true)` says the section has no rows. It is a group named by its label.
 function section(
     ui,
     {
@@ -122,6 +122,8 @@ function section(
     const foldable = typeof collapsed === 'boolean';
     const pressed = foldable || typeof onHeading === 'function';
     const element = tag('div', 'deckit-section');
+    element.setAttribute('role', 'group');
+    element.setAttribute('aria-label', label);
     element.toggleAttribute('data-title', title);
     element.toggleAttribute('data-foldable', foldable);
     const head = tag('div', 'deckit-section-head');
@@ -206,9 +208,11 @@ function section(
 
 // Where a place is, as its path from the top. The parts that do not fit fold, from the start, into a "…" that
 // lists them; the last part is cut short only once everything before it has folded. In a title bar its current part
-// is the view's title, drawn as `titleBar`'s title is.
-function breadcrumb(ui, { onGo } = {}) {
+// is the view's title, drawn as `titleBar`'s title is. It is navigation, called `name`.
+function breadcrumb(ui, { name = 'Path', onGo } = {}) {
     const bar = tag('div', 'deckit-breadcrumb');
+    bar.setAttribute('role', 'navigation');
+    bar.setAttribute('aria-label', name);
     let parts = [];
     let drawn = '';
     let width = 0;

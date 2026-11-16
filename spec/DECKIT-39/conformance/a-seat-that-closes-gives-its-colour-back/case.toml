@@ -1,0 +1,74 @@
+case = 26
+name = "a-seat-that-closes-gives-its-colour-back"
+note = "A seat gives its colour back as it closes, and a seat that opens takes the first name the fewest open seats have. With the local seat blue, ada's green and bob's orange, ada's party leaves: a listener of seats.onChange is called once. ada attaches again: the new seat takes the id 4 and green again, and bob's keeps orange."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }, { id = "bob", name = "Bob Kahn" }]
+keys = [{ principal = "ada", key = "first" }, { principal = "bob", key = "second" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "attach"
+party = "q"
+principal = "bob"
+key = "second"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
+
+[step.expect]
+answers = { over = 1, key = "key", holder = "s1", at = { x = 600, y = 300 } }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.onChange"
+handle = "shell"
+listener = true
+
+[[step]]
+input = "detach"
+party = "p"
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = [[]]
+
+[[step]]
+input = "attach"
+party = "r"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.list"
+handle = "shell"
+
+[step.expect]
+answers = [{ id = "1", name = "Deckit conformance", colour = "blue", idle = false, following = false }, { id = "3", name = "Bob Kahn", colour = "orange", idle = false, following = false }, { id = "4", name = "Ada Lovelace", colour = "green", idle = false, following = false }]

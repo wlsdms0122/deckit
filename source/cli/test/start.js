@@ -33,13 +33,17 @@ function start({ seed, shots, log, port, limit }) {
     const archive = APP.builtArchive();
     const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-test-app-'));
     const data = fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-test-data-'));
-    const files = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-test-files-')));
+    // The folder of files has the same name every run: a page draws the name, and how wide it is drawn decides what
+    // fits beside it.
+    const held = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-test-files-')));
+    const files = path.join(held, 'deckit-test-files');
+    fs.mkdirSync(files);
     // WebKit keeps what the app's pages store for the app that runs it, Electron's, under an id the data folder's own:
     // the stores that came while the app ran are its, and go with its folders.
     const stores = path.join(os.homedir(), 'Library', 'WebKit', bundleOf(electronApp()), 'WebsiteDataStore');
     const before = (stored ??= new Set(listing(stores)));
     process.on('exit', () => {
-        for (const made of [folder, data, files]) fs.rmSync(made, { recursive: true, force: true });
+        for (const made of [folder, data, held]) fs.rmSync(made, { recursive: true, force: true });
         for (const store of listing(stores))
             if (!before.has(store)) fs.rmSync(path.join(stores, store), { recursive: true, force: true });
     });

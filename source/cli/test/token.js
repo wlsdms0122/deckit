@@ -57,6 +57,15 @@ async function main() {
             const [onGlass, onPlain] = [color[glassOf(ink)], color[ink]].map((each) => worst(each));
             check(`${look}: glass ${ink} is no quieter than ${ink}`, onGlass >= onPlain, [onGlass, onPlain]);
         }
+        for (const [name, ink] of Object.entries(token.seat)) {
+            const seen = COLOR.contrast(ink, color.background);
+            check(`${look}: the seat colour ${name} keeps 4.5:1 on the background`, seen >= 4.5, seen);
+        }
+        check(
+            `${look}: each seat colour is a custom property by its name`,
+            TOKEN.SEAT_COLOURS.every((name) => TOKEN.propertiesOf(token).includes(`--deckit-seat-${name}: `)),
+            TOKEN.SEAT_COLOURS
+        );
         const properties = TOKEN.propertiesOf(token);
         const block = (selector) => new RegExp(`${selector} \\{([^}]*)\\}`).exec(properties)?.[1] || '';
         const inks = [...LADDER, ...HUED];

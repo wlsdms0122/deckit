@@ -4,6 +4,18 @@ import * as DECLARED from './protocol.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
+// Its channels as a run a transport connection hosts speaks them (outside/): `asked`, method -> the channel and whether
+// its payload carries the run's number, and `told`, channel -> method.
+export const OUTSIDE = Object.freeze({
+    asked: {
+        'record/read': { channel: DECLARED.readRecord },
+        'record/write': { channel: DECLARED.writeRecord },
+        'record/remove': { channel: DECLARED.removeRecord },
+        'record/keys': { channel: DECLARED.recordKeys },
+    },
+    told: {},
+});
+
 // A mod's records are the core's to keep: JSON by key, which the core keeps as the text it is handed.
 export function createRecord({ CORE, IDENTITY }) {
     // MARK: - Property

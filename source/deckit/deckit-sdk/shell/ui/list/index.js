@@ -2,6 +2,8 @@ import * as MOTION from '../motion/index.js';
 
 // MARK: - Property
 const waiting = new Map(); // list element -> the change it waits to apply
+// The role of an item by the role of what lists it.
+const ITEM = Object.freeze({ list: 'listitem', listbox: 'option', tree: 'treeitem', tablist: 'tab' });
 
 // MARK: - Initializer
 // MARK: - Public
@@ -10,10 +12,18 @@ const waiting = new Map(); // list element -> the change it waits to apply
 // item)` when there is one, or made again when its item changed. A key names one item. With `animated`, a row
 // added once the list has shown items fades in; a removed one leaves at once, and the rows after it close up. While
 // something in or around the list is held (dragged, renamed) a new set of items waits, and the last one is drawn
-// when it is let go.
+// when it is let go. An item made with no role takes the one its list's role gives its items, read as the item is
+// made; in a plain list only a row does, as what else is listed there (a card, a control) is read by what it holds.
 function list({ element = document.createElement('div'), key, create, update = null, animated = false }) {
     const entries = new Map(); // key -> { element, item }
     let shown = false; // whether the list has drawn items: the first ones are there from the start
+    const make = (item) => {
+        const made = create(item);
+        const role = ITEM[element.getAttribute('role')];
+        if (role && !made.hasAttribute('role') && (role !== 'listitem' || made.classList.contains('deckit-row')))
+            made.setAttribute('role', role);
+        return made;
+    };
     const draw = (items) => {
         const kept = new Map();
         const order = [];
@@ -23,11 +33,11 @@ function list({ element = document.createElement('div'), key, create, update = n
             if (kept.has(name)) throw new Error(`a keyed list was given the key ${name} twice`);
             let entry = entries.get(name);
             if (!entry) {
-                entry = { element: create(item), item };
+                entry = { element: make(item), item };
                 added.push(entry.element);
             } else if (update) update(entry.element, item);
             else if (!same(entry.item, item)) {
-                const made = create(item);
+                const made = make(item);
                 entry.element.replaceWith(made);
                 entry.element = made;
             }

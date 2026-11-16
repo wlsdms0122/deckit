@@ -15,6 +15,8 @@ public final class Deckit {
     public let catalog: Catalog
     // The state the layers above keep, each its own.
     public let state: State
+    public let users: UserRegistry
+    public let seats: SeatTable
     public let runs: RunTable
     public let timeout: RunTimeout
     // A mod at the relaunch limit launches again only as its launch is asked.
@@ -45,6 +47,14 @@ public final class Deckit {
             + "and settings, and choose which mod opens an address.",
         privileged: true
     )
+    // What a user's job holds and no mod's can: it guards what is asked of a seat. No manifest is read against it, so
+    // no mod asks for it.
+    static let seat = Permission(
+        id: "deckit.seat",
+        name: "Seat",
+        description: "It sits at a seat of the desktop: a pointer, a keyboard and a view of its own.",
+        privileged: true
+    )
     private let now: () -> Date
 
     // MARK: - Initializer
@@ -64,6 +74,9 @@ public final class Deckit {
         timeout: RunTimeout = RunTimeout(launch: 20, end: 5),
         now: @escaping () -> Date = Date.init
     ) throws {
+        guard !permissions.contains(where: { permission in permission.id == Deckit.seat.id }) else {
+            throw ManifestError.permissionDefined(Deckit.seat.id)
+        }
         let store = Store()
         let deck = Deck(home: home, signals: [Deckit.contributionsChanged])
         let reader = try ManifestReader(
@@ -84,7 +97,10 @@ public final class Deckit {
             store: store
         )
         let state = State(root: home.appending(path: "state", directoryHint: .isDirectory), store: store)
+        state.reserve(SeatSettings.key)
         let runs = RunTable()
+        self.users = try UserRegistry(principalState: deck.principalState, store: store)
+        self.seats = SeatTable()
         self.deck = deck
         self.catalog = catalog
         self.state = state
@@ -249,7 +265,127 @@ public final class Deckit {
         try observed(deck.release(target, from: id, run: run, lifecycle: lifecycle))
     }
 
+    // The principal `id` is a user from now on, read by `name`. Refused for an id a mod is listed under, as the catalog
+    // was last read.
+    public func addUser(_ id: String, name: String) throws {
+        guard !catalog.lastRead.contains(where: { mod in mod.manifest.id == id }) else { throw UserError.isMod(id) }
+        try users.add(User(id: id, name: name))
+    }
+
+    // The user `id` is one no more: what it runs is asked to end, and deck erases the principal, its user record and
+    // the keys authorized for it among what it keeps of it. Refused for an id that is no user.
+    public func removeUser(_ id: String) throws -> [Effect] {
+        guard users.user(of: id) != nil else { throw UserError.notAUser(id) }
+        let effects = try unload([id])
+        try deck.erasure.erase(principal: id)
+
+        return effects
+    }
+
+    // The local seat, whose devices are this machine's hardware, opens for the user `id`: no run of the user holds it,
+    // and it stays open. Refused for an id that is no user, for a user that sits or runs already, and while the local
+    // seat is open.
+    public func openLocalSeat(for id: String) throws -> Seat {
+        guard let user = users.user(of: id) else { throw UserError.notAUser(id) }
+        guard isFree(id) else { throw LaunchError.alreadyRunning(id) }
+        guard seats.local == nil else { throw SeatError.localOpen }
+
+        return seats.open(user, local: true)
+    }
+
+    // The transport connection `transport`, which arrived from outside, is admitted as the user its claimant proves to
+    // be, as deck verifies it. A principal deckit keeps no user record for is refused as a proof that does not verify
+    // is, so nothing is told of it, and a user that sits or runs already is refused. The user sits at once, or, with
+    // the seats' setting `asking` on, waits until `answer` says whether it may: whom the caller asks is the caller's.
+    public func admit(
+        transport: String,
+        principal: String,
+        scheme: String,
+        key: Data,
+        signature: Data
+    ) throws -> Admission {
+        let principal = try deck.authentication.verify(
+            transport: transport,
+            principal: principal,
+            scheme: scheme,
+            key: key,
+            signature: signature
+        )
+        let user = try sitter(principal)
+        guard try seatSettings().asking else { return try seat(user, transport: transport) }
+        seats.ask(user, transport: transport)
+
+        return .asking(user)
+    }
+
+    // What the caller was answered of the user that waits on the transport connection, whether it may sit: it sits,
+    // held to what `admit` holds it to as it is answered, or is refused. Deckit knows no one who answered. Refused for
+    // a transport connection none waits on.
+    public func answer(transport: String, allow: Bool) throws -> Admission {
+        guard let asked = seats.answer(transport: transport) else { throw SeatError.notAsking(transport) }
+        guard allow else { throw SeatError.refused }
+
+        return try seat(sitter(asked.id), transport: transport)
+    }
+
+    // The seats' settings as the state keeps them now: what keeps them may be another run of deckit on the folder.
+    public func seatSettings() throws -> SeatSettings {
+        SeatSettings(kept: try state.read(folder: nil, key: SeatSettings.key))
+    }
+
+    // Each of the seats' settings that is given is set and kept, the other staying as it is kept: answers the settings
+    // from now on, which with none given are those kept. Refused for an idle time below 0.
+    public func setSeatSettings(idleTime: TimeInterval? = nil, asking: Bool? = nil) throws -> SeatSettings {
+        if let idleTime, !SeatSettings.isTime(idleTime) { throw SeatError.notATime(idleTime) }
+
+        let kept = try seatSettings()
+        guard idleTime != nil || asking != nil else { return kept }
+
+        let settings = SeatSettings(idleTime: idleTime ?? kept.idleTime, asking: asking ?? kept.asking)
+        try state.write(reserved: SeatSettings.key, text: try settings.text)
+
+        return settings
+    }
+
+    // The transport connection closed: its challenge is no more, and the user that waits on it waits no more.
+    public func close(transport: String) {
+        deck.authentication.close(transport: transport)
+        seats.answer(transport: transport)
+    }
+
     // MARK: - Private
+    // Whether the principal neither sits at a seat nor runs.
+    private func isFree(_ id: String) -> Bool {
+        seats.seat(of: id) == nil && (deck.run(of: id)?.state ?? .notRunning) == .notRunning
+    }
+
+    // The user the principal is, free to sit.
+    private func sitter(_ principal: String) throws -> User {
+        guard let user = users.user(of: principal) else { throw AuthenticationError.notAuthenticated }
+        guard isFree(principal) else { throw LaunchError.alreadyRunning(principal) }
+
+        return user
+    }
+
+    // The user sits: a run of its job launches, hosted by the transport connection, in a sandbox no other run shares,
+    // and its seat opens. A user's job holds `deckit.seat` and nothing else: no principal reached by id, no interface
+    // used or provided.
+    private func seat(_ user: User, transport: String) throws -> Admission {
+        let job = Job(
+            principal: user.id,
+            revision: "transport \(transport)",
+            host: .transport(transport),
+            permissions: [Deckit.seat.id],
+            reaches: .only([]),
+            uses: [:],
+            provides: [:]
+        )
+        let launched = try deck.load([job])
+        let seat = seats.open(user, local: false)
+
+        return .seated(seat, try observed(launched))
+    }
+
     private func permit(_ asker: String?) throws {
         guard let asker, !(deck.job(of: asker)?.permissions.contains(Deckit.mods.id) ?? false) else { return }
         throw LaunchError.notPermitted(mod: asker, permission: Deckit.mods.id)
@@ -280,10 +416,10 @@ public final class Deckit {
     }
 
     // What deckit keeps and decides of the runs as `effects` move them, then of what that comes to, until nothing more
-    // comes: a run that launches has an entry; a run that failed counts toward its mod's relaunch limit, and a
-    // background mod's launches again; a mod a lifecycle waits for launches, but for the lifecycles that wait again as
-    // its run ends refused at launch, which are told that refusal; and a sandbox closes once its run has ended and the
-    // catalog no longer has its mod as it runs it.
+    // comes: a run that launches has an entry; a user's seat closes as its run ends; a mod's run that failed counts
+    // toward its relaunch limit, and a background mod's launches again; a mod a lifecycle waits for launches, but for
+    // the lifecycles that wait again as its run ends refused at launch, which are told that refusal; and a sandbox
+    // closes once its run has ended and the catalog no longer has its mod as it runs it.
     private func observed(_ effects: [Effect]) throws -> [Effect] {
         var observed: [Effect] = []
         var next = effects
@@ -300,7 +436,8 @@ public final class Deckit {
 
                 case let .tell(_, run) where run.state == .notRunning:
                     ended.append(run)
-                    if run.failed {
+                    let seat = seats.close(of: run.principal)
+                    if run.failed, seat == nil {
                         limit.fail(run.principal, at: now())
                     }
                     if run.failed, isBackground(run.principal) {

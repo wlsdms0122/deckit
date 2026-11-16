@@ -112,7 +112,13 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
 
     function blockOf(account) {
         if (blocks.has(account.id)) return blocks.get(account.id);
-        const list = ui.list({ key: (item) => item.key, create: feedRow, animated: true });
+        const list = ui.list({
+            role: 'group',
+            name: account.email,
+            key: (item) => item.key,
+            create: feedRow,
+            animated: true,
+        });
         ui.sortable(list, {
             onReorder: (key, toKey) => {
                 const mine = feeds.all().filter((feed) => feed.account === account.id);
@@ -177,6 +183,8 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
     // `feed` is the keyed list's item, its error included, so a change to either draws it again.
     function feedRow(feed) {
         const row = ui.row().element;
+        row.setAttribute('role', 'checkbox');
+        row.setAttribute('aria-checked', String(!feed.hidden));
         const swatch = document.createElement('span');
         Object.assign(swatch.style, {
             flex: '0 0 auto',

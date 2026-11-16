@@ -1,0 +1,38 @@
+case = 26
+name = "a-node-of-a-field-the-page-focused-names-no-seat"
+note = "mod-a opens the window 1 at 283, 107, 720 by 480. Its content holds, each in a box of its own: the field Secret, of the type password, holding abc; Draft, editable content that holds Hello; the field Span, holding abcdef with bcd selected; the empty field Auto, which the page focuses as the window appears; the region Feed, 60 high, that scrolls the buttons One, Two and Three, 40 high each; and an element of the role note that holds Aside. The desktop is the base shell, 1280 by 800, ada sits at s1, and no seat pressed the window. It reads the window, then the node of Auto: focused with no seat, and its caret at 0."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w1", all = true }
+part = "mark"
+
+[step.expect]
+answers = 7
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "node", ref = "1.4" }
+
+[step.expect]
+answers = { text = "textbox \"Auto\" [focused, value \"\"] 1.4 at 283,287 200x30\n  selection 0", mark = 7 }

@@ -1,0 +1,9 @@
+id = "anchor-user"
+name = "Anchor User"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+activationPolicy = "accessory"
+
+[permissions]
+"deckit.panel-windows" = "to test a band in the bar, and a view standing under an anchor it tells there, and one at a place"

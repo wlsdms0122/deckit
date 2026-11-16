@@ -1,0 +1,43 @@
+case = 25
+name = "a-step-that-writes-party-is-of-that-party-alone"
+note = "A step that writes party is of that party's transport connection. Two parties attach, one as ada and one as bob; the first listens to an event of ada and sends it, and told answers no message of the second."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }, { id = "bob", name = "Bob" }]
+keys = [{ principal = "ada", key = "first" }, { principal = "bob", key = "second" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "attach"
+party = "q"
+principal = "bob"
+key = "second"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "event/listen"
+params = { names = ["ada:ping"] }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "event/emit"
+params = { name = "ping", args = [1] }
+
+[[step]]
+look = "told"
+party = "q"
+
+[step.expect]
+answers = { messages = [], closed = false }

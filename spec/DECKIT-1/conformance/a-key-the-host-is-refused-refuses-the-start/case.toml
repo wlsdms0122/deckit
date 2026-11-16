@@ -1,0 +1,16 @@
+case = 25
+name = "a-key-the-host-is-refused-refuses-the-start"
+note = "A refusal of a key the host registers is the answer to the first start. keys names a principal that is no id, and the start is refused at call."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "Not An Id", key = "first" }]
+
+[[step]]
+input = "start"
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"

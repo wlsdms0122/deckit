@@ -1,0 +1,48 @@
+case = 23
+name = "windows-open-of-a-name-open-refuses-what-any-open-does-and-answers-it"
+note = "Each mod's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as its event go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. windows.open of a name that is open refuses as it does of any name, before it answers the window open: mod-a opens main, and the person presses it. mod-a is told to open main again with the place top-right, at the level normal: it throws INVALID_ARGUMENT, and main is told nothing. It is then told to open main again at the level panel with the place middle, which the shell does not name, a refusal of a view alone: it answers main, and throws nothing. main is open, the one window, key."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "press"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { open = { name = "main", place = "top-right" } }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { open = { name = "main", level = "panel", place = "middle" } }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 141, width = 720, height = 480 }, key = true, minimized = false }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { list = true }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/main/didAppear", activates = true }, { url = "https://said.test/main/didBecomeKey", activates = true }, { url = "https://said.test/main/threw/INVALID_ARGUMENT", activates = true }, { url = "https://said.test/list/main", activates = true }]

@@ -1,0 +1,40 @@
+case = 26
+name = "a-menu-a-page-presents-is-an-overlay-document"
+note = "mod-a opens main, the window 1 at 283, 107, 720 by 480, that holds the heading Notes. The desktop is the base shell, 1280 by 800, and ada sits at s1. ada reads the window, then mod-a sends its event menu, and at it the page presents a menu over itself, of the one entry Keep: the window is read again, its content, then the menu in a document that is an overlay."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w1" }
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["menu"]
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w1" }
+
+[step.expect]
+answers = { text = "window w1 \"mod-a\" mod-a at 283,107 720x480 mark 8\n  button \"Close\" w1.close\n  button \"Minimize\" w1.minimize\n  button \"Zoom\" w1.zoom\n  titlebar w1.bar\n  document 1 content 720x480\n    heading \"Notes\" [level 1] 1.1\n  document 2 overlay 720x480\n    menu [focused] (1 items, 1 in view) 2.1\n      menuitem \"Keep\" [unchecked] 2.2", mark = 8 }

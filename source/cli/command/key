@@ -1,0 +1,45 @@
+#!/usr/bin/env node
+// Registers, removes and lists the keys that may authenticate as a principal from outside the app, in Deckit.app's
+// folder of deckit or the one `--home` names, through the core the last build made. It works whether or not the app
+// runs: the next party is held to what is registered then. Exits 1 with why the core refused.
+const path = require('path');
+
+const KEYS = require(path.join(__dirname, '..', 'outside', 'keys.js'));
+
+const USAGE = [
+    'usage: deckit key add <principal> <key> [--name <name>] [--home <folder>]',
+    '       deckit key remove <principal> <key> [--home <folder>]',
+    '       deckit key list <principal> [--home <folder>]',
+    "(<key> is the base64 of an Ed25519 public key's 32 bytes; <folder> is deckit's folder, Deckit.app's own if left out)",
+].join('\n');
+
+const refuse = () => {
+    console.error(USAGE);
+    process.exit(2);
+};
+const words = [];
+const options = {};
+const args = process.argv.slice(2);
+while (args.length) {
+    const arg = args.shift();
+    if (arg !== '--name' && arg !== '--home') words.push(arg);
+    else if (!args.length || arg.slice(2) in options) refuse();
+    else options[arg.slice(2)] = args.shift();
+}
+const [action, principal, key] = words;
+const takes = { add: 3, remove: 3, list: 2 }[action];
+if (words.length !== takes || ('name' in options && action !== 'add')) refuse();
+
+const home = options.home ? path.resolve(options.home) : KEYS.appHome();
+const name = options.name ?? '';
+const asked = { add: KEYS.add, remove: KEYS.remove, list: KEYS.list }[action]({ home, principal, key, name });
+asked.then(
+    (answer) => {
+        if (action === 'list') for (const each of answer) console.log(`${each.scheme} ${each.key} ${each.name}`.trim());
+        process.exit(0);
+    },
+    (error) => {
+        console.error(`[key] ${error.message}`);
+        process.exit(1);
+    }
+);

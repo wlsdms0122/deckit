@@ -49,6 +49,8 @@ class Mods {
                 grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
                 gap: 16px 8px;
             }
+            /* A cell is what the list reads as an item; the grid lays out the button in it. */
+            .mods-cell { display: contents; }
             .mods-item {
                 display: flex;
                 flex-direction: column;
@@ -97,6 +99,9 @@ class Mods {
         field.element.classList.add('mods-search');
         const body = ui.element('div', { className: 'mods-body' });
         const grid = ui.element('div', { className: 'mods-grid' });
+        grid.setAttribute('role', 'list');
+        grid.setAttribute('aria-label', 'Mods');
+        const cells = new Map(); // mod id -> { cell, name, icon }: its cell, kept while it is listed as it was drawn
         const empty = ui.emptyState({ icon: ui.icon('search', { size: 24 }) });
         const none = empty.element;
         none.classList.add('mods-none');
@@ -155,10 +160,15 @@ class Mods {
             show();
         }
 
+        // A mod's cell is the same element while the mod is listed by the same name and icon, and the grid is left
+        // as it is where it holds the same cells, so what a reader named in it stands as the Dock is asked again.
         function show() {
             const mods = shown();
             failure.element.style.display = 'none';
-            grid.replaceChildren(...mods.map(itemOf));
+            for (const id of [...cells.keys()]) if (!listed.some((mod) => mod.id === id)) cells.delete(id);
+            const next = mods.map(cellOf);
+            const same = grid.children.length === next.length && next.every((cell, at) => grid.children[at] === cell);
+            if (!same) grid.replaceChildren(...next);
             none.hidden = mods.length > 0;
             const settings = ui.button({
                 label: 'Open Settings',
@@ -171,6 +181,16 @@ class Mods {
                 hint: query ? 'Install more in Settings.' : 'Install a mod in Settings.',
                 actions: [settings.element],
             });
+        }
+
+        function cellOf(mod) {
+            const kept = cells.get(mod.id);
+            if (kept && kept.name === mod.name && kept.icon === mod.icon) return kept.cell;
+            const cell = ui.element('div', { className: 'mods-cell' });
+            cell.setAttribute('role', 'listitem');
+            cell.append(itemOf(mod));
+            cells.set(mod.id, { cell, name: mod.name, icon: mod.icon });
+            return cell;
         }
 
         function itemOf(mod) {

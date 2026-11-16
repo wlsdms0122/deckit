@@ -1,0 +1,75 @@
+case = 26
+name = "a-choice-of-quit-by-a-seat-from-the-menu-of-an-item-quits-the-mod"
+note = "The menu of an item is one seat's and opens on a press of the second button on the item. A party's seat presses the second button on mod-b's item and then clicks the choice quit of the menu open for it: the run of mod-b ends, and the item, kept, stands as one that does not run for every seat."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b", "mod-c"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", ref = "dock.mod-b", button = 2, count = 1 }
+part = "over"
+
+[step.expect]
+answers = "dock"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", ref = "dock.mod-b", button = 2, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", ref = "dock-menu.quit", button = 0, count = 1 }
+part = "over"
+
+[step.expect]
+answers = "dock"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", ref = "dock-menu.quit", button = 0, count = 1 }
+part = "over"
+
+[step.expect]
+answers = "dock"
+
+[[step]]
+look = "run"
+mod = "mod-b"
+
+[step.expect]
+answers = "notRunning"
+
+[[step]]
+look = "dock"
+
+[step.expect]
+answers = [{ mod = "mod-a", pinned = true, running = true, attention = false, active = false }, { mod = "mod-b", pinned = true, running = false, attention = false, active = false }, { mod = "mod-c", pinned = true, running = true, attention = false, active = false }]
+
+[[step]]
+look = "dock"
+seat = "s1"
+
+[step.expect]
+answers = [{ mod = "mod-a", pinned = true, running = true, attention = false, active = false }, { mod = "mod-b", pinned = true, running = false, attention = false, active = false }, { mod = "mod-c", pinned = true, running = true, attention = false, active = false }]

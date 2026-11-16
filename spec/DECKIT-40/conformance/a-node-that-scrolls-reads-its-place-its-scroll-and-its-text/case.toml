@@ -1,0 +1,38 @@
+case = 26
+name = "a-node-that-scrolls-reads-its-place-its-scroll-and-its-text"
+note = "mod-a opens the window 1 at 283, 107, 720 by 480, with no title. Its content holds, each in a box of its own: the heading Notes, the button Bold, not pressed, the field Name with the value say \"a\", b, the empty field Find, the checkbox Done, the list Days of Mon, Tue and Wed, and the region Log, 60 high, that scrolls three paragraphs 40 high each. The desktop is the base shell, 1280 by 800, and ada sits at s1. It reads the window, then the node of the region Log: its line, where it is on the desktop and its size, how far it is scrolled of how high what it holds is, and under it the text in view, a line of the role text each, with no ref."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w1" }
+part = "mark"
+
+[step.expect]
+answers = 7
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "node", ref = "1.10" }
+
+[step.expect]
+answers = { text = "region \"Log\" 1.10 at 283,487 200x60 scroll 0 of 120\n  text \"First line.\"\n  text \"Second line.\"", mark = 7 }

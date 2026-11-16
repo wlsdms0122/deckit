@@ -96,8 +96,10 @@ function make(theme, ui) {
 
 // MARK: - Private
 // A text field. `inline` elements go after the text, `trailing` ones after the clear button. Enter reports the
-// value and whether Shift was held; Escape is the field's only when `onCancel` takes it.
+// value and whether Shift was held; Escape is the field's only when `onCancel` takes it. It is named by `label`, the
+// words beside it, or by its placeholder where none are.
 function field({
+    label = '',
     placeholder = '',
     value = '',
     icon = '',
@@ -123,6 +125,7 @@ function field({
     input.className = 'deckit-field-input';
     input.spellcheck = false;
     input.placeholder = placeholder;
+    if (label || placeholder) input.setAttribute('aria-label', label || placeholder);
     input.value = value;
     const filled = () => element.toggleAttribute('data-filled', clearable && !!input.value);
     input.addEventListener('input', () => {
@@ -171,8 +174,9 @@ function field({
 
 // A number typed or stepped, drawn as the caller sets it. Enter and leaving the field commit what is typed; Escape
 // puts the value back. With `unset`, `{ label, value }`, it may hold no number, null: it shows `label` then, steps from
-// `value`, and what is typed cleared commits null.
+// `value`, and what is typed cleared commits null. It is named by `label`, the words beside it.
 function stepper({
+    label = '',
     value = 0,
     min = -Infinity,
     max = Infinity,
@@ -190,12 +194,18 @@ function stepper({
     const input = document.createElement('input');
     input.className = 'deckit-stepper-input';
     input.spellcheck = false;
+    input.setAttribute('role', 'spinbutton');
+    if (label) input.setAttribute('aria-label', label);
+    if (Number.isFinite(min)) input.setAttribute('aria-valuemin', String(min));
+    if (Number.isFinite(max)) input.setAttribute('aria-valuemax', String(max));
     if (unset) {
         element.dataset.unset = '';
         input.placeholder = unset.label;
     }
     const show = () => {
         input.value = current === null ? '' : String(+current.toFixed(4)) + unit;
+        if (current === null) input.removeAttribute('aria-valuenow');
+        else input.setAttribute('aria-valuenow', String(current));
     };
     // Reports what was asked, then shows the value the caller set, or kept.
     const commit = (number) => {

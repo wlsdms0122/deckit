@@ -6,8 +6,9 @@
 // mod's page laid in that window under its content until the page has a normal window and again once it has none, the
 // children its regions show laid over its content, the content's keys and presses heard and the page told of its
 // window, a window closed by its page and with its page, the keyboard of a page going to its key window's content, a
-// panel window in the host's bar, never ordered front and pressed as no window made key, one at the right edge, which
-// the desktop gives the keyboard as it is ordered front, and a web page's window: on
+// panel window in the host's bar, never ordered front and pressed as no window made key, whatever edge its open
+// names, the anchors a window's mod tells, a panel window under an
+// anchor and one refused its anchor, and a web page's window: on
 // the desktop for the mod whose page shows it, titled, with no name, closed however it closes with those who listen
 // told once. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
@@ -291,18 +292,105 @@ async function main() {
     shell.fromPage('order-front', pages.b, { id: side.id });
     const normalEdge = shell.fromPage('open', pages.b, { name: 'plain', edge: 'right' });
     check(
-        'a panel window at the right edge opens at that edge, and makeKeyAndOrderFront and orderFront ask the desktop ' +
-            'to give it the keyboard as an overlay window takes it; a window at another level has no edge',
+        'a panel window whose open names another edge stands in the bar, and makeKeyAndOrderFront and orderFront ' +
+            'ask nothing of the desktop for it; a window at another level has no edge',
         atSide?.id === side.id &&
-            atSide.edge === 'right' &&
+            atSide.edge === 'top' &&
             panel.id !== side.id &&
-            JSON.stringify(desktop.panelsFronted) ===
-                JSON.stringify([
-                    { id: side.id, activates: true },
-                    { id: side.id, activates: false },
-                ]) &&
+            desktop.panelsFronted.length === 0 &&
             desktop.opened.find(({ id }) => id === normalEdge.id)?.edge === null,
         { atSide, fronted: desktop.panelsFronted }
+    );
+
+    const named = [{ id: 'item', rect: { x: 4, y: 2, width: 32, height: 24 }, mod: 'a', more: true }];
+    shell.fromPage('set-anchors', pages.b, { id: side.id, anchors: named });
+    const kept = desktop.anchors.at(-1);
+    shell.fromPage('set-anchors', pages.b, { id: side.id, anchors: [{ id: 'item', rect: {}, mod: 'a' }] });
+    shell.fromPage('set-anchors', pages.a, { id: side.id, anchors: [] });
+    shell.fromPage('set-anchors', pages.b, { id: float.id, anchors: named });
+    check(
+        "the rects a window's mod names in its content are the desktop's to keep, as an id, a rect and a mod each: " +
+            "not those of another shape, of another page's window or of an overlay window",
+        desktop.anchors.length === 1 &&
+            kept.id === side.id &&
+            JSON.stringify(kept.anchors) ===
+                JSON.stringify([{ id: 'item', rect: { x: 4, y: 2, width: 32, height: 24 }, mod: 'a' }]),
+        desktop.anchors
+    );
+
+    const under = { mod: 'a', id: 'item', more: true };
+    const view = shell.fromPage('open', pages.b, { name: 'view', level: 'panel', anchor: under, width: 320 });
+    const bound = desktop.panels.at(-1);
+    const frontedBefore = desktop.panelsFronted.length;
+    shell.fromPage('make-key-and-order-front', pages.b, { id: view.id });
+    shell.fromPage('order-front', pages.b, { id: view.id });
+    const plain = shell.fromPage('open', pages.b, { name: 'unbound', anchor: under });
+    check(
+        'a panel window opened with an anchor stands under it, as the desktop places it, with no edge, and the ' +
+            'desktop is asked to show it as its mod makes it key; a window at another level has no anchor',
+        bound?.id === view.id &&
+            bound.edge === null &&
+            JSON.stringify(bound.anchor) === JSON.stringify({ mod: 'a', id: 'item' }) &&
+            atSide.anchor === null &&
+            JSON.stringify(desktop.panelsFronted.slice(frontedBefore)) ===
+                JSON.stringify([
+                    { id: view.id, activates: true },
+                    { id: view.id, activates: false },
+                ]) &&
+            desktop.opened.find(({ id }) => id === plain.id)?.anchor === null,
+        bound
+    );
+    for (const id of [view.id, plain.id, side.id]) shell.fromPage('toggle', pages.b, { id });
+    shell.fromPage('toggle', pages.a, { id: view.id });
+    check(
+        "a panel window's toggle is the desktop's to do, asked by its own mod's page; a window at another level " +
+            'has none',
+        JSON.stringify(desktop.panelsToggled) === JSON.stringify([view.id, side.id]),
+        desktop.panelsToggled
+    );
+    const refusalOf = (options) => {
+        try {
+            shell.fromPage('open', pages.b, { level: 'panel', ...options });
+            return null;
+        } catch (error) {
+            return error.kind;
+        }
+    };
+    const panelsOpen = desktop.panels.length;
+    desktop.foreign.add('b:a/taken');
+    const refusals = [
+        refusalOf({ name: 'taken', anchor: { mod: 'a', id: 'taken' } }),
+        refusalOf({ name: 'shapeless', anchor: { mod: 'a' } }),
+        refusalOf({ name: 'free', anchor: { mod: 'a', id: 'free' } }),
+    ];
+    check(
+        'a panel window is refused an anchor given to another mod, NOT_PERMITTED, and one that names no anchor, ' +
+            'INVALID_ARGUMENT, and neither opens',
+        JSON.stringify(refusals) === '["NOT_PERMITTED","INVALID_ARGUMENT",null]' &&
+            desktop.panels.length === panelsOpen + 1,
+        refusals
+    );
+    const placed = shell.fromPage('open', pages.b, { name: 'placed', level: 'panel', place: 'top-right', width: 300 });
+    const atPlace = desktop.panels.at(-1);
+    const placedOpen = desktop.panels.length;
+    const unplaced = [
+        refusalOf({ name: 'nowhere', place: 'middle' }),
+        refusalOf({ name: 'both', place: 'top-right', anchor: { mod: 'a', id: 'free' } }),
+    ];
+    const level = shell.fromPage('open', pages.b, { name: 'level', place: 'top-right' });
+    check(
+        'a panel window opened with a place stands there, as the desktop places it, with no edge and no anchor; a ' +
+            'place the desktop does not name, and a place with an anchor, are refused INVALID_ARGUMENT and open ' +
+            'nothing; a window at another level has no place',
+        atPlace?.id === placed.id &&
+            atPlace.edge === null &&
+            atPlace.anchor === null &&
+            atPlace.place === 'top-right' &&
+            atSide.place === null &&
+            JSON.stringify(unplaced) === '["INVALID_ARGUMENT","INVALID_ARGUMENT"]' &&
+            desktop.panels.length === placedOpen &&
+            desktop.opened.find(({ id }) => id === level.id)?.place === null,
+        { atPlace, unplaced }
     );
 
     if (failed.length) {
@@ -318,7 +406,8 @@ async function main() {
 // answers what it answers; `openSurface(name, surface)` has a page open a window's content; `focus(page)` and
 // `end(page)` are a page taking the keyboard and its document ending; `webOf` maps a web page to the mod's page that
 // shows it. `desktop` records what the desktop was asked, `key` the id of its key window, `may` the mods that may
-// activate for the local seat, `frames` the frames it keeps, by the level, the mod and the name; `host` what the host
+// activate for the local seat, `frames` the frames it keeps, by the level, the mod and the name, `foreign` the anchors
+// it refuses, each `<asker>:<mod>/<id>`; `host` what the host
 // app was asked; `stages` the stages made, each with what it laid last; `sent` what the pages were told, by the
 // channel's last word.
 function windowsOver(createWindows) {
@@ -355,6 +444,9 @@ function windowsOver(createWindows) {
         panelsClosed: [],
         panelPressed: [],
         panelsFronted: [],
+        panelsToggled: [],
+        anchors: [],
+        foreign: new Set(),
         change: () => changes.forEach((listener) => listener()),
     };
     const host = { shown: [], closed: [] };
@@ -398,8 +490,11 @@ function windowsOver(createWindows) {
         pressPanel: (window) => desktop.panelPressed.push(window.id),
         orderFrontPanel: (window, { activates = true } = {}) =>
             desktop.panelsFronted.push({ id: window.id, activates }),
+        togglePanel: (window) => desktop.panelsToggled.push(window.id),
+        setAnchors: (window, anchors) => desktop.anchors.push({ id: window.id, anchors }),
+        refusesAnchor: (mod, name) => desktop.foreign.has(`${mod}:${name.mod}/${name.id}`),
+        isPlace: (name) => name === 'top-right',
         keyPanel: () => null,
-        toDesktop: () => {},
         localSeat: 'local',
         activation: {
             input: (seat, mod) => desktop.inputs.push(`${seat}:${mod}`),
@@ -420,6 +515,7 @@ function windowsOver(createWindows) {
             key: window.id === desktop.key,
             ...window.size,
             titleBar: { height: 48, controlsWidth: 78 },
+            room: null,
         }),
         onChange: (listener) => changes.push(listener),
     };

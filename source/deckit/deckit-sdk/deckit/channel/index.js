@@ -1,17 +1,17 @@
 // How a channel between main and a page is declared, as plain data with nothing of an environment's: whichever
 // environment carries it reads the same declaration.
 // MARK: - Property
-// What a field may be, written as is, or ending in `?` when it may be absent.
-const KINDS = Object.freeze(['string', 'number', 'boolean', 'object', 'array', 'any']);
+// What a field may be, written as is, or ending in `?` when it may be absent. An `integer` is a number with no
+// fraction that a number holds exactly: what counts or numbers something.
+const KINDS = Object.freeze(['string', 'number', 'integer', 'boolean', 'object', 'array', 'any']);
 // Who may send on a channel a page sends main, besides a permission's id or a picker (pageToMain): ANY, any page, what
 // it may ask judged by what answers it; MOD, a mod's page.
 const GUARD = Object.freeze({ ANY: Symbol.for('deckit.guard.any-page'), MOD: Symbol.for('deckit.guard.mod-page') });
 
 // MARK: - Initializer
 // MARK: - Public
-// What a page asks or tells main. `fields` is what it may send, each a kind (`string`, `number`, `boolean`, `object`,
-// `array`, `any`), optional when it ends in `?`. A page runs code main does not trust, so main holds what arrives to
-// them; nothing else checks. `guard` is who may send it: GUARD.ANY, GUARD.MOD, a permission's id, a mod's page granted
+// What a page asks or tells main. `fields` is what it may send, each one of KINDS, optional when it ends in `?`. A
+// page runs code main does not trust, so main holds what arrives to them; nothing else checks. `guard` is who may send it: GUARD.ANY, GUARD.MOD, a permission's id, a mod's page granted
 // it, or a picker, a function of the payload as sent that answers the id of the permission guarding that call, or null
 // for none, a mod's page. A picker answers for any value it is handed and never throws.
 function pageToMain(channel, fields, { reply = false, sync = false, guard } = {}) {
@@ -48,7 +48,9 @@ function problemOf({ channel, fields }, payload) {
             if (!optional) return `${channel} needs ${key}`;
             continue;
         }
-        if (type !== 'any' && kindOf(value) !== type) return `${channel}'s ${key} is ${kindOf(value)}, not ${type}`;
+        const whole = type === 'integer' && Number.isSafeInteger(value);
+        if (type !== 'any' && !whole && kindOf(value) !== type)
+            return `${channel}'s ${key} is ${kindOf(value)}, not ${type}`;
     }
     return '';
 }

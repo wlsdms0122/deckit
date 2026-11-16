@@ -1,0 +1,28 @@
+case = 25
+name = "connection-call-on-a-connection-that-is-none-is-refused"
+note = "A request is refused as the rule it reads from refuses a mod's run: a call across a connection that does not stand is refused at call with ENDED. A party of ada, whose run has no connection, calls on connection 1."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "connection/call"
+params = { connection = 1, number = 0, args = { value = [], references = [] } }
+
+[step.expect]
+refuses = "call"
+kind = "ENDED"

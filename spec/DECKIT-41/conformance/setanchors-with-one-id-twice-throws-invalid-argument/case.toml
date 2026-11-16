@@ -1,0 +1,24 @@
+case = 23
+name = "setanchors-with-one-id-twice-throws-invalid-argument"
+note = "mod-a's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event mod-a:go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. setAnchors throws INVALID_ARGUMENT at call where two of the anchors hold one id: mod-a opens main and is told to call setAnchors of it with two anchors of the id spot."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { do = "setAnchors", name = "main", args = [[{ id = "spot", rect = { x = 0, y = 0, width = 10, height = 10 }, mod = "mod-a" }, { id = "spot", rect = { x = 20, y = 0, width = 10, height = 10 }, mod = "mod-a" }]] }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/main/didAppear", activates = true }, { url = "https://said.test/main/threw/INVALID_ARGUMENT", activates = true }]

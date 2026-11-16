@@ -20,8 +20,10 @@ function tableOfContents({ ui, theme, scroller, sections }) {
         }
     `);
     const element = ui.element('div', { className: 'settings-sidebar' });
+    element.setAttribute('role', 'navigation');
+    element.setAttribute('aria-label', 'Sections');
     const rows = new Map(); // section -> its row
-    const list = ui.list({ key: (section) => section.title, create: contentsRow });
+    const list = ui.list({ role: 'listbox', key: (section) => section.title, create: contentsRow });
 
     list.set(sections);
     // The arrows and a name typed go from section to section, as a press on a row does.

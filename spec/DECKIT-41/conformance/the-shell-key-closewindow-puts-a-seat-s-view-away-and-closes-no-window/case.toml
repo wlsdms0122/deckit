@@ -1,0 +1,72 @@
+case = 26
+name = "the-shell-key-closewindow-puts-a-seat-s-view-away-and-closes-no-window"
+note = "Each mod's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as its event go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. As the shell key closeWindow runs for a seat a view is shown for by activation, the view is put away and no window closes. A party attaches as ada, at the seat s1, and presses main, so mod-a acts for s1, and mod-a is told to open v 320 by 240 at the place top-right, at the level panel: v is shown by activation for s1, at { x = 952, y = 60 }, and s1 holds its keyboard. s1 sends the key KeyW with meta held, the chord of closeWindow: the event answers the window 2, v is put away, open still, and main stays open, the key window of s1 with its keyboard back."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { open = { name = "v", level = "panel", place = "top-right", width = 320, height = 240 } }]
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "key", type = "down", code = "KeyW", key = "w", modifiers = ["meta"] }
+
+[step.expect]
+answers = { to = 2 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "key", type = "up", code = "KeyW", key = "w", modifiers = ["meta"] }
+
+[[step]]
+look = "windows"
+seat = "s1"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 141, width = 720, height = 480 }, key = true, minimized = false }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { list = true }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/main/didAppear", activates = true }, { url = "https://said.test/main/didBecomeKey", activates = true }, { url = "https://said.test/main/didResignKey", activates = true }, { url = "https://said.test/v/didAppear", activates = true }, { url = "https://said.test/v/didBecomeKey", activates = true }, { url = "https://said.test/v/didResignKey", activates = true }, { url = "https://said.test/v/didDisappear", activates = true }, { url = "https://said.test/main/didBecomeKey", activates = true }, { url = "https://said.test/list/main,v", activates = true }]

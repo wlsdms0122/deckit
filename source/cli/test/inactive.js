@@ -1,7 +1,8 @@
 // Run in the app under test before its own entry: the app never becomes the active one, so it never takes the person's
 // menu bar, keyboard or pointer. It has no Dock icon or menu bar of its own, and the system, which opened it in the
 // background, leaves the app in front where it is as its windows ask to come forward. The test drives it through its
-// main process and WebKit's module, which need none of that.
+// main process and WebKit's module, which need none of that. It raises none of the system's notifications either: the
+// system answers that it has none, so one asked of it is not shown.
 if (process.type === 'browser') {
     const { app } = require('electron');
     const keepOut = () => app.setActivationPolicy('accessory');
@@ -17,4 +18,7 @@ if (process.type === 'browser') {
     const { globalShortcut } = require('electron');
     globalShortcut.register = () => true;
     globalShortcut.unregister = () => {};
+    const { Notification } = require('electron');
+    Notification.isSupported = () => false;
+    Notification.prototype.show = () => {};
 }

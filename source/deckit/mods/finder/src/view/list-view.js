@@ -67,7 +67,7 @@ function listView({ ui, icons, onSort }) {
     let selection = new Set();
 
     const header = ui.element('div', { className: 'finder-list-header' });
-    const rows = ui.list({ key: (entry) => entry.path, create: createRow, update: updateRow });
+    const rows = ui.list({ role: 'presentation', key: (entry) => entry.path, create: createRow, update: updateRow });
     const element = rows.element;
 
     ui.addStyle(STYLE);
@@ -125,6 +125,7 @@ function listView({ ui, icons, onSort }) {
     function createRow(entry) {
         const row = ui.row({ size: 'small' });
         row.element.classList.add('finder-list-row');
+        row.element.setAttribute('role', 'treeitem');
         row.element.dataset.path = entry.path;
         rowParts.set(row.element, row);
         updateRow(row.element, entry);

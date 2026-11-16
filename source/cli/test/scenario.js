@@ -4,6 +4,11 @@ const fs = require('fs');
 const path = require('path');
 const { until, sleep, ALT, CTRL, META, SHIFT } = require('./devtools.js');
 const { seat } = require('./seat.js');
+const INPUT = require('./input.js');
+const READ = require('./read.js');
+const KIT = require('./kit.js');
+const VIEWS = require('./views.js');
+const OUTSIDE = require('./outside.js');
 
 // The mods Deckit.app ships that are apps, which the Dock keeps from the first start: every one but the accessories,
 // such as Deckit, the Switcher and Notifications.
@@ -22,16 +27,36 @@ const BROKEN = 'opens-everything';
 const NEXT_CHILD = 'region-child-next';
 // A mod that joins the status bar, which the window probe installs.
 const JOINS = 'status-item';
+// A mod with a band in the bar and a view under an anchor it tells there, opened as its checks come and its windows
+// closed after them, so the bar holds the status bar alone before and after.
+const ANCHORS = 'anchor-user';
 // A mod removed with its data whose web sessions were not cleared then, so what deck keeps of it is erased at start.
 const REMOVED = 'removed-with-data';
 // The Browser's tabs brought back: the one in front, and the one behind it, asleep.
 const FRONT_TAB = 'https://example.com/';
 const BEHIND_TAB = 'https://example.org/';
+// The seconds a seat gives no input before it is idle, short so the scenario can wait it out.
+const IDLE_TIME = 8;
 
 // A folder of files the Editor comes back to with LINES open, as a session it saved: an Open dialog cannot be driven.
 // The test's own mods, installed, one of them declaring addresses as it may not, the window probe shipped with the app
-// assembled in `app` as a system mod, Settings placed second in the Dock, as a person would have arranged it, and what
-// REMOVED left, noted as not cleared yet.
+// assembled in `app` as a system mod, Settings placed second in the Dock, as a person
+// would have arranged it, what REMOVED left, noted as not cleared yet, and the seats' settings as a host sets them:
+// the idle time, and a user that attaches asking to sit.
+const NOTED = [
+    ['seeded-new', 'Seeded new', 'Runs a command as it is pressed.', { command: 'noted', args: { word: 'pressed' } }],
+    ['seeded-old', 'Seeded old', '', {}],
+];
+
+// What the joining mod posts in the walk: one with an action stays on screen until it is answered.
+const TOAST = {
+    title: 'Toasted',
+    body: 'Stands until it is pressed.',
+    command: 'noted',
+    args: { word: 'toasted' },
+    actions: [{ title: 'Later', command: 'noted', args: { word: 'later' } }],
+};
+
 function seed({ data, files, app }) {
     const mods = path.join(data, 'deckit', 'mods');
     fs.cpSync(path.join(__dirname, 'mods'), mods, { recursive: true });
@@ -62,6 +87,25 @@ function seed({ data, files, app }) {
     }
     const lines = path.join(files, LINES);
     const session = { spaces: [{ root: files, open: [lines], active: lines, mode: 'files' }], active: files };
+    // Notifications' record as a run left it, so the bar holds its count from the start. The newer names a command of
+    // the joining mod's.
+    const noted = path.join(data, 'deckit', 'records', 'notifications', 'notifications.json');
+    fs.mkdirSync(path.dirname(noted), { recursive: true });
+    fs.writeFileSync(
+        noted,
+        JSON.stringify(
+            NOTED.map(([id, title, body, more], at) => ({
+                id,
+                mod: { id: JOINS, name: 'Status Item' },
+                title,
+                body,
+                silent: false,
+                ...more,
+                actions: [],
+                posted: Date.now() - (at + 1) * 60000,
+            }))
+        )
+    );
     const record = path.join(data, 'deckit', 'records', 'editor', 'session.json');
     fs.mkdirSync(path.dirname(record), { recursive: true });
     fs.writeFileSync(record, JSON.stringify(session));
@@ -77,6 +121,10 @@ function seed({ data, files, app }) {
     fs.writeFileSync(
         path.join(data, 'deckit', 'state', 'shell', 'dock-pinned.json'),
         JSON.stringify(['editor', 'settings', 'bot', 'browser', 'calendar', 'finder', 'mods', 'note', PROBE])
+    );
+    fs.writeFileSync(
+        path.join(data, 'deckit', 'state', 'seats.json'),
+        JSON.stringify({ idleTime: IDLE_TIME, asking: true })
     );
     fs.writeFileSync(path.join(data, 'deckit', 'deck.json'), JSON.stringify({ uncleared: [REMOVED] }));
     for (const kept of [
@@ -106,9 +154,11 @@ function shipProbe({ data, app }) {
     );
 }
 
-// The data store WebKit keeps the session `partition` spells in: a UUID made from its name.
-function storeOf(partition) {
-    const hash = require('crypto').createHash('sha1').update(`deckit-web:${partition}`).digest();
+// The data store WebKit keeps the session `partition` spells in, for the app whose data folder is `data`: a UUID made
+// from the key the folder keeps and the name.
+function storeOf(data, partition) {
+    const key = fs.readFileSync(path.join(data, 'webkit-key'), 'utf8').trim();
+    const hash = require('crypto').createHash('sha1').update(`deckit-web:${key}:${partition}`).digest();
     hash[6] = (hash[6] & 0x0f) | 0x50;
     hash[8] = (hash[8] & 0x3f) | 0x80;
     const hex = hash.subarray(0, 16).toString('hex');
@@ -118,6 +168,20 @@ function storeOf(partition) {
 // Whether two rects are the same to a point.
 function near(a, b) {
     return !!a && !!b && ['x', 'y', 'width', 'height'].every((key) => Math.abs(a[key] - b[key]) <= 1);
+}
+
+// What a reading of the capsule (`capsuleNow`) says of the bar beside its clock, whose label changes width as the time
+// does: `{ right, y, height, room }`, where the band's right edge, its top and its height are, and `room`, how wide it
+// is less the clock; null where either is not there.
+function besideClock({ bar, clock }) {
+    if (!bar || !clock) return null;
+    return { right: bar.x + bar.width, y: bar.y, height: bar.height, room: bar.width - clock.width };
+}
+
+// Whether two readings of the capsule have the bar the same beside its clock, to a point.
+function sameBesideClock(one, other) {
+    const [a, b] = [besideClock(one), besideClock(other)];
+    return !!a && !!b && Object.keys(a).every((key) => Math.abs(a[key] - b[key]) <= 1);
 }
 
 // Polls `probe` until it answers something, the same twice 100 ms apart, as a window's rect does once its motion has
@@ -133,9 +197,49 @@ async function atRest(probe, ms = 3000) {
     }
 }
 
-// `endCore()` kills the app's core, as a crash would; `logged()` is the app's log so far; `home` the app's folder; `id`
-// the id it runs under.
-async function run({
+// The status bar as it stands: `barPage()` is the document of its capsule, and `capsuleNow()` answers `{ fixed, bar,
+// name, clock, joined, items }`, where the fixed items a new machine starts with stand in the capsule, the
+// Notifications item and the clock as one, `{ x, width }`, the rect its band is laid at on the stage, what its toolbar is called, and the clock's item
+// and the joining mod's, `{ id, name, region, x, y, width, height }` each as its button is drawn in the capsule,
+// `region` the one it stands in, `fixed` or `scrolled`, or null, and every item so, in the order they are drawn.
+function statusBar({ pages, desktopLaid }) {
+    const barPage = async () => {
+        for (const each of await pages('about:blank'))
+            if (await each.evaluate(`!!document.querySelector('.status-bar')`)) return each;
+        return null;
+    };
+    const capsuleNow = async () => {
+        const bar = ((await desktopLaid())?.pages || []).find(
+            ({ opener, name }) => opener.startsWith('deckit://status-bar.mod') && /^deckit-window-/.test(name)
+        );
+        const drawn = await (
+            await barPage()
+        )?.evaluate(`(() => ({
+            name: document.querySelector('.status-bar').getAttribute('aria-label'),
+            items: [...document.querySelectorAll('.status-bar-item')].map((item) => {
+                const { x, y, width, height } = item.getBoundingClientRect();
+                const region = item.closest('.status-bar-fixed') ? 'fixed' : 'scrolled';
+                return { id: item.dataset.item, name: item.getAttribute('aria-label'), region, x, y, width, height };
+            }),
+        }))()`);
+        const item = (id) => drawn?.items.find((each) => each.id === id) ?? null;
+        const kept = (drawn?.items ?? []).filter(({ id, region }) => region === 'fixed' && id !== JOINS);
+        const left = Math.min(...kept.map(({ x }) => x));
+        return {
+            fixed: kept.length ? { x: left, width: Math.max(...kept.map(({ x, width }) => x + width)) - left } : null,
+            bar: bar?.rect ?? null,
+            name: drawn?.name ?? null,
+            clock: item('clock'),
+            joined: item(JOINS),
+            items: drawn?.items ?? [],
+        };
+    };
+    return { barPage, capsuleNow };
+}
+
+// The desktop and the shipped apps, as a person walks through them from the app's start. `logged()` is the app's log so
+// far; `home` the app's folder; `id` the id it runs under; `local` the local seat, `desktop` the desktop's page.
+async function walk({
     page,
     pageById,
     pages,
@@ -145,20 +249,15 @@ async function run({
     main,
     webPage,
     thrown,
-    endCore,
     logged,
     home,
     files,
     id: appId,
+    check,
+    local,
+    desktop,
 }) {
-    const report = [];
-    const check = (name, ok, detail = '') => report.push({ name, ok: !!ok, detail: String(detail ?? '') });
-    const { laidNow, desktopLaid, pageAt, windowsNow, keyMod, windowOf, dockNow, dockClick, show, desktopShot } = seat({
-        main,
-        pageById,
-        compose,
-        desktop: () => desktop,
-    });
+    const { laidNow, desktopLaid, pageAt, windowsNow, keyMod, windowOf, dockNow, dockClick, show, desktopShot } = local;
     const asksAttention = async (id) => !!(await dockNow()).find((item) => item.id === id)?.attention;
     // What the strip over the desktop holds: nothing but the host's controls.
     const stripText = () => desktop.evaluate(`document.querySelector('.deckit-desktop-strip')?.textContent ?? null`);
@@ -186,8 +285,6 @@ async function run({
     };
     const namesOf = (stack) => stack.map(({ url, name }) => name || url.replace(/\/$/, ''));
 
-    await sleep(9000);
-    const desktop = await until(() => page('deckit://desktop'));
     // Only the background mods, and the mods whose interfaces they use, run as the app starts. The Dock keeps the
     // shipped apps, running or not, the window probe among them, and each is opened from it as a person opens it, the
     // Editor last, so it is in front. The region parent is opened from the Mods mod, and comes into the Dock as it
@@ -234,16 +331,9 @@ async function run({
         windowsAtLaunch.every(({ mod }) => runsAtStart(mod)) && (await stripText()) === '',
         JSON.stringify({ windows: windowsAtLaunch.map(({ mod }) => mod), strip: await stripText() })
     );
-    // The status bar: a capsule 28 high in the host's bar, 8 in from its right end and centred on it, its children's
-    // views in a row in it, 24 high, the clock first, told wider than an icon's item.
-    const capsuleNow = async () => {
-        const stack = await stackNow();
-        const bar = stack.find(
-            ({ opener, name }) => opener.startsWith('deckit://status-bar.mod') && /^deckit-window-/.test(name)
-        );
-        const item = (id) => stack.find(({ url }) => url.startsWith(`deckit://${id}.mod`))?.rect ?? null;
-        return { bar: bar?.rect ?? null, clock: item('clock'), joined: item(JOINS) };
-    };
+    // The status bar: a capsule 28 high in the host's bar, 8 in from its right end and centred on it, one button an
+    // item in its document, 24 high, the clock's the rightmost, its label wider than a glyph's item.
+    const { barPage, capsuleNow } = statusBar({ pages, desktopLaid });
     const screenWidth = (await desktopLaid())?.rect.width;
     const capsule =
         (await until(async () => {
@@ -251,15 +341,19 @@ async function run({
             return now.bar && now.clock && now.clock.width > 32 && now;
         }, 8000)) || (await capsuleNow());
     check(
-        'the status bar stands at the top right of the host bar, the clock first in its row',
-        (({ bar, clock }) =>
+        'the status bar stands at the top right of the host bar, the clock an item in it',
+        (({ bar, name, clock }) =>
             bar?.height === 28 &&
             bar.y === 12 &&
             bar.x + bar.width === screenWidth - 8 &&
-            clock?.height === 24 &&
-            clock.y === bar.y + 2 &&
-            clock.x === bar.x + 2 &&
-            clock.x + clock.width === bar.x + bar.width - 2)(capsule),
+            name === 'Status Bar' &&
+            /^Clock, \S/.test(clock?.name ?? '') &&
+            clock.height === 24 &&
+            clock.y === 2 &&
+            capsule.fixed?.x === 2 &&
+            capsule.items.map(({ id }) => id).join() === 'notifications,clock' &&
+            capsule.items[0].name === 'Notifications, 2' &&
+            clock.x + clock.width === bar.width - 2)(capsule),
         JSON.stringify({ ...capsule, screenWidth })
     );
     // The Dock slides out as the pointer comes to its sliver at the desktop's edge, the only part of the desktop's page
@@ -325,7 +419,7 @@ async function run({
     );
     await allMods?.shot('mods');
     await allMods?.evaluate(`document.querySelector('.mods-search .deckit-field-clear')?.click()`);
-    await allMods?.evaluate(`document.querySelector('.mods-item[data-mod-id="region-parent"]').click()`);
+    await local.openFromMods('region-parent');
     await until(() => page('deckit://region-parent.mod'), 4000);
     await sleep(300);
     const docked = await until(async () => (await dockNow()).length === APPS + 2 && dockNow(), 4000);
@@ -422,6 +516,24 @@ async function run({
             await keyMod()
         );
 
+        // What has the keyboard, for a check of the switcher to say as it fails: the time, the rows `list` shows, the
+        // windows of the host app's the switcher's page is laid in, which window of the app's is key, `desktop`,
+        // `switcher`, another's id, or `none` where the app has none and another app has the keyboard, and the mod of
+        // the desktop's key window.
+        const keyboardNow = async (list) => {
+            const [laid, key] = [await laidNow(), await main('return webkit.keyWindow() ?? null')];
+            const holding = (test) =>
+                laid.filter(({ stages }) => stages.some(({ pages: each }) => each.some(test))).map(({ id }) => id);
+            const own = holding(({ opener }) => opener.startsWith('deckit://switcher.mod'));
+            const where = holding(({ url }) => url.startsWith('deckit://desktop')).includes(key) ? 'desktop' : key;
+            return {
+                at: new Date().toISOString(),
+                rows: (await list?.evaluate(`document.querySelectorAll('.switcher-row').length`)) ?? null,
+                windows: own,
+                key: key === null ? 'none' : own.includes(key) ? 'switcher' : where,
+                mod: await keyMod(),
+            };
+        };
         await editor.key(' ', 'Space', ALT, 32);
         const switcherPage = await until(() => page('deckit://switcher.mod'));
         // The switcher is a quick pick, a layer: drawn in its page's overlay, which has the keys while it is open.
@@ -481,13 +593,22 @@ async function run({
                 first && second && first !== second && third === first,
                 `${first} -> ${second} -> ${third}`
             );
+            const asOpen = await keyboardNow(switcher);
             await switcher.type('Show Notes');
-            await sleep(1200);
+            // The row of what was typed is the active one once the list ranked its rows by it.
+            const picked = await until(async () => {
+                const label = await switcher.evaluate(activeLabel);
+                return /^Show Notes/.test(label || '') && label;
+            }, 4000);
+            const asTyped = picked ? null : await keyboardNow(switcher);
             await switcher.shot('switcher-typed');
-            const picked = await switcher.evaluate(activeLabel);
             await switcher.key('Enter', 'Enter', 0, 13);
             await until(async () => (await keyMod()) === 'note', 4000);
-            check('switcher shows Notes', (await keyMod()) === 'note', `${picked}: ${await keyMod()} key`);
+            check(
+                'switcher shows Notes',
+                (await keyMod()) === 'note',
+                `${picked}: ${await keyMod()} key ${JSON.stringify({ asOpen, asTyped })}`
+            );
             // It goes as the mod it showed takes the keyboard, which no page of an app in the background has: put
             // away by its key here.
             const rows = `document.querySelectorAll('.switcher-row').length`;
@@ -695,6 +816,37 @@ async function run({
         );
         // The General font offers every family installed, not a list of its own.
         const fontSelect = `${general}.querySelector('.deckit-select')`;
+        // A scroll under a menu puts it away, so each one in the window's content from here on is kept, when on the
+        // page's clock, in what and how far, with the rows of Activity as they read now, for a check of the menu to
+        // say as it fails.
+        const activityRows = `[...document.querySelectorAll('.settings-activity-row')].map((row) => row.textContent)`;
+        await settings?.evaluate(`(() => {
+            const seen = (window.scrolledUnderMenu = { from: Math.round(performance.now()), scrolls: [] });
+            seen.rows = ${activityRows};
+            seen.heard = ({ target }) =>
+                seen.scrolls.push({
+                    at: Math.round(performance.now()),
+                    in: target.className ?? target.nodeName,
+                    top: target.scrollTop ?? null,
+                });
+            document.addEventListener('scroll', seen.heard, true);
+        })()`);
+        // What the window's content did while the menu was open: the scrolls kept, the rows of Activity as they `were`
+        // and as they `are` where one reads otherwise, came or went, and whether the select still says its menu is
+        // open.
+        const underTheMenu = () =>
+            settings?.evaluate(`(() => {
+                const { from, scrolls, rows } = window.scrolledUnderMenu;
+                const now = ${activityRows};
+                return {
+                    from,
+                    at: Math.round(performance.now()),
+                    scrolls,
+                    were: rows.filter((row) => !now.includes(row)),
+                    are: now.filter((row) => !rows.includes(row)),
+                    expanded: ${fontSelect}.getAttribute('aria-expanded'),
+                };
+            })()`);
         await settings?.evaluate(`${fontSelect}.click()`);
         await until(() => settingsOverlay.evaluate(menus), 2000);
         const families = await settingsOverlay?.evaluate(
@@ -741,17 +893,26 @@ async function run({
             return { inside, box, at, window: front?.rect };
         };
         const openedIn = await menuIn();
+        // Every row but Default, which has no face, wore its own.
         await until(async () => {
             const now = await facedNow();
-            return now && now.worn === now.rows;
+            return now && now.worn === now.rows - 1;
         }, 8000);
         await sleep(300);
         const grownIn = await menuIn();
         check(
             "a menu at a window's edge stays 8 inside it, as it opens and as it grows",
             openedIn.inside && grownIn.inside,
-            JSON.stringify({ openedIn, grownIn })
+            JSON.stringify({
+                openedIn,
+                grownIn,
+                under: openedIn.inside && grownIn.inside ? null : await underTheMenu(),
+            })
         );
+        await settings?.evaluate(`(() => {
+            document.removeEventListener('scroll', window.scrolledUnderMenu.heard, true);
+            delete window.scrolledUnderMenu;
+        })()`);
         await settingsOverlay?.key('Escape', 'Escape', 0, 27);
         await until(async () => !(await settingsOverlay.evaluate(menus)), 2000);
         // A switch's knob slides by the `move` spring: its running transition takes the token's length and curve and
@@ -1068,7 +1229,11 @@ async function run({
         const shownPage = `[...document.querySelectorAll('[data-web-page]')].find((element) => element.style.visibility === 'visible')?.dataset.webPage`;
         const front = webPage(await until(() => browser?.evaluate(shownPage), 3000));
         const store = (await front.state())?.store;
-        check('browser web page is in its own session', store === storeOf(`persist:${appId}:browser:web`), store);
+        check(
+            'browser web page is in its own session',
+            store === storeOf(path.dirname(home), `persist:${appId}:browser:web`),
+            store
+        );
         const pagesShown = `document.querySelectorAll('[data-web-page]').length`;
         const asleep = await browser?.evaluate(pagesShown);
         check('a tab brought back sleeps until it comes to the front', asleep === 1, asleep);
@@ -1989,7 +2154,13 @@ async function run({
         await until(async () => (await rowsOf()) === 0, 3000);
         const windowed = await page('deckit://window-user.mod');
         await services?.evaluate(`document.dispatchEvent(new CustomEvent('test-switcher'))`);
-        check('the switcher opens by its command', await until(async () => (await rowsOf()) > 0, 3000), await rowsOf());
+        const asAsked = await keyboardNow(query);
+        const byCommand = await until(async () => (await rowsOf()) > 0, 3000);
+        check(
+            'the switcher opens by its command',
+            byCommand,
+            JSON.stringify(byCommand ? {} : { asAsked, after: await keyboardNow(query) })
+        );
         await query?.key('Escape', 'Escape', 0, 27);
         await until(async () => (await rowsOf()) === 0, 3000);
         // A mod's windows on the desktop, as the window user opens them by name: the first, opened on its own while
@@ -2746,90 +2917,279 @@ async function run({
             return typeof now === 'number' && now !== was;
         }, 8000);
         check("a shown mod's next revision loads in a page of its own", loaded, '');
-        // A mod installed that names the status bar's interface as its view's parent joins it, an icon's item at the
-        // end of the row, and the capsule grows by it and a gap.
+        // A mod installed and launched that sets an item joins the status bar: a glyph's item left of the clock, the
+        // capsule wider by it and a gap. What it sets anew is drawn and named, and an item of another shape is refused.
         const unjoined = await capsuleNow();
         await probe.evaluate(
             `document.dispatchEvent(new CustomEvent('test-install-from', { detail: ${JSON.stringify(path.join(home, '..', JOINS))} }))`
         );
+        await probe.evaluate('delete document.documentElement.dataset.installed');
         await probeWindow.press('#install');
+        await until(async () => (await mark(probe, 'installed')) === JOINS, 8000);
+        await probe.evaluate(
+            `delete document.documentElement.dataset.loaded; document.dispatchEvent(new CustomEvent('test-load', { detail: ['${JOINS}'] }))`
+        );
         const joined =
             (await until(async () => {
                 const now = await capsuleNow();
-                return now.joined && now.bar?.width === unjoined.bar?.width + 36 && now;
+                return now.joined && besideClock(now)?.room === besideClock(unjoined)?.room + 36 && now;
             }, 8000)) || (await capsuleNow());
         check(
-            'a mod that joins the status bar is laid at the end of its row, and the capsule grows to hold it',
+            'an item a mod sets comes into the status bar left of the clock, and the capsule grows to hold it',
             joined.joined?.width === 32 &&
-                joined.joined.x === joined.bar.x + joined.bar.width - 34 &&
+                joined.joined.x === 2 &&
+                joined.joined.name === 'Star' &&
+                joined.fixed?.x === 38 &&
                 joined.bar.x + joined.bar.width === unjoined.bar.x + unjoined.bar.width,
             JSON.stringify({ unjoined, joined })
         );
-        // A press on the clock brings the notification center out at the desktop's right edge, 8 in from it, 8 under
-        // the bar and 8 above the bottom, and it takes the keyboard; the clock shows pressed while it is open, and a
-        // second press puts it away. A press on a normal window takes the keyboard from it, and it closes (DECKIT-31).
-        const centerNow = async () =>
-            (await laidNow())
-                .flatMap(({ stages }) => stages.flatMap(({ pages: laid }) => laid))
-                .find(
-                    ({ opener, name }) =>
-                        opener.startsWith('deckit://notifications.mod') && /^deckit-window-/.test(name)
-                ) ?? null;
-        const clockPage = await page('deckit://clock.mod');
-        const clockPressed = async () =>
-            (await clockPage?.evaluate(`document.querySelector('.deckit-bar-item')?.getAttribute('aria-pressed')`)) ===
-            'true';
-        const stageNow = (await desktopLaid())?.rect;
-        const centerAt = { x: stageNow?.width - 368, y: 60, width: 360, height: stageNow?.height - 68 };
-        await clockPage?.press('.deckit-bar-item');
-        const centerOpened = await until(async () => {
-            const now = await centerNow();
-            return near(now?.rect, centerAt) && now.responder && now;
+        const joinsPage = await page(`deckit://${JOINS}.mod`);
+        const setItem = (item) =>
+            joinsPage?.evaluate(
+                `delete document.documentElement.dataset.set; document.dispatchEvent(new CustomEvent('test-item', { detail: ${JSON.stringify(item)} }))`
+            );
+        await setItem({ name: 'Star', icon: 'star', command: 'show', count: 120, tone: 'attention' });
+        const itemCounted = await until(async () => {
+            const now = await capsuleNow();
+            return now.joined?.name === 'Star, 99+, attention' && now;
         }, 4000);
         check(
-            'a press on the clock opens the notification center at the right edge, and it takes the keyboard',
-            centerOpened && (await until(clockPressed, 2000)),
-            JSON.stringify({ center: await centerNow(), centerAt, pressed: await clockPressed() })
+            'an item set anew is named by its name, its count and its attention, and laid as wide as it draws',
+            itemCounted &&
+                itemCounted.joined.width === 57 &&
+                besideClock(itemCounted)?.room === besideClock(unjoined)?.room + 61,
+            JSON.stringify({ itemCounted, now: await capsuleNow() })
         );
-        await clockPage?.press('.deckit-bar-item');
-        const centerAway = await until(async () => !(await centerNow()) && !(await clockPressed()), 4000);
+        await setItem({ name: 'Star', label: 'x'.repeat(25) });
+        const refusedItem = await until(async () => await mark(joinsPage, 'set'), 4000);
         check(
-            'a second press on the clock puts the notification center away',
-            centerAway,
-            JSON.stringify({ center: await centerNow(), pressed: await clockPressed() })
+            'an item of another shape is refused, and the one set before stands',
+            refusedItem === 'INVALID_ARGUMENT' && (await capsuleNow()).joined?.name === 'Star, 99+, attention',
+            JSON.stringify({ refusedItem, now: await capsuleNow() })
         );
-        await clockPage?.press('.deckit-bar-item');
-        const centerAgain = await until(async () => (await centerNow())?.responder, 4000);
-        await probeWindow.press('#drop');
-        const taken = await until(
-            async () => !(await centerNow()) && (await keyMod()) === 'window-probe' && !(await clockPressed()),
-            4000
-        );
+        // A press on the item runs its command on its mod, which toggles a view of its own under the item's anchor:
+        // their right edges in line, 8 under the bar. A second press puts it away.
+        const itemView = async () =>
+            (await laidNow())
+                .flatMap(({ stages }) => stages.flatMap(({ pages: laid }) => laid))
+                .find(({ opener, name }) => opener.startsWith(`deckit://${JOINS}.mod`) && /^deckit-window-/.test(name))
+                ?.rect ?? null;
+        const pressItem = async (id) => (await barPage())?.press(`.status-bar-item[data-item="${id}"]`);
+        await pressItem(JOINS);
+        const viewUnder = await until(async () => {
+            const [view, now] = [await itemView(), await capsuleNow()];
+            const right = now.bar && now.joined && now.bar.x + now.joined.x + now.joined.width;
+            return view && near(view, { x: right - 320, y: 60, width: 320, height: 200 }) && view;
+        }, 6000);
         check(
-            'a press on a normal window takes the keyboard from the notification center, which closes',
-            centerAgain && taken,
-            JSON.stringify({
-                centerAgain,
-                center: await centerNow(),
-                key: await keyMod(),
-                pressed: await clockPressed(),
-            })
+            'a press on an item runs its command, and its mod stands a view under the item',
+            viewUnder && (await mark(joinsPage, 'ran')) === '1',
+            JSON.stringify({ view: await itemView(), now: await capsuleNow(), ran: await mark(joinsPage, 'ran') })
         );
-        // A mod no input reached toggles the center: Notifications may not activate (DECKIT-32), and the center, where
-        // the person works, is not left open without the keyboard.
-        const joinsPage = await page(`deckit://${JOINS}.mod`);
-        await joinsPage?.evaluate(`document.dispatchEvent(new CustomEvent('test-center'))`);
-        const toggled = await until(async () => await mark(joinsPage, 'center'), 4000);
+        await pressItem(JOINS);
+        const viewAway = await until(async () => !(await itemView()) && (await mark(joinsPage, 'ran')) === '2', 6000);
+        check(
+            'a second press on the item puts its view away',
+            viewAway,
+            JSON.stringify({ view: await itemView(), ran: await mark(joinsPage, 'ran') })
+        );
+        // The switcher, an overlay window that holds the keyboard, stays open as an item is set anew to what it is:
+        // the capsule and its anchors are as they were, so the shell is told nothing and lays nothing again.
+        await show('editor');
+        await (await windowOf('editor'))?.key(' ', 'Space', ALT, 32);
+        const switcherOver = await until(async () => overlayOf(await page('deckit://switcher.mod')), 5000);
+        const switcherRows = () => switcherOver?.evaluate(`document.querySelectorAll('.switcher-row').length`);
+        const switcherListed = await until(async () => (await switcherRows()) > 0, 5000);
+        await setItem({ name: 'Star', icon: 'star', command: 'show', count: 120, tone: 'attention' });
+        const setAsItIs = await until(async () => (await mark(joinsPage, 'set')) === 'set', 4000);
         await sleep(1000);
-        const unkeyed = await until(
-            async () => !(await centerNow()) && (await keyMod()) === 'window-probe' && !(await clockPressed()),
-            4000
-        );
+        const switcherStays = (await switcherRows()) > 0;
         check(
-            'a mod that may not activate toggles the notification center, which does not stay open without the keyboard',
-            toggled && unkeyed,
-            JSON.stringify({ toggled, center: await centerNow(), key: await keyMod(), pressed: await clockPressed() })
+            'an item set anew to what it is leaves the switcher open',
+            switcherListed && setAsItIs && switcherStays,
+            JSON.stringify({ switcherListed, setAsItIs, rows: await switcherRows() })
         );
+        if (await switcherRows()) await switcherOver?.key('Escape', 'Escape', 0, 27);
+        await until(async () => (await switcherRows()) === 0, 3000);
+        await show(PROBE);
+        await setItem(null);
+        const itemGone = await until(async () => {
+            const now = await capsuleNow();
+            return !now.joined && besideClock(now)?.room === besideClock(unjoined)?.room && now;
+        }, 4000);
+        check(
+            'an item its mod removes goes, and the capsule narrows to what is left',
+            itemGone && (await mark(joinsPage, 'set')) === 'removed',
+            JSON.stringify({ now: await capsuleNow(), set: await mark(joinsPage, 'set') })
+        );
+        {
+            // A press on the Notifications item runs its command, which stands the notification center under the item,
+            // their right edges in line, 8 under the bar, as high as the record's two rows, and it takes the keyboard.
+            const centerNow = async () =>
+                (await laidNow())
+                    .flatMap(({ stages }) => stages.flatMap(({ pages: laid }) => laid))
+                    .find(
+                        ({ opener, name }) =>
+                            opener.startsWith('deckit://notifications.mod') && /^deckit-window-/.test(name)
+                    ) ?? null;
+            const centerPage = async () => {
+                for (const each of await pages('about:blank'))
+                    if (await each.evaluate(`!!document.querySelector('.notifications-head')`)) return each;
+                return null;
+            };
+            const bell = async () => (await capsuleNow()).items.find(({ id }) => id === 'notifications') ?? null;
+            const rowsNow = async () =>
+                (await centerPage())?.evaluate(`(() => ({
+                titles: [...document.querySelectorAll('.notifications-rows .notifications-title')].map((node) => node.textContent),
+                active: [...document.querySelectorAll('.notifications-rows .notifications-card')].findIndex((node) => node.hasAttribute('data-active')),
+                high: [...document.querySelectorAll('.notifications-rows .notifications-card')].reduce((sum, node) => sum + node.getBoundingClientRect().height, 0),
+                empty: document.querySelector('.deckit-empty')?.textContent ?? null,
+            }))()`);
+            const bellAt = await bell();
+            await pressItem('notifications');
+            const centerOpened = await until(async () => {
+                const [now, bar, rows] = [await centerNow(), (await capsuleNow()).bar, await rowsNow()];
+                const right = bar && bellAt && bar.x + bellAt.x + bellAt.width;
+                const high = rows && 16 + 32 + 8 + rows.high + 8 + 16;
+                const under = now && rows?.titles.length === 2 && { x: right - 360, y: 60, width: 360, height: high };
+                return under && near(now.rect, under) && now.responder && { rect: now.rect, under, rows };
+            }, 6000);
+            check(
+                'a press on the Notifications item stands the center under it, as high as its rows, with the keyboard',
+                centerOpened &&
+                    centerOpened.rows.titles.join() === NOTED.map(([, title]) => title).join() &&
+                    bellAt?.name === 'Notifications, 2',
+                JSON.stringify({ centerOpened, center: await centerNow(), rows: await rowsNow(), bellAt })
+            );
+            // Its keys: the arrows move along the rows from the first, Command-Delete removes the row they are on,
+            // and Return runs the row's command on its sender and takes it away; the item counts what is left.
+            const center = await centerPage();
+            await center?.key('ArrowDown', 'ArrowDown', 0, 40);
+            const onFirst = await until(async () => (await rowsNow())?.active === 0, 3000);
+            await center?.key('ArrowDown', 'ArrowDown', 0, 40);
+            const moved = onFirst && (await until(async () => (await rowsNow())?.active === 1, 3000));
+            await center?.key('Backspace', 'Backspace', META, 8);
+            const removed = await until(
+                async () =>
+                    (await rowsNow())?.titles.join() === NOTED[0][1] && (await bell())?.name === 'Notifications, 1',
+                4000
+            );
+            const lower = await until(async () => {
+                const [now, rows] = [await centerNow(), await rowsNow()];
+                return now && rows && Math.abs(now.rect.height - (16 + 32 + 8 + rows.high + 16)) <= 1;
+            }, 4000);
+            check(
+                'in the center the arrows move along the rows and Command-Delete removes one: the view is as high as what is left',
+                moved && removed && lower,
+                JSON.stringify({
+                    moved,
+                    removed,
+                    lower,
+                    center: await centerNow(),
+                    rows: await rowsNow(),
+                    bell: await bell(),
+                })
+            );
+            await center?.key('Enter', 'Enter', 0, 13);
+            const ranNoted = await until(async () => (await mark(joinsPage, 'noted')) === 'pressed', 6000);
+            const emptied = await until(
+                async () => (await rowsNow())?.titles.length === 0 && (await bell())?.name === 'Notifications',
+                4000
+            );
+            check(
+                "Return runs the row's command on its sender and takes it away: the record is empty and the item has no count",
+                ranNoted && emptied,
+                JSON.stringify({ noted: await mark(joinsPage, 'noted'), rows: await rowsNow(), bell: await bell() })
+            );
+            // A second press on the item puts it away; Escape does, and a press on a normal window, by the shell's rule.
+            await pressItem('notifications');
+            const centerAway = await until(async () => !(await centerNow()), 4000);
+            await pressItem('notifications');
+            const centerAgain = await until(async () => (await centerNow())?.responder, 4000);
+            await (await centerPage())?.key('Escape', 'Escape', 0, 27);
+            const escaped = await until(async () => !(await centerNow()), 4000);
+            await pressItem('notifications');
+            const centerThird = await until(async () => (await centerNow())?.responder, 4000);
+            await probeWindow.press('#drop');
+            const taken = await until(async () => !(await centerNow()) && (await keyMod()) === 'window-probe', 4000);
+            check(
+                'a second press on the item puts the center away, and so do Escape and a press on a normal window',
+                centerAway && centerAgain && escaped && centerThird && taken,
+                JSON.stringify({ centerAway, centerAgain, escaped, centerThird, taken, key: await keyMod() })
+            );
+            // The clock says the time: a press on it runs nothing.
+            const clockTakes = await (
+                await barPage()
+            )?.evaluate(`document.querySelector('.status-bar-item[data-item="clock"]').disabled`);
+            check('the clock takes no press', clockTakes === true, JSON.stringify({ clockTakes }));
+            // A post of the joining mod's stands as a toast at the top right of the stage, 8 inside its right side and
+            // 8 under the bar, 360 wide, in a view that takes no keyboard, while the app is not in front; the item
+            // counts it. A press on it runs the command it names on its sender and takes it away, its view with it.
+            // Nothing is posted where the run would raise a notification of the system's.
+            const quiet = (await main(`return require('electron').Notification.isSupported()`)) === false;
+            check("a run raises none of the system's notifications", quiet, JSON.stringify({ quiet }));
+            if (quiet) {
+                const toastsPage = async () => {
+                    for (const each of await pages('about:blank'))
+                        if (
+                            await each.evaluate(`!!document.querySelector('.notifications-toasts .notifications-card')`)
+                        )
+                            return each;
+                    return null;
+                };
+                const keyBefore = await keyMod();
+                await joinsPage?.evaluate(
+                    `delete document.documentElement.dataset.posted; document.dispatchEvent(new CustomEvent('test-post', { detail: ${JSON.stringify(TOAST)} }))`
+                );
+                const toastStood = await until(async () => {
+                    const [now, toast] = [await centerNow(), await toastsPage()];
+                    const stage = (await desktopLaid())?.pages.find(({ url }) => url.startsWith('deckit://desktop'));
+                    const right = stage && stage.rect.width - 8;
+                    return (
+                        now &&
+                        toast &&
+                        right &&
+                        Math.abs(now.rect.x + now.rect.width - right) <= 1 &&
+                        Math.abs(now.rect.y - 60) <= 1 &&
+                        now.rect.width === 360 &&
+                        !now.responder && { rect: now.rect, right }
+                    );
+                }, 8000);
+                const counted = await until(async () => /^Notifications, 1\b/.test((await bell())?.name ?? ''), 4000);
+                const toastSays = await (
+                    await toastsPage()
+                )?.evaluate(`document.querySelector('.notifications-card .notifications-title')?.textContent ?? null`);
+                check(
+                    'a post stands as a toast at the top right of the stage, in a view that takes no keyboard, and the item counts it',
+                    toastStood && counted && toastSays === TOAST.title && (await keyMod()) === keyBefore,
+                    JSON.stringify({
+                        toastStood,
+                        counted,
+                        toastSays,
+                        posted: await mark(joinsPage, 'posted'),
+                        bell: await bell(),
+                        view: await centerNow(),
+                        key: [keyBefore, await keyMod()],
+                    })
+                );
+                await (await toastsPage())?.press('.notifications-card .notifications-title');
+                const toastRan = await until(async () => (await mark(joinsPage, 'noted')) === TOAST.args.word, 6000);
+                const toastGone = await until(
+                    async () => !(await centerNow()) && (await bell())?.name === 'Notifications',
+                    6000
+                );
+                check(
+                    'a press on a toast runs its command on its sender and takes it away: its view closes and the item has no count',
+                    toastRan && toastGone && (await keyMod()) === keyBefore,
+                    JSON.stringify({
+                        noted: await mark(joinsPage, 'noted'),
+                        view: await centerNow(),
+                        bell: await bell(),
+                        key: [keyBefore, await keyMod()],
+                    })
+                );
+            }
+        }
         await show('window-probe');
 
         // A folder and a file dragged in from outside the app and dropped on the probe's destination: it hears the drag
@@ -2858,6 +3218,99 @@ async function run({
         );
         const targeted = await probe.evaluate('document.documentElement.dataset.targeted');
         check('a drop destination hears a drag of files come over it and go', targeted === 'on off ', targeted);
+
+        // A mod with a band in the bar tells an anchor in it for itself, and its view stands under that anchor: their
+        // right edges in line, 8 under the bar, its corners 12 round. The view moves as the anchor is told elsewhere,
+        // goes as it is dropped and comes back as it is told again, and the mod is refused a view under an anchor its
+        // band gives another mod.
+        const barAlone = await capsuleNow();
+        await probe.evaluate(
+            `delete document.documentElement.dataset.loaded; document.dispatchEvent(new CustomEvent('test-load', { detail: ['${ANCHORS}'] }))`
+        );
+        const anchorPage = await until(() => page(`deckit://${ANCHORS}.mod`), 8000);
+        const anchoredNow = async () => {
+            const laid = (await desktopLaid())?.pages || [];
+            const found = { band: null, view: null, others: 0 };
+            for (const { id, opener, name, rect, clips } of laid) {
+                if (!opener.startsWith(`deckit://${ANCHORS}.mod`) || !/^deckit-window-/.test(name)) continue;
+                const text = await (await pageById(id))?.evaluate('document.body.textContent');
+                if (text === 'Band') found.band = rect;
+                else if (text === 'View') found.view = { ...rect, radius: clips.at(-1)?.radius ?? 0 };
+                else found.others += 1;
+            }
+            return found;
+        };
+        const anchorTold = async () => JSON.parse((await mark(anchorPage, 'anchor')) || 'null');
+        const tellAnchor = (rect) =>
+            anchorPage?.evaluate(
+                `document.dispatchEvent(new CustomEvent('test-anchor', { detail: ${JSON.stringify(rect)} }))`
+            );
+        const underOf = (band, anchor) =>
+            band &&
+            anchor && {
+                x: Math.max(8, Math.min(band.x + anchor.x + anchor.width - 320, screenWidth - 328)),
+                y: 60,
+                width: 320,
+                height: 200,
+            };
+        const standsUnder = (anchor, ms = 6000) =>
+            until(async () => {
+                const now = await anchoredNow();
+                return near(now.view, underOf(now.band, anchor)) && now;
+            }, ms);
+        const first = await until(anchorTold, 6000);
+        const stood = await standsUnder(first);
+        check(
+            'a view stands under the anchor its mod told in its band, their right edges in line, its corners round',
+            stood && stood.view.radius === 12 && (await mark(anchorPage, 'told')) === 'didAppear,',
+            JSON.stringify({ first, now: await anchoredNow(), told: await mark(anchorPage, 'told') })
+        );
+        await desktopShot('anchored-view', {
+            crop: stood && { x: stood.view.x - 40, y: 0, width: stood.view.width + 80, height: 300 },
+        });
+        const shifted = first && { ...first, x: first.x - 60 };
+        await tellAnchor(shifted);
+        const followed = await standsUnder(shifted);
+        check(
+            'a view under an anchor moves as the anchor does',
+            followed && stood && followed.view.x - followed.band.x === stood.view.x - stood.band.x - 60,
+            JSON.stringify({ shifted, stood, now: await anchoredNow() })
+        );
+        await tellAnchor(null);
+        const went = await until(async () => {
+            const now = await anchoredNow();
+            return now.band && !now.view && (await mark(anchorPage, 'told')) === 'didAppear,didDisappear,';
+        }, 6000);
+        check(
+            'a view under an anchor goes as the anchor goes, its band left standing',
+            went,
+            JSON.stringify({ now: await anchoredNow(), told: await mark(anchorPage, 'told') })
+        );
+        await tellAnchor(first);
+        const returned = await standsUnder(first);
+        check(
+            'a view under an anchor comes back as the anchor returns',
+            returned && (await mark(anchorPage, 'told')) === 'didAppear,didDisappear,didAppear,',
+            JSON.stringify({ first, now: await anchoredNow(), told: await mark(anchorPage, 'told') })
+        );
+        await anchorPage?.evaluate(`document.dispatchEvent(new CustomEvent('test-foreign'))`);
+        const foreign = await until(async () => await mark(anchorPage, 'foreign'), 4000);
+        check(
+            'a mod is refused a view under an anchor given to another mod',
+            foreign === 'NOT_PERMITTED' && (await anchoredNow()).others === 0,
+            JSON.stringify({ foreign, now: await anchoredNow() })
+        );
+        await anchorPage?.evaluate(`document.dispatchEvent(new CustomEvent('test-close'))`);
+        const barAgain = await until(async () => {
+            const { band, view } = await anchoredNow();
+            const now = await capsuleNow();
+            return !band && !view && sameBesideClock(now, barAlone) && now;
+        }, 6000);
+        check(
+            'a band and the view under its anchor close, and the status bar stands as before',
+            barAgain,
+            JSON.stringify({ barAlone, now: await capsuleNow(), anchored: await anchoredNow() })
+        );
         await show('region-parent');
         const relaid = await until(async () => {
             const fresh = await page('deckit://region-child.mod');
@@ -2949,23 +3402,148 @@ async function run({
         check('scenario ran', false, error.stack);
     }
     check('no page threw', !thrown.length, thrown.slice(0, 3).join(' | '));
+}
+
+// The scenario's areas in the order they run, each under the name its checks carry before a colon, where they carry
+// one: what it checks, and the areas it cannot run without, which run before it. An area needs no other area's checks
+// to have run beyond those. `reading` holds the Editor to what the walk left open in it, as the seats `outside` sat
+// read it.
+const AREAS = [
+    { name: 'desktop', says: 'the desktop and the shipped apps, as a person walks through them from the start' },
+    { name: 'input', says: "a seat's input, put into the pages of two windows" },
+    { name: 'outside', says: 'a party attached from outside, and the seats that sit beside the local one' },
+    { name: 'reading', says: 'what a seat reads of the desktop it sits at', needs: ['desktop', 'outside'] },
+    { name: 'read', says: 'what a page answers of itself, its outline, its nodes and its pictures' },
+    { name: 'kit', says: "the kit's parts, and the mods built of them, as a page's reader answers them" },
+    { name: 'core', says: 'the core, and the app once its core ended' },
+];
+
+// The areas that run for those `named`, each with the areas it needs, in the scenario's order: all for none named.
+function areasFor(named = []) {
+    const wanted = new Set(named);
+    for (const { name, needs = [] } of AREAS) if (wanted.has(name)) for (const need of needs) wanted.add(need);
+    return AREAS.map(({ name }) => name).filter((name) => !named.length || wanted.has(name));
+}
+
+// Runs the areas `named`, with those they need, on the app as it just started: all of them for none named. `endCore()`
+// kills the app's core, as a crash would. Answers the checks, `{ name, ok, detail }` each.
+async function run(app, named = []) {
+    const { page, main, pageById, compose, endCore, logged, home } = app;
+    const chosen = areasFor(named);
+    const runs = (name) => chosen.includes(name);
+    const report = [];
+    const check = (name, ok, detail = '') => report.push({ name, ok: !!ok, detail: String(detail ?? '') });
+    const local = seat({ main, pageById, compose, desktop: () => desktop });
+    const { laidNow, desktopLaid, pageAt, windowsNow, keyMod, windowOf, show, open, desktopShot } = local;
+    await sleep(9000);
+    const desktop = await until(() => page('deckit://desktop'));
+    // The windows the seats sit at: one whose content is its only page, the region parent's, opened from the Mods mod
+    // as the Dock does not keep it, and the Editor's last, the local seat's key window where it has none or the region
+    // parent's, which a seat from outside is to press.
+    const windowsStand = async () => {
+        for (const id of ['settings', 'mods']) await open(id);
+        if (!(await windowOf('region-parent'))) await local.openFromMods('region-parent');
+        await until(async () => !!(await windowOf('region-parent')), 8000);
+        await open('editor');
+        if ([null, 'region-parent'].includes(await keyMod())) await show('editor');
+    };
+
+    // The page of the mod that tells anchors, launched through the window probe where it does not run yet, the probe
+    // opened from the Mods mod first where it does not either.
+    const anchors = async () => {
+        const address = `deckit://${ANCHORS}.mod`;
+        const running = await page(address);
+        if (running) return running;
+        if (!(await page(`deckit://${PROBE}.mod`))) await local.openFromMods(PROBE);
+        const probe = await until(() => page(`deckit://${PROBE}.mod`), 8000);
+        await probe?.evaluate(
+            `delete document.documentElement.dataset.loaded; document.dispatchEvent(new CustomEvent('test-load', { detail: ['${ANCHORS}'] }))`
+        );
+        return until(() => page(address), 8000);
+    };
+
+    if (runs('desktop')) await walk({ ...app, check, local, desktop });
+
+    if (runs('input'))
+        try {
+            await INPUT.run({ check, main, laidNow, desktopLaid, windowsNow, open });
+        } catch (error) {
+            check("input: a seat's input was put", false, error.stack);
+        }
+
+    if (runs('outside'))
+        try {
+            const { asksNow, pressAt, answer, allowed } = local;
+            await windowsStand();
+            await OUTSIDE.run({
+                check,
+                home,
+                logged,
+                main,
+                windowsNow,
+                desktopLaid,
+                idleTime: IDLE_TIME,
+                asksNow,
+                pressAt,
+                pageAt,
+                desktopShot,
+                answer,
+                allowed,
+                seatsView: local.seatsView,
+                reads: runs('reading'),
+                anchors,
+                dock: { now: local.dockNow, inDesktop: local.inDesktop, mouseAt: local.mouseAt },
+                bar: runs('desktop')
+                    ? {
+                          ...statusBar({ pages: app.pages, desktopLaid }),
+                          joins: () => page(`deckit://${JOINS}.mod`),
+                          frame: () => page('deckit://status-bar.mod'),
+                          overlay: async () => app.overlayOf(await page('deckit://status-bar.mod')),
+                      }
+                    : null,
+            });
+        } catch (error) {
+            check('outside: a party attached', false, error.stack);
+        }
+
+    if (runs('read'))
+        try {
+            await READ.run({ check, main, open });
+        } catch (error) {
+            check('read: a page was read', false, error.stack);
+        }
+
+    if (runs('kit'))
+        try {
+            await KIT.run({ check, main, open, page, show });
+        } catch (error) {
+            check("kit: the kit's parts were read", false, error.stack);
+        }
+
+    if (runs('kit'))
+        try {
+            await VIEWS.run({ check, main, open, show, desktopLaid, pressIn: local.seatsView.pressIn });
+        } catch (error) {
+            check('views: the mods and the views were read', false, error.stack);
+        }
 
     // A core that ends is not started again: what it ended of is told, asking for the app to be restarted.
-    try {
-        endCore();
-        const told = await until(() => /deckit's core ended \(.+\): restart the app/.test(logged()), 5000);
-        check('a core that ends asks for the app to be restarted', told, '');
-        const notice = `(() => { const down = document.querySelector('.deckit-desktop-down'); return down && !down.hidden ? down.textContent : ''; })()`;
-        const asked = await until(
-            async () => /needs a restart/.test((await (await page('deckit://desktop'))?.evaluate(notice)) || ''),
-            3000
-        );
-        check("the desktop's page asks the person to restart once the core is down", asked, '');
-        await (await page('deckit://desktop'))?.shot('desktop-down');
-    } catch (error) {
-        check('the core was ended', false, error.stack);
-    }
+    if (runs('core'))
+        try {
+            endCore();
+            const told = await until(() => /deckit's core ended \(.+\): restart the app/.test(logged()), 5000);
+            check('a core that ends asks for the app to be restarted', told, '');
+            const notice = `(() => { const down = document.querySelector('.deckit-desktop-down'); return down && !down.hidden ? down.textContent : ''; })()`;
+            const asked = await until(
+                async () => /needs a restart/.test((await (await page('deckit://desktop'))?.evaluate(notice)) || ''),
+                3000
+            );
+            check("the desktop's page asks the person to restart once the core is down", asked, '');
+            await (await page('deckit://desktop'))?.shot('desktop-down');
+        } catch (error) {
+            check('the core was ended', false, error.stack);
+        }
     return report;
 }
 
-module.exports = { seed, run };
+module.exports = { seed, run, areas: AREAS, areasFor };

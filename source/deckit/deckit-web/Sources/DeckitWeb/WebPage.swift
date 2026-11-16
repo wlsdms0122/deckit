@@ -153,35 +153,40 @@ final class WebPage: NSObject {
         Self.add(scripts, to: controller)
     }
 
-    // What a key does, asked of JavaScript before the page has it.
-    func pressed(_ event: NSEvent) -> Bool {
+    // What a key does, asked of JavaScript before the page has it, `source` what it was put for, none for the
+    // machine's.
+    func pressed(_ event: NSEvent, source: String? = nil) -> Bool {
         var payload = Self.keystroke(of: event)
         payload["type"] = event.type == .keyDown ? "keyDown" : "keyUp"
+        if let source { payload["source"] = source }
 
         return emitter.emit("key", payload) { node, value in try node.bool(value) } ?? false
     }
 
     // What a key pressed that the page did not handle does, asked of JavaScript after the page had it: whether it is
     // taken from the rest of the app. Until JavaScript answers, the app does not have it; one answered later and not
-    // taken goes to the app's menu.
-    func unhandled(_ event: NSEvent) -> Bool {
+    // taken goes to the app's menu, unless it was put for `source`, whose keys the app never has.
+    func unhandled(_ event: NSEvent, source: String? = nil) -> Bool {
         let answer = KeyAnswer()
         let reply = Reply { node, arguments in
             guard answer.taken == nil else { return }
             let taken = try arguments.first.map { try node.bool($0) } ?? false
             answer.taken = taken
-            if !answer.asking && !taken { NSApp.mainMenu?.performKeyEquivalent(with: event) }
+            if !answer.asking && !taken && source == nil { NSApp.mainMenu?.performKeyEquivalent(with: event) }
         }
         var payload = Self.keystroke(of: event)
         payload["reply"] = reply
+        if let source { payload["source"] = source }
         emitter.emit("unhandled", payload)
         answer.asking = false
 
         return answer.taken ?? true
     }
 
-    func pointed(_ event: NSEvent) {
-        emitter.emit("mouse", ["type": event.type == .leftMouseDown ? "mouseDown" : "mouseUp"])
+    func pointed(_ event: NSEvent, source: String? = nil) {
+        var payload: [String: Any?] = ["type": event.type == .leftMouseDown ? "mouseDown" : "mouseUp"]
+        if let source { payload["source"] = source }
+        emitter.emit("mouse", payload)
     }
 
     // The value of `source`, a function body that may await, as JSON, run in the page's world or deckit's, in the main
@@ -539,6 +544,19 @@ extension WebPage: WKNavigationDelegate {
 
 extension WebPage: WKUIDelegate {
     // MARK: - Lifecycle
+    // The menu WebKit opens of a press the page left to it: its own for the machine's press, and none for a press put
+    // in for a seat, which is no press at the machine. WebKit asks its delegate by this name before it opens one.
+    @objc(_webView:getContextMenuFromProposedMenu:forElement:userInfo:completionHandler:)
+    func webView(
+        _ webView: WKWebView,
+        contextMenuFrom proposed: NSMenu,
+        forElement element: Any,
+        userInfo: Any?,
+        completionHandler: @escaping (NSMenu?) -> Void
+    ) {
+        completionHandler(view.isPressedBySeat ? nil : proposed)
+    }
+
     // A window the page asks for is JavaScript's to give, as a page of the module's with WebKit's configuration for
     // it, which keeps its opener.
     func webView(

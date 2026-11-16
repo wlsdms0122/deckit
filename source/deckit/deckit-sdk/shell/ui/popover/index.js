@@ -23,10 +23,13 @@ function make() {
 }
 
 // MARK: - Private
-// A card about an anchor: `show(anchor)` puts it under the anchor, a press elsewhere or Escape puts it away.
-function popover({ width = '', onClose } = {}) {
+// A card about an anchor: `show(anchor)` puts it under the anchor, a press elsewhere or Escape puts it away. It is a
+// dialog called `name`.
+function popover({ width = '', name = '', onClose } = {}) {
     const element = document.createElement('div');
     element.className = 'deckit-popover';
+    element.setAttribute('role', 'dialog');
+    if (name) element.setAttribute('aria-label', name);
     element.dataset.deckitGlass = 'popover';
     if (width) element.style.maxWidth = width;
     let presented = null;

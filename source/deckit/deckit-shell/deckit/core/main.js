@@ -9,6 +9,7 @@ export function createCore({ FOLDERS, LOG, core, home, api }) {
     let ready = null; // settled once the core has answered initialize
     let kept = null; // where the core keeps the mods it installed and their data folders, as initialize answered
     let given = null; // how long a run is given, as initialize answered
+    let idleTime = null; // how long a seat gives no input before it is idle, as initialize answered
     let ended = null; // why the core is gone, once it is
     let down = null; // why the core answers nothing more, once it does not: it ended, or did not start
     const downListeners = [];
@@ -32,9 +33,10 @@ export function createCore({ FOLDERS, LOG, core, home, api }) {
             sources: FOLDERS.sources,
             permissions,
             fields,
-        }).then(({ mods, data, timeout }) => {
+        }).then(({ mods, data, timeout, seats }) => {
             kept = { mods, data };
             given = { launch: timeout.launch * 1000, end: timeout.end * 1000 };
+            idleTime = seats.idleTime * 1000;
         });
         // A core that does not start is down, and each request after it is refused with why. Its refusal is what
         // started it to report.
@@ -57,6 +59,11 @@ export function createCore({ FOLDERS, LOG, core, home, api }) {
     // and what runs the mods keeps the time.
     function timeout() {
         return given;
+    }
+
+    // How long a seat's devices give no input before the seat is idle, in milliseconds, once the core has started.
+    function seatIdleTime() {
+        return idleTime;
     }
 
     // `listener(why)` is told once the core answers nothing more: it ended, or it did not start. Told at once when that
@@ -121,5 +128,5 @@ export function createCore({ FOLDERS, LOG, core, home, api }) {
         else asked.resolve(response.result);
     }
 
-    return { start, request, folders, timeout, onDown };
+    return { start, request, folders, timeout, seatIdleTime, onDown };
 }

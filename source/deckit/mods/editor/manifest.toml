@@ -42,7 +42,7 @@ inherits = "textSize"
 key = "font"
 type = "string"
 title = "Font"
-description = "The fixed-width faces installed on this Mac. Default is the system's."
+description = "The fixed-width faces installed on this computer. Default is the system's."
 default = "default"
 choices = "monospacedFonts"
 

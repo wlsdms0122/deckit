@@ -31,7 +31,7 @@ public final class State {
         store.read(try file(in: folder, key: key))
     }
 
-    // A key of the state folder that is reserved is refused: what keeps it reads it once, as it starts.
+    // A key of the state folder that is reserved is refused: only what keeps it writes it.
     public func write(folder: String?, key: String, text: String) throws {
         guard folder != nil || !reserved.contains(key) else { throw StateError.reserved(key) }
         try store.write(text, to: try file(in: folder, key: key))

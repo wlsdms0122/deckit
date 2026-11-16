@@ -1,0 +1,32 @@
+case = 26
+name = "windows-with-the-seat-local-answers-of-the-local-seat"
+note = "mod-a, in attach, opens the window main on the desktop of the base shell. The person presses main. ada attaches. The look windows with the seat local answers what the person at the machine sees: main is key."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "press"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+look = "windows"
+seat = "local"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = true, minimized = false }]

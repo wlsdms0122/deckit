@@ -1,0 +1,24 @@
+case = 23
+name = "a-panel-window-the-others-leave-no-room-is-told-a-room-0-wide"
+note = "mod-a's code, in attach, opens the windows the case says, and tells of the window p alone, each time by opening an address outside the app: https://said.test/<name>/room/<room> as windows.open answers its handle and as the event mod-a:go asks for it, <room> the room the handle holds then, <width>x<height> or null; https://said.test/<name>/<callback> from a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose; and https://said.test/<name>/didChangeRoom/<room> from one for didChangeRoom. It opens a window as the event mod-a:go tells it, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. A panel window's room is 0 wide where the other panel windows leave less: mod-a, granted deckit.panel-windows, opens p 120 by 32 at the level panel in attach, and then q, 1257 by 32 at the level panel, 1 wider with the 8 beside it than the 1264 the bar's ends leave."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { open = { name = "q", level = "panel", width = 1257, height = 32 } }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/p/room/null", activates = true }, { url = "https://said.test/p/didAppear", activates = true }, { url = "https://said.test/p/didChangeRoom/1264x52", activates = true }, { url = "https://said.test/p/didChangeRoom/0x52", activates = true }]

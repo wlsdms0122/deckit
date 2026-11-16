@@ -7,9 +7,13 @@ const net = require('net');
 const path = require('path');
 const { spawn } = require('child_process');
 const TOML = require('./toml.js');
+const KEYS = require('../outside/keys.js');
+const PARTY = require('../outside/client.js');
 
 // How long the app is given to settle after an input.
 const SETTLE = 10000;
+// What a party whose admission waits for an answer is told.
+const ASKING = 'attach/asking';
 // The keys of a manifest the system reads itself (spec/DECKIT-2).
 const MANIFEST = ['id', 'name', 'version', 'api', 'main', 'background', 'interfaces', 'permissions', 'contributes'];
 // The manifest fields each base defines itself, by the base: the shell's are those it reads of a mod, and `styles`,
@@ -44,24 +48,36 @@ async function run(theCase, { folder, hostApp, electron }) {
         const why = layOut(bundles[name], to);
         if (why) return { outcome: 'not laid out', why: `${name}: ${why}` };
     }
-    // The owner of each standard interface `owners` names, as the implementation ships it, marked system, then the
-    // case's own; the host adds each field an owner's manifest writes that the system does not read and the case does
-    // not write, before the case's, and runs main process modules where an owner asks for system.main-process.
-    const owners = [];
+    // The owner of each standard interface `owners` names, then the mod of each id `mods` names, as the implementation
+    // ships it, marked system, a mod both reach once, then the case's own; the host adds each field their manifests
+    // write that the system does not read and the case does not write, before the case's, and runs main process
+    // modules where one asks for system.main-process.
+    const shipped = path.join(hostApp, 'deckit', 'mods');
+    const reached = [
+        ...host.owners.map((name) => [
+            shippedOf(shipped, (manifest) => Object.hasOwn(manifest.interfaces?.provides ?? {}, name)),
+            `the implementation ships no owner of ${name}`,
+        ]),
+        ...host.mods.map((id) => [
+            shippedOf(shipped, (manifest) => manifest.id === id),
+            `the implementation ships no mod of the id ${id}`,
+        ]),
+    ];
+    const implementation = [];
     const read = [];
     let mainProcess = false;
-    for (const name of host.owners) {
-        const owner = ownerOf(name, path.join(hostApp, 'deckit', 'mods'));
-        if (!owner) return { outcome: 'not laid out', why: `the implementation ships no owner of ${name}` };
-        owners.push({ folder: owner.folder, system: true });
-        if (Object.hasOwn(owner.manifest.permissions ?? {}, MAIN_PROCESS)) mainProcess = true;
-        for (const field of Object.keys(owner.manifest))
+    for (const [mod, why] of reached) {
+        if (!mod) return { outcome: 'not laid out', why };
+        if (implementation.some(({ folder }) => folder === mod.folder)) continue;
+        implementation.push({ folder: mod.folder, system: true });
+        if (Object.hasOwn(mod.manifest.permissions ?? {}, MAIN_PROCESS)) mainProcess = true;
+        for (const field of Object.keys(mod.manifest))
             if (!MANIFEST.includes(field) && !BASE_FIELDS[host.base].includes(field) && !read.includes(field))
                 read.push(field);
     }
     const fields = [...read.filter((field) => !host.fields.includes(field)), ...host.fields];
     const ship = [
-        ...owners,
+        ...implementation,
         ...host.ship.map((name) => ({ folder: path.join(folder, 'ship', name), system: host.system.includes(name) })),
     ];
 
@@ -111,10 +127,11 @@ async function run(theCase, { folder, hostApp, electron }) {
     const app = createApp({ server, electron, hostApp, setupFile, log });
     const served = await serve(sites);
     const downloads = folderOf(path.join(folder, 'downloads'));
+    const parties = createParties({ host, core: path.join(hostApp, 'deckit', builtOf(hostApp).core), home, app });
     const answers = new Map(); // a call's place -> what it came to, before what it holds is read as a case writes it
     try {
         for (const step of theCase.steps) {
-            const taken = await take(step, app, paths, served, host.delegate, answers, downloads);
+            const taken = await take(step, app, paths, served, host.delegate, answers, downloads, parties);
             if (step.what === 'call') answers.set(step.number, taken);
             const came = bundled(paths, downloads.named(served.named(taken)));
             if (!matches(step.expect, came))
@@ -122,6 +139,7 @@ async function run(theCase, { folder, hostApp, electron }) {
         }
         return { outcome: 'passed' };
     } finally {
+        parties.close();
         await app.end();
         served.close();
         server.close();
@@ -158,15 +176,19 @@ function layOut(from, to) {
     return differs(from, to);
 }
 
-// The bundle in `mods`, the mods the implementation ships, that provides the interface `name`, `{ folder, manifest }`,
+// What the archive the host app embeds says of itself, its core's file among it.
+function builtOf(hostApp) {
+    return JSON.parse(fs.readFileSync(path.join(hostApp, 'deckit', 'deckit.json'), 'utf8'));
+}
+
+// The first bundle in `mods`, the mods the implementation ships, whose manifest `wanted` takes, `{ folder, manifest }`,
 // or null.
-function ownerOf(name, mods) {
+function shippedOf(mods, wanted) {
     for (const entry of fs.existsSync(mods) ? fs.readdirSync(mods).sort() : []) {
         const file = path.join(mods, entry, 'manifest.toml');
         if (!fs.existsSync(file)) continue;
         const manifest = TOML.read(fs.readFileSync(file, 'utf8'));
-        if (Object.hasOwn(manifest.interfaces?.provides ?? {}, name))
-            return { folder: path.join(mods, entry), manifest };
+        if (wanted(manifest)) return { folder: path.join(mods, entry), manifest };
     }
     return null;
 }
@@ -175,14 +197,20 @@ function ownerOf(name, mods) {
 // for an input answered with nothing. A call is handed the path of each bundle its folders name, the address of each
 // site its sites name, what the call its `answered` names answered, each element of it where it is an array, then its
 // args, then a listener where it writes one, names the handle its member is read from, `deckit` where it names none,
-// and names its place so that a later call can reach what it answered.
-async function take(step, app, paths, served, delegate, answers, downloads) {
+// and names its place so that a later call can reach what it answered. The first start is refused as the host's users,
+// keys and seats' settings are, where one is, and the host app does not start.
+async function take(step, app, paths, served, delegate, answers, downloads, parties) {
     if (step.what === 'start') {
         served.requests.length = 0;
-        return app.start();
+        return (await parties.register()) ?? app.start();
     }
     if (step.what === 'quit') return app.quit();
     const { what, mod, part } = step;
+    if (what === 'attach') return partOf(await parties.attach(step), part);
+    if (what === 'ask') return partOf(await parties.ask(step), part);
+    if (what === 'detach') return parties.detach(step);
+    if (what === 'told') return partOf(await parties.told(step), part);
+    if (what === 'admitted') return partOf(await parties.admitted(step), part);
     if (what === 'requested') return { answers: served.read(step.headers ?? []) };
     if (what === 'downloaded') return { answers: downloads.read() };
     if (what === 'call') {
@@ -221,7 +249,8 @@ async function take(step, app, paths, served, delegate, answers, downloads) {
         const { name, folders, at } = step;
         return app.ask({ input: what, mod, name, paths: folders.map((one) => paths[one]), at });
     }
-    return partOf(await app.ask({ look: what, mod, properties: step.properties }), part);
+    const { properties, seat = null } = step;
+    return partOf(await app.ask({ look: what, mod, properties, seat }), part);
 }
 
 // The folder the host app writes downloads in: `read()`, each file in it, `{ name, body }`, by its name's code points,
@@ -398,6 +427,135 @@ function fileAt(folder, at) {
     if (segments.some((one) => one === '' || one === '.' || one === '..' || one.includes('/'))) return null;
     const file = path.join(folder, ...segments);
     return fs.statSync(file, { throwIfNoEntry: false })?.isFile() ? file : null;
+}
+
+// The parties of a case, each the runner itself on a transport connection of its own to the socket in the system's
+// folder `home`, and what the host keeps for them before its first start, registered by the host app's own core at
+// `core`: `register()`, the users, then the keys and then the seats' settings `host` names, each key the public half of
+// a pair made here under its name, which comes to null, or to the refusal of the first one refused; `attach`, `ask`,
+// `detach`, `told` and `admitted`, each what that step comes to; and `close()`, every transport connection closed. A party keeps
+// each message the host sends it that answers nothing it asked, and answers each request among them with a null at
+// once. After what a party does, the host app settles of the run each principal proved last hosts (host.js).
+function createParties({ host, core, home, app }) {
+    const pairs = new Map(); // a key's name -> its pair, made as it is first named
+    const parties = new Map(); // a party's name -> { connection, principal, messages, closed, admission }
+    let registered = false;
+    const pairOf = (name) => pairs.get(name) ?? pairs.set(name, PARTY.makeKey()).get(name);
+    // What a request of a party comes to: its result, nothing for a null, its refusal, or `{ none }` for an error that
+    // is no refusal and for a transport connection that closed first; and, bounded, for no answer in time.
+    const refusalOf = (error) =>
+        error.stage && error.kind
+            ? { refuses: error.stage, kind: error.kind, message: String(error.message) }
+            : error.kind === 'CLOSED'
+              ? { none: 'the transport connection closed' }
+              : { none: `an error that is no refusal (${error.code ?? 'no code'}: ${error.message})` };
+    const cameOf = (asking) =>
+        asking.then((result) => (result === null || result === undefined ? {} : { answers: result }), refusalOf);
+    const bounded = (coming) =>
+        new Promise((resolve) => {
+            const late = { none: `the host did not answer within ${SETTLE / 1000} s` };
+            const timer = setTimeout(resolve, SETTLE, late);
+            coming.then(resolve).finally(() => clearTimeout(timer));
+        });
+    // Each message the host sent the party before now has arrived, and its close where the host closed it: a request
+    // of the party's own, for the keys of its records, is answered after what was sent before it, or by the close.
+    const caughtUp = async (one) => {
+        if (one.closed) return;
+        await bounded(cameOf(one.connection.request('record/keys')));
+        // What closed is known a turn after what it left unanswered.
+        await new Promise((resolve) => setImmediate(resolve));
+    };
+    // What the host app settles of: the party that last proved each principal, by whether its end is open.
+    const settle = async (came) => {
+        const last = new Map();
+        for (const { principal, closed } of parties.values()) if (principal) last.set(principal, !closed);
+        const attached = [...last].map(([principal, open]) => ({ principal, open }));
+        const settled = await app.ask({ input: 'parties', attached });
+        return settled.none ? settled : came;
+    };
+
+    async function register() {
+        if (registered) return null;
+        registered = true;
+        const requests = [
+            ...host.users.map(({ id, name }) => ['user/add', { id, name }]),
+            ...host.keys.map(({ principal, key }) => [
+                'key/add',
+                { principal, scheme: KEYS.SCHEME, key: pairOf(key).publicKey, name: key },
+            ]),
+            ...(Object.keys(host.seats).length ? [['seat/settings', host.seats]] : []),
+        ];
+        if (!requests.length) return null;
+        return KEYS.asksOf({ core, api: host.api }, home, requests).then(
+            () => null,
+            (error) =>
+                error.stage && error.kind
+                    ? { refuses: error.stage, kind: error.kind, message: String(error.message) }
+                    : { none: `the host's users, keys and settings were not kept: ${error.message}` }
+        );
+    }
+
+    // An attach that waits ends once the party is told the host asks, or its admission is answered, whichever is first,
+    // and comes to nothing: `admitted` comes to what the admission is answered.
+    async function attach({ party, principal, key, waits = false }) {
+        let connection;
+        try {
+            connection = await PARTY.connect(path.join(home, 'deckit.sock'));
+        } catch (error) {
+            return { none: `no transport connection opened: ${error.message}` };
+        }
+        const one = { connection, principal: null, messages: [], closed: false, admission: null };
+        parties.set(party, one);
+        let asked = null;
+        const asking = new Promise((resolve) => (asked = resolve));
+        connection.onMessage(({ method, params, request }) => {
+            one.messages.push({ method, ...(params === undefined ? {} : { params }), request });
+            if (method === ASKING) asked({});
+        });
+        connection.closed.then(() => {
+            one.closed = true;
+        });
+        one.admission = cameOf(connection.authenticate({ principal, ...pairOf(key) })).then((came) => {
+            if (!came.refuses && !came.none) one.principal = principal;
+            return came;
+        });
+        if (!waits) return settle(await bounded(one.admission));
+        return settle(await bounded(Promise.race([asking, one.admission.then(() => ({}))])));
+    }
+
+    async function admitted({ party }) {
+        const one = parties.get(party);
+        if (!one) return { none: `${party} opened no transport connection` };
+        return settle(await bounded(one.admission));
+    }
+
+    async function ask({ party, method, params }) {
+        const one = parties.get(party);
+        if (!one || one.closed) return { none: `the transport connection of ${party} is not open` };
+        return settle(await bounded(cameOf(one.connection.request(method, params))));
+    }
+
+    async function detach({ party }) {
+        const one = parties.get(party);
+        if (one) await caughtUp(one);
+        if (!one || one.closed) return { none: `the transport connection of ${party} is not open` };
+        one.connection.close();
+        one.closed = true;
+        return settle({});
+    }
+
+    async function told({ party }) {
+        const one = parties.get(party);
+        if (!one) return { none: `${party} opened no transport connection` };
+        await caughtUp(one);
+        return { answers: { messages: [...one.messages], closed: one.closed } };
+    }
+
+    function close() {
+        for (const { connection } of parties.values()) connection.close();
+    }
+
+    return { register, attach, ask, detach, told, admitted, close };
 }
 
 // The value under the key `part` of an answer that is a table, or of each element that holds it of one that is an

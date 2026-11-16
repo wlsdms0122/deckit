@@ -1,0 +1,26 @@
+case = 25
+name = "an-ask-with-no-params-asks-the-request-with-none"
+note = "An ask that writes no params asks the request with none. A party asks record/keys, which takes none, and the step answers the keys of the records of ada, of which there are none."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "record/keys"
+
+[step.expect]
+answers = []

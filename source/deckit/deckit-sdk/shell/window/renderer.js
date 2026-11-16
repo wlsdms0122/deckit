@@ -1,33 +1,30 @@
 import * as CHANNEL from '../../deckit/channel/index.js';
 import * as REQUEST from '../../deckit/request/index.js';
 import * as DECLARED from './protocol.js';
+import * as ANCHOR from './model/anchor.js';
 import * as LAYER from '../ui/layer/index.js';
 import * as POINTER from '../ui/pointer/index.js';
 import * as PRESENTATION from '../ui/presentation/index.js';
 
 // MARK: - Property
-// What the content's document wears under the page's rules: clear, the content filling it. The content of a panel
-// window at the right edge slides in from past that edge as it first comes on screen, with the material the desktop
-// draws under it, and fades in where the system asks for reduced motion.
+// What the content's document wears under the page's rules: clear, the content filling it.
 const STYLE = `
     html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
     body { -webkit-user-select: none; user-select: none; font: var(--deckit-text-size) var(--deckit-text-font); }
     .deckit-window { position: fixed; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
     .deckit-window > * { flex: 1 1 auto; min-height: 0; }
-    .deckit-window[data-edge='right'][data-shown] {
-        animation: deckit-window-in var(--deckit-enter) var(--deckit-enter-curve);
-    }
-    @keyframes deckit-window-in { from { transform: translateX(calc(100% + 8px)); } }
-    @keyframes deckit-window-fade { from { opacity: 0; } }
-    @media (prefers-reduced-motion: reduce) {
-        .deckit-window[data-edge='right'][data-shown] {
-            animation: deckit-window-fade var(--deckit-enter-fade) var(--deckit-enter-curve);
-        }
-    }
 `;
 const LEVELS = Object.freeze(['normal', 'overlay', 'panel']);
-const EDGES = Object.freeze(['top', 'right']);
-const CALLBACKS = Object.freeze(['didAppear', 'didDisappear', 'didBecomeKey', 'didResignKey', 'didResize', 'didClose']);
+const EDGES = Object.freeze(['top']);
+const CALLBACKS = Object.freeze([
+    'didAppear',
+    'didDisappear',
+    'didBecomeKey',
+    'didResignKey',
+    'didResize',
+    'didChangeRoom',
+    'didClose',
+]);
 // A normal window's title bar: its styles, the height it is never below, and the flags that say which buttons act.
 const TITLE_BARS = Object.freeze(['unified', 'titled']);
 const TITLE_BAR_HEIGHT = 48;
@@ -70,10 +67,13 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
     // MARK: - Public
     // `open(options)` opens a window, or orders front the one of its name open, and answers it: the key window, as
     // `makeKeyAndOrderFront()` puts it, or with `activates` false in front as `orderFront()` puts it, the keyboard left
-    // where it is. It throws its refusal: NOT_PERMITTED for the level `overlay` without system.overlay-windows, or
-    // `panel` without deckit.panel-windows, then INVALID_ARGUMENT for options that are no window's, then ENDED once
-    // `scope` is cut. `list()` answers the windows open, in the order they opened, and throws ENDED once `scope` is
-    // cut.
+    // where it is. A panel window stands at its `edge`, or with `anchor`, `{ mod, id }`, under the rect the mod `mod`
+    // named `id` in a window of its own (`setAnchors`), shown while that anchor stands, or with `place` at the place of
+    // the stage the shell knows by that name ('top-right', 'top-left'). It throws its refusal:
+    // NOT_PERMITTED for the level `overlay` without system.overlay-windows, or `panel` without deckit.panel-windows,
+    // then INVALID_ARGUMENT for options that are no window's, then ENDED once `scope` is cut, then NOT_PERMITTED for an
+    // anchor given to another mod, or INVALID_ARGUMENT for a place the shell does not name. `list()` answers the
+    // windows open, in the order they opened, and throws ENDED once `scope` is cut.
     function forScope(scope) {
         scope.add(() => {
             for (const [id, held] of open) if (held.scope === scope) PROTOCOL.close.send({ id });
@@ -108,11 +108,15 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
         const problem = problemOf(options);
         if (problem) throw REQUEST.refusal('call', 'INVALID_ARGUMENT', `windows.open: ${problem}`);
         if (scope.isCut) throw cut('windows.open');
-        const { name, level = 'normal', edge = 'top', width, height, minWidth, minHeight, activates = true } = options;
+        const { name, level = 'normal', width, height, minWidth, minHeight, activates = true } = options;
         const { titleBar, titleBarHeight, controlsOrigin, closable, minimizable, resizable, title = '' } = options;
+        const anchor = options.anchor === undefined ? undefined : ANCHOR.nameOf(options.anchor);
+        const { place } = options;
+        const edge = anchor || place !== undefined ? undefined : (options.edge ?? 'top');
         const bar = { titleBar, titleBarHeight, controlsX: controlsOrigin?.x, controlsY: controlsOrigin?.y };
         const flags = { closable, minimizable, resizable };
-        const payload = { name, level, edge, width, height, minWidth, minHeight, activates, ...bar, ...flags, title };
+        const sizes = { width, height, minWidth, minHeight };
+        const payload = { name, level, edge, anchor, place, ...sizes, activates, ...bar, ...flags, title };
         const { id, surface } = PROTOCOL.open.invoke(payload);
         if (open.has(id)) return open.get(id).handle;
         const view = window.open('', surface);
@@ -122,7 +126,6 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
         document.head.replaceChildren(style);
         const root = document.createElement('div');
         root.className = 'deckit-window';
-        if (level === 'panel' && edge === 'right') root.dataset.edge = 'right';
         // A panel's content lies on the material the desktop draws under it.
         if (level === 'panel') root.dataset.deckitGlass = '';
         root.append(options.content);
@@ -132,7 +135,7 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
             options,
             document,
             scope,
-            state: { shown: false, key: false, size: null },
+            state: { shown: false, key: false, size: null, room: null },
             title,
             off: [],
         };
@@ -169,6 +172,11 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
             get title() {
                 return held.title;
             },
+            // The room a panel window at the edge `top` has in the bar, `{ width, height }`: null until the shell told
+            // it, and for any other window.
+            get room() {
+                return held.state.room && { ...held.state.room };
+            },
             setTitle(title) {
                 if (typeof title !== 'string')
                     throw REQUEST.refusal('call', 'INVALID_ARGUMENT', 'setTitle takes a title, a text');
@@ -182,10 +190,28 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
             zoom: sent('zoom', () => PROTOCOL.zoom.send({ id })),
             orderFront: sent('orderFront', () => PROTOCOL.orderFront.send({ id })),
             makeKeyAndOrderFront: sent('makeKeyAndOrderFront', () => PROTOCOL.makeKeyAndOrderFront.send({ id })),
+            // A view, under an anchor or at a place, is on a person's screen where it was shown for that person: `open`
+            // and `makeKeyAndOrderFront()` show it for the one person the mod may activate for whose input reached it
+            // last, and `toggle()` puts it away for that person where it is shown and shows it where it is not;
+            // everyone else's screen is left as it is. Nothing for any other window.
+            toggle: sent('toggle', () => PROTOCOL.toggle.send({ id })),
             resize(width, height) {
                 if (!positive(width) || !positive(height))
                     throw REQUEST.refusal('call', 'INVALID_ARGUMENT', 'resize takes a width and a height above 0');
                 sent('resize', () => PROTOCOL.resize.send({ id, width, height }))();
+            },
+            // The rects of the content other mods stand views under, all of them each time: `[{ id, rect, mod }]`, `id`
+            // the anchor's name among this mod's, `rect` `{ x, y, width, height }` in the content, and `mod` the id of
+            // the one mod that may bind a view to it (`open` with `anchor`).
+            setAnchors(anchors) {
+                const held = ANCHOR.heldTo(anchors);
+                if (!held)
+                    throw REQUEST.refusal(
+                        'call',
+                        'INVALID_ARGUMENT',
+                        'setAnchors takes [{ id, rect: { x, y, width, height }, mod }], each id once'
+                    );
+                sent('setAnchors', () => PROTOCOL.setAnchors.send({ id, anchors: held }))();
             },
         });
     }
@@ -212,16 +238,16 @@ function createWindows({ mod, granted, deliver, channels, drags }) {
 
     // What main tells of the window, each part told as it changes: it appears before it becomes key, and resigns key
     // before it disappears.
-    function told(held, { shown, key, width, height, titleBar }) {
+    function told(held, { shown, key, width, height, titleBar, room }) {
         const was = held.state;
-        held.state = { shown, key, size: { width, height } };
+        held.state = { shown, key, size: { width, height }, room };
         guide(held.document, titleBar, key);
-        if (shown) held.document.querySelector('.deckit-window')?.toggleAttribute('data-shown', true);
         if (shown && !was.shown) tell(held, 'didAppear');
         if (was.key && !key) tell(held, 'didResignKey');
         if (!was.key && key) tell(held, 'didBecomeKey');
         if (was.shown && !shown) tell(held, 'didDisappear');
         if (was.size && (was.size.width !== width || was.size.height !== height)) tell(held, 'didResize');
+        if (JSON.stringify(was.room) !== JSON.stringify(room)) tell(held, 'didChangeRoom');
     }
 
     // The content's title bar area is the mod's (`ui.titleBar`): the window's bar, from past its buttons. Its safe area
@@ -269,9 +295,20 @@ function problemOf(options) {
     if (CHANNEL.kindOf(options) !== 'object') return 'options is no table';
     const { content, name, level = 'normal' } = options ?? {};
     if (content?.nodeType !== Node.ELEMENT_NODE || typeof name !== 'string' || !name)
-        return `takes { name, content, level, edge, width, height, minWidth, minHeight, activates, titleBar, titleBarHeight, controlsOrigin, ${FLAGS.join(', ')}, title, ${CALLBACKS.join(', ')} }, name a text and content an element`;
+        return `takes { name, content, level, edge, anchor, place, width, height, minWidth, minHeight, activates, titleBar, titleBarHeight, controlsOrigin, ${FLAGS.join(', ')}, title, ${CALLBACKS.join(', ')} }, name a text and content an element`;
     if (!LEVELS.includes(level)) return `takes a level of ${LEVELS.slice(0, -1).join(', ')} or ${LEVELS.at(-1)}`;
     if (options.edge !== undefined && !EDGES.includes(options.edge)) return `takes an edge of ${EDGES.join(' or ')}`;
+    if (options.anchor !== undefined) {
+        if (level !== 'panel') return 'takes an anchor at the level panel';
+        if (options.edge !== undefined) return 'takes an edge or an anchor, not both';
+        if (!ANCHOR.nameOf(options.anchor)) return 'takes an anchor { mod, id }, each a text';
+    }
+    if (options.place !== undefined) {
+        if (level !== 'panel') return 'takes a place at the level panel';
+        if (options.edge !== undefined || options.anchor !== undefined)
+            return 'takes an edge, an anchor or a place, one';
+        if (typeof options.place !== 'string' || !options.place) return 'takes a place a text';
+    }
     const sizes = ['width', 'height', 'minWidth', 'minHeight'].filter((key) => options[key] !== undefined);
     if (sizes.some((key) => !positive(options[key]))) return `takes ${sizes.join(', ')} above 0`;
     if (options.activates !== undefined && typeof options.activates !== 'boolean') return 'takes activates a boolean';

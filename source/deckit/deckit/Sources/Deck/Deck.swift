@@ -17,6 +17,8 @@ public final class Deck {
     public let dataFolder: DataFolder
     public let storage: PrincipalStorage
     public let erasure: Erasure
+    public let keys: AuthorizedKeyStore
+    public let authentication: Authenticator
     public let owners: OwnerTable
     public let connections: ConnectionBroker
     public let events: EventBus
@@ -26,8 +28,13 @@ public final class Deck {
 
     // MARK: - Initializer
     // `home` is the folder deck keeps its files in, `signals` the names the driver tells of an interface with, as deck
-    // tells `owner-changed`.
-    public init(home: URL, signals: Set<String>) {
+    // tells `owner-changed`, and `random(count)` the `count` bytes a challenge is made of, which no claimant can
+    // foretell.
+    public init(
+        home: URL,
+        signals: Set<String>,
+        random: @escaping (Int) -> Data = { count in Data((0..<count).map { _ in UInt8.random(in: .min ... .max) }) }
+    ) {
         let store = Store()
         let settings = DeckSettings(file: home.appending(path: "deck.json"), store: store)
         let record = Record(folder: home.appending(path: "records", directoryHint: .isDirectory), store: store)
@@ -36,10 +43,15 @@ public final class Deck {
             root: home.appending(path: "principal-state", directoryHint: .isDirectory),
             store: store
         )
+        let keys = AuthorizedKeyStore(
+            folder: home.appending(path: "authorized-keys", directoryHint: .isDirectory),
+            store: store
+        )
         let storage = PrincipalStorage(
             dataFolder: dataFolder,
             record: record,
             principalState: principalState,
+            keys: keys,
             store: store
         )
         let owners = OwnerTable(store: OwnershipStore(settings: settings))
@@ -49,6 +61,8 @@ public final class Deck {
         self.dataFolder = dataFolder
         self.storage = storage
         self.erasure = Erasure(storage: storage, settings: settings, store: store)
+        self.keys = keys
+        self.authentication = Authenticator(keys: keys, store: store, random: random)
         self.owners = owners
         self.runner = runner
         self.connections = ConnectionBroker(runner: runner, owners: owners)

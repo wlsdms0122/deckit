@@ -4,7 +4,7 @@
 // process's `nativeTheme.themeSource`, set in memory: the machine's appearance is left as it is. Each look is a run of
 // its own of Deckit.app, put together from the archive it builds first, with data of its own that is thrown away; the
 // app's log is left beside the shots, .build/shots/<look>.log. Notifications' list is drawn from a record the run
-// starts with, as the clock opens it; nothing is posted, so no notification reaches the system's. What the host
+// starts with, as its item in the status bar shows it; nothing is posted, so no notification reaches the system's. What the host
 // window's material shows, the machine's screen behind it blurred, cannot be drawn into a shot, so every shot is laid
 // over a stand-in for it: a wallpaper drawn from code, blurred as the material blurs (`wallpaper`). Exits 1 naming
 // each surface not drawn.
@@ -19,6 +19,7 @@ const { execFileSync } = require('child_process');
 const { start } = require(path.join(root, 'source', 'cli', 'test', 'start.js'));
 const { seat } = require(path.join(root, 'source', 'cli', 'test', 'seat.js'));
 const { until, sleep, ALT, CTRL, META } = require(path.join(root, 'source', 'cli', 'test', 'devtools.js'));
+const { readKey, connect } = require(path.join(root, 'source', 'cli', 'outside', 'client.js'));
 const OUT = path.join(root, '.build', 'shots');
 const LOOKS = ['light', 'dark'];
 const LIMIT = 600000;
@@ -178,6 +179,10 @@ function seedOf(origin, valueProblem) {
             { id: 2, url: origin + '/behind', title: 'Behind', icon: '' },
         ];
         write('browser/session.json', { tabs, front: 1, closed: [] });
+        // A user that attaches asks to sit, so the one that asks is drawn.
+        const state = path.join(data, 'deckit', 'state');
+        fs.mkdirSync(state, { recursive: true });
+        fs.writeFileSync(path.join(state, 'seats.json'), JSON.stringify({ asking: true }));
         const posted = Date.now();
         write(
             'notifications/notifications.json',
@@ -201,7 +206,20 @@ function seedOf(origin, valueProblem) {
 // Every surface in `look`, each into `shots`; the names of those not drawn.
 async function draw(app, look, shots, origin) {
     const { page, pages, pageById, overlayOf, compose, main } = app;
-    const { desktopLaid, windowsNow, keyMod, windowOf, dockNow, show, desktopShot } = seat({
+    const {
+        desktopLaid,
+        windowsNow,
+        keyMod,
+        windowOf,
+        dockNow,
+        show,
+        desktopShot,
+        allowed,
+        answerOf,
+        answer,
+        pressAt,
+        seatsView,
+    } = seat({
         main,
         pageById,
         compose,
@@ -289,6 +307,211 @@ async function draw(app, look, shots, origin) {
     await sleep(400);
     await surface(`${apps.at(-1)}-inactive`, (name) => windowShot(name, apps.at(-1)));
     await surface('desktop-windows', backed);
+    // Two users sit beside the local seat, each at a transport connection of its own with a key of its own, let in by
+    // the local seat's press on Allow in the view of Seats where it is asked, and each presses a window where it shows for it, so it holds
+    // that window's keyboard, and tiles it by the shell's key, one to each half, so the title bars of both show: their
+    // cursors at rest under them, a third user asking to sit, the view of one of them followed, then one of them mid
+    // drag, its button held. Each window is put back at its frame after.
+    const attach = async (id, name) => {
+        const file = path.join(app.data, `${id}.key`);
+        const command = path.join(__dirname, '..', 'deckit');
+        execFileSync(command, ['user', 'add', id, '--name', name, '--key', file, '--home', app.home], {
+            stdio: 'pipe',
+        });
+        const party = await connect(path.join(app.home, 'deckit.sock'));
+        await allowed(name, party.authenticate({ principal: id, ...readKey(fs.readFileSync(file, 'utf8')) }));
+        const point = (type, { x, y }, more = {}) =>
+            party.request('seat/input', { event: 'pointer', type, x, y, ...more });
+        // The shell's key that tiles the seat's key window, by the arrow it is.
+        const tile = async (code) => {
+            for (const type of ['down', 'up'])
+                await party.request('seat/input', {
+                    event: 'key',
+                    type,
+                    code,
+                    key: code,
+                    modifiers: ['control', 'alt'],
+                });
+        };
+        return { point, tile, leave: () => party.close() };
+    };
+    // A point where one of `windows` shows for `user`, whose windows are in an order of its own, and that window.
+    const shownTo = async (user, windows) => {
+        for (const { rect } of windows)
+            for (const down of [0.5, 0.25, 0.75])
+                for (let across = 6; across < rect.width; across += 18) {
+                    const at = { x: Math.round(rect.x + across), y: Math.round(rect.y + rect.height * down) };
+                    const { over } = await user.point('scroll', at, { dx: 0, dy: 1 });
+                    const window = windows.find(({ id }) => id === over);
+                    if (window) return { at, window };
+                }
+        throw new Error('no window shows for a seat');
+    };
+    const around = (points) => {
+        const [xs, ys] = [points.map(({ x }) => x), points.map(({ y }) => y)];
+        const [left, top] = [Math.max(0, Math.min(...xs) - 240), Math.max(0, Math.min(...ys) - 200)];
+        const [right, bottom] = [Math.max(...xs) + 240, Math.max(...ys) + 200];
+        return {
+            x: left,
+            y: top,
+            width: Math.min(screen.width, right) - left,
+            height: Math.min(screen.height, bottom) - top,
+        };
+    };
+    const users = [];
+    const rests = [];
+    const held = []; // the window each of the two holds, tiled
+    // The desktop's top right, down to under the view of Seats as it is laid.
+    const underItem = ({ rect }) => {
+        const x = Math.max(0, Math.round(rect.x) - 80);
+        return { x, y: 0, width: screen.width - x, height: Math.round(rect.y + rect.height) + 40 };
+    };
+    await surface('seats', async (name) => {
+        users.push(await attach('ada', 'Ada'), await attach('grace', 'Grace'));
+        const behind = (await windowsNow()).filter(({ key, scaled }) => !key && !scaled);
+        for (const [nth, user] of users.entries()) {
+            const { at, window } = await shownTo(user, behind);
+            behind.splice(behind.indexOf(window), 1);
+            await user.point('down', at, { button: 0, buttons: [0], count: 1 });
+            await user.point('up', at, { button: 0, buttons: [] });
+            await user.tile(nth ? 'ArrowRight' : 'ArrowLeft');
+            held.push(window.id);
+        }
+        await sleep(1200);
+        const tiled = (await windowsNow()).filter(({ id }) => held.includes(id));
+        for (const [nth, user] of users.entries()) {
+            const { rect } = tiled.find(({ id }) => id === held[nth]);
+            rests.push({ x: Math.round(rect.x + 150), y: Math.round(rect.y + 56) });
+            await user.point('move', rests.at(-1));
+        }
+        await sleep(600);
+        const bottom = Math.max(...rests.map(({ y }) => y)) + 80;
+        await desktopShot(name, { under, crop: { x: 0, y: 0, width: screen.width, height: bottom } });
+    });
+    // The view of Seats under its item in the status bar: a row for the local seat and for each of the two.
+    await surface('seats-view', async (name) => {
+        const view = await seatsView.shown();
+        if (!view) throw new Error('the view of Seats is not shown');
+        await sleep(400);
+        await desktopShot(name, { under, crop: underItem(view) });
+        await seatsView.away();
+    });
+    // A third user asks to sit: its row over theirs, with its two answers, until the local seat denies it.
+    await surface('seats-ask', async (name) => {
+        const file = path.join(app.data, 'lin.key');
+        const command = path.join(__dirname, '..', 'deckit');
+        execFileSync(command, ['user', 'add', 'lin', '--name', 'Lin', '--key', file, '--home', app.home], {
+            stdio: 'pipe',
+        });
+        const party = await connect(path.join(app.home, 'deckit.sock'));
+        const refused = party.authenticate({ principal: 'lin', ...readKey(fs.readFileSync(file, 'utf8')) }).then(
+            () => party.close(),
+            () => {}
+        );
+        const asked = await answerOf('Lin', 'deny', 5000);
+        if (asked) await desktopShot(name, { under, crop: underItem(asked.view) });
+        await answer('Lin', 'deny', 1000);
+        await refused;
+    });
+    // The local seat follows the first of the two by a press on its row: the whole desktop as that seat has it, and
+    // the bar that says so.
+    await surface('seats-followed', async (name) => {
+        await seatsView.pressIn(await seatsView.shown(), '.seats-seat[aria-label^="Ada"]');
+        await sleep(1200);
+        await desktopShot(name, { under });
+        await pressAt({ x: Math.round(screen.width / 2), y: Math.round(screen.height / 2) });
+        await sleep(800);
+    });
+    await surface('seats-drag', async (name) => {
+        const [from, other] = rests;
+        if (!other) throw new Error('no two seats are at rest');
+        const to = { x: from.x + 150, y: from.y + 70 };
+        await users[0].point('down', from, { button: 0, buttons: [0], count: 1 });
+        await users[0].point('move', to, { buttons: [0] });
+        await sleep(600);
+        await desktopShot(name, { under, crop: around([from, to, other]) });
+        await users[0].point('up', to, { button: 0, buttons: [] });
+    });
+    // Three seats' cursors by what covers them for the local seat. One of the two is on its own window where the
+    // local seat has another window in front, so it is not seen; a third user, who has that same window in front, is
+    // at the edge of the window that covers it, cut there; the other of the two is at rest on a window that shows,
+    // whole. The third leaves after.
+    await surface('seats-under', async (name) => {
+        const all = await windowsNow();
+        const within = ({ x, y, width, height }, at) => at.x >= x && at.y >= y && at.x < x + width && at.y < y + height;
+        const shared = (one, other) => {
+            const [x, y] = [Math.max(one.x, other.x), Math.max(one.y, other.y)];
+            const width = Math.min(one.x + one.width, other.x + other.width) - x;
+            const height = Math.min(one.y + one.height, other.y + other.height) - y;
+            return width > 80 && height > 80 ? { x, y, width, height } : null;
+        };
+        for (const [nth, user] of users.entries()) {
+            const at = all.findIndex(({ id }) => id === held[nth]);
+            const above = at < 0 ? [] : all.slice(at + 1).map(({ rect }) => rect);
+            const cover = above.flatMap((rect) => shared(all[at].rect, rect) ?? [])[0];
+            if (!cover || !users[1 - nth]) continue;
+            const covered = { x: Math.round(cover.x + 40), y: Math.round(cover.y + 40) };
+            // A point of the seat's window 9 px outside an edge of what covers it, where nothing else covers it.
+            const [across, down] = [Math.round(cover.x + 60), Math.round(cover.y + 100)];
+            const edge = [
+                { x: Math.round(cover.x) - 9, y: down },
+                { x: Math.round(cover.x + cover.width) - 9, y: down },
+                { x: across, y: Math.round(cover.y) - 9 },
+                { x: across, y: Math.round(cover.y + cover.height) - 9 },
+            ].find((each) => within(all[at].rect, each) && !above.some((rect) => within(rect, each)));
+            if (!edge) continue;
+            const third = await attach('alan', 'Alan');
+            const shown = await shownTo(third, [all[at]]);
+            await third.point('down', shown.at, { button: 0, buttons: [0], count: 1 });
+            await third.point('up', shown.at, { button: 0, buttons: [] });
+            await user.point('move', covered);
+            await third.point('move', edge);
+            await users[1 - nth].point('move', rests[1 - nth]);
+            await sleep(600);
+            await desktopShot(name, { under, crop: around([covered, edge, rests[1 - nth]]) });
+            third.leave();
+            await sleep(600);
+            return;
+        }
+        throw new Error("no seat's window lies under another for the local seat with an edge of that one on it");
+    });
+    // The two seats' cursors over what lies over the desktop's page: one on the status bar's panel window in the
+    // host's bar, the other on the menu of a Dock item, which the desktop's page presents over itself.
+    await surface('seats-over', async (name) => {
+        const [first, second] = users;
+        if (!second) throw new Error('no two seats are at the desktop');
+        const middle = ({ x, y, width, height }) => ({ x: Math.round(x + width / 2), y: Math.round(y + height / 2) });
+        const panel = ((await desktopLaid())?.pages || []).find(
+            ({ opener, name: each }) => opener.startsWith('deckit://status-bar.mod') && /^deckit-window-/.test(each)
+        );
+        if (!panel) throw new Error('no panel window of the status bar is laid');
+        await desktop.evaluate(`(() => {
+            const item = document.querySelector('.deckit-dock-item');
+            const { x, y } = item.getBoundingClientRect();
+            item.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x + 8, clientY: y + 8 }));
+        })()`);
+        const overlay = await overlayOf(desktop);
+        const menu = await until(
+            () =>
+                overlay?.evaluate(`(() => {
+                    const menu = document.querySelector('.deckit-menu[data-state="open"]');
+                    if (!menu) return null;
+                    const { x, y, width, height } = menu.getBoundingClientRect();
+                    return { x, y, width, height };
+                })()`),
+            3000
+        );
+        if (!menu) throw new Error("the Dock's menu did not open");
+        await first.point('move', middle(menu));
+        await second.point('move', middle(panel.rect));
+        await sleep(600);
+        await desktopShot(name, { under });
+        await escape(overlay);
+        await sleep(300);
+    });
+    for (const user of users) await user.tile('ArrowDown').catch(() => {});
+    for (const user of users) user.leave();
+    await sleep(1000);
     // Two windows tiled side by side by the shell's keys, then each put back at its frame.
     const tileKey = async (key) => {
         const content = (await windowsNow()).find((window) => window.key)?.content;
@@ -345,26 +568,33 @@ async function draw(app, look, shots, origin) {
         await mouse('up', await inPage(pressed));
         await sleep(600);
     });
-    // The status bar at the top right of the host's bar, close, and the desktop with the notification center the
-    // clock opens at its right edge, with the record's cards, then cleared, with none.
+    // The status bar at the top right of the host's bar, close, with the Notifications item and its count, and the
+    // desktop with the notification center a press on that item shows under it, with the record's cards, then
+    // cleared, with none.
     await surface('status-bar', (name) =>
         desktopShot(name, { under, crop: { x: screen.width - 320, y: 0, width: 320, height: 52 } })
     );
-    const clock = await page('deckit://clock.mod');
+    // The Notifications item in the status bar's document: a press on it runs the mod's command.
+    const bell = {
+        press: async () => {
+            for (const each of await pages('about:blank'))
+                if (await each.evaluate(`!!document.querySelector('.status-bar-item[data-item="notifications"]')`))
+                    return each.press('.status-bar-item[data-item="notifications"]');
+        },
+    };
     const center = () =>
         until(async () => {
             for (const each of await pages('about:blank'))
                 if (await each.evaluate(`!!document.querySelector('.notifications-head')`)) return each;
             return null;
         }, 4000);
-    // Whether the center is laid on the desktop or the clock shows it open.
+    // Whether the center is laid on the desktop.
     const centerOpen = async () =>
         ((await desktopLaid())?.pages || []).some(
             ({ opener, name }) => opener.startsWith('deckit://notifications.mod') && /^deckit-window-/.test(name)
-        ) ||
-        (await clock?.evaluate(`document.querySelector('.deckit-bar-item')?.getAttribute('aria-pressed')`)) === 'true';
+        );
     await surface('notifications', async (name) => {
-        await clock?.press('.deckit-bar-item');
+        await bell.press();
         const list = await center();
         await until(() => list?.evaluate(`!!document.querySelector('.notifications-card')`), 2000);
         await sleep(600);
@@ -376,9 +606,9 @@ async function draw(app, look, shots, origin) {
         await until(() => list?.evaluate(`!document.querySelector('.notifications-card')`), 2000);
         await sleep(400);
         if (list) await backed(name);
-        // The clock's press lands before the Dock's: a Dock press first takes the keyboard from the center, which
-        // closes, and the clock's then opens it again.
-        await clock?.press('.deckit-bar-item');
+        // The item's press lands before the Dock's: a Dock press first puts the center away, and the item's then
+        // shows it again.
+        await bell.press();
         await until(async () => !(await centerOpen()), 4000);
         await show(apps[0]);
         await sleep(400);
@@ -505,6 +735,23 @@ async function draw(app, look, shots, origin) {
         await presented('settings', `!!document.querySelector('.deckit-toast')`);
         await sleep(400);
         await windowShot(name, 'settings', { overlay: true });
+    });
+    // A toast of Notifications' at the top right of the desktop, close: the one Calendar's button in Settings posts,
+    // drawn while it stands and left to go. None is posted where the run would raise a notification of the system's.
+    await surface('notifications-toast', async (name) => {
+        if ((await main(`return require('electron').Notification.isSupported()`)) !== false) return;
+        const toast = async () => {
+            for (const each of await pages('about:blank'))
+                if (await each.evaluate(`!!document.querySelector('.notifications-toasts .notifications-card')`))
+                    return each;
+            return null;
+        };
+        await settings.evaluate(`[...document.querySelectorAll('button')]
+            .find((button) => button.textContent.trim() === 'Send a test')?.click()`);
+        const stands = await until(toast, 4000);
+        await sleep(600);
+        if (stands) await desktopShot(name, { under, crop: { x: screen.width - 400, y: 0, width: 400, height: 180 } });
+        await until(async () => !(await toast()), 9000);
     });
 
     // The Browser: a tab's context menu, the question a download asks, and the downloads listed from the toolbar.

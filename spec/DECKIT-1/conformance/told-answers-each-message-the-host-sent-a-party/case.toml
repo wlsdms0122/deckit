@@ -1,0 +1,37 @@
+case = 25
+name = "told-answers-each-message-the-host-sent-a-party"
+note = "The look told answers each message the host sent the party that answers no request it asked, with its method, its params and whether it is a request. A party listens to an event of ada and sends it, and told answers the notification event/deliver, the transport connection open."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "event/listen"
+params = { names = ["ada:ping"] }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "event/emit"
+params = { name = "ping", args = [1] }
+
+[[step]]
+look = "told"
+party = "p"
+
+[step.expect]
+answers = { messages = [{ method = "event/deliver", params = { name = "ada:ping", args = [1] }, request = false }], closed = false }

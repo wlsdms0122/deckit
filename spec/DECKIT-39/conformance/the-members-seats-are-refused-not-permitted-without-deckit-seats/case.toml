@@ -1,0 +1,83 @@
+case = 26
+name = "the-members-seats-are-refused-not-permitted-without-deckit-seats"
+note = "deckit.seats guards every member of shell.seats. mod-a asks for no permission: seats.list, seats.asks, seats.answer and seats.follow are refused at call with kind NOT_PERMITTED, and seats.onChange throws it, before any argument is read."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.list"
+handle = "shell"
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.asks"
+handle = "shell"
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.answer"
+handle = "shell"
+args = ["2", true]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.follow"
+handle = "shell"
+args = ["2"]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.onChange"
+handle = "shell"
+listener = true
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.follow"
+handle = "shell"
+args = [7]
+
+[step.expect]
+refuses = "call"
+kind = "NOT_PERMITTED"

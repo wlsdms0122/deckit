@@ -1,0 +1,28 @@
+case = 25
+name = "a-user-that-sits-is-refused-a-second-seat"
+note = "A user sits at one seat at most. ada sits; a second party that proves ada is refused at call with ALREADY_RUNNING."
+
+[host]
+base = "system"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "attach"
+party = "q"
+principal = "ada"
+key = "first"
+
+[step.expect]
+refuses = "call"
+kind = "ALREADY_RUNNING"

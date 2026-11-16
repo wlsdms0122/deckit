@@ -56,7 +56,7 @@ The owner keeps each notification posted, in its own storage, as [the storage](.
 
 As a person presses a notification, or one of its actions, the owner takes it away and runs the command of what was pressed, with its args, on the notification's mod, as `run` of [the commands](../DECKIT-15/SPEC.md) runs one for a client granted `deckit.system-services`, which launches the mod where it does not run.
 
-**Note.** How a notification is shown, when, and how many at once, are the owner's: a toast over the app, a notification of the machine's through `notifications.show`, as [notifications of the machine](../DECKIT-21/SPEC.md) fix it, or none at all on a host with no shell. A person's press reaches the owner through what it shows.
+**Note.** How a notification is shown, when, and how many at once, are the owner's: a toast over the app, a notification of the machine's through `notifications.show`, as [notifications of the machine](../DECKIT-21/SPEC.md) fix it, or none at all on a host with no shell. A person's press reaches the owner through what it shows. What the owner an implementation ships shows, and when: [the notifications mod](../DECKIT-43/SPEC.md).
 
 ## Interactions
 

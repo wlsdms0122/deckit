@@ -7,19 +7,28 @@
 
 import Foundation
 
-// What deck keeps of a principal: its data folder, its records and what the layers on deck keep for it.
+// What deck keeps of a principal: its data folder, its records, what the layers on deck keep for it and the keys
+// authorized for it.
 public final class PrincipalStorage {
     // MARK: - Property
     private let dataFolder: DataFolder
     private let record: Record
     private let principalState: PrincipalState
+    private let keys: AuthorizedKeyStore
     private let store: Store
 
     // MARK: - Initializer
-    init(dataFolder: DataFolder, record: Record, principalState: PrincipalState, store: Store) {
+    init(
+        dataFolder: DataFolder,
+        record: Record,
+        principalState: PrincipalState,
+        keys: AuthorizedKeyStore,
+        store: Store
+    ) {
         self.dataFolder = dataFolder
         self.record = record
         self.principalState = principalState
+        self.keys = keys
         self.store = store
     }
 
@@ -31,7 +40,8 @@ public final class PrincipalStorage {
         return StorageUsage(
             data: dataFolder.count(principal: principal),
             records: try record.count(principal: principal),
-            kept: principalState.kept(principal: principal)
+            kept: principalState.kept(principal: principal),
+            keys: keys.count(principal: principal)
         )
     }
 
@@ -40,7 +50,8 @@ public final class PrincipalStorage {
         let failures = [
             Result { try dataFolder.erase(principal: principal) },
             Result { try record.erase(principal: principal) },
-            Result { try principalState.erase(principal: principal) }
+            Result { try principalState.erase(principal: principal) },
+            Result { try keys.erase(principal: principal) }
         ]
         for case let .failure(error) in failures {
             throw error

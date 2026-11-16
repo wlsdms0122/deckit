@@ -1,0 +1,49 @@
+case = 26
+name = "a-picture-of-a-rect-at-a-scale-holds-that-many-pixels-a-point"
+note = "Each mod opens the windows the case says. The desktop is the base shell, 1280 by 800, and ada sits at s1. mod-a opens main, the window 1. A picture of the rect at 10, 20, 100 by 50, at the scale 2, is 200 by 100 pixels, its top left at 10, 20."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "picture", rect = { x = 10, y = 20, width = 100, height = 50 }, scale = 2 }
+part = "width"
+
+[step.expect]
+answers = 200
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "picture", rect = { x = 10, y = 20, width = 100, height = 50 }, scale = 2 }
+part = "height"
+
+[step.expect]
+answers = 100
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "picture", rect = { x = 10, y = 20, width = 100, height = 50 }, scale = 2 }
+part = "at"
+
+[step.expect]
+answers = { x = 10, y = 20 }

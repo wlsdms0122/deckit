@@ -172,6 +172,7 @@ async function main() {
         PERMISSION: {},
         MANIFEST_FIELD: {},
         SETUP: {},
+        SEAT: {},
     }).make({});
     const thrown = (opening) =>
         opening.then(
