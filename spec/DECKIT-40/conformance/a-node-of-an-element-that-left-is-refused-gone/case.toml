@@ -38,7 +38,7 @@ args = ["drop"]
 input = "ask"
 party = "p"
 method = "seat/read"
-params = { of = "node", ref = "7.1" }
+params = { of = "node", ref = "1.1" }
 
 [step.expect]
 refuses = "call"

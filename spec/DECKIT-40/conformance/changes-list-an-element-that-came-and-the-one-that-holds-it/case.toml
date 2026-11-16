@@ -41,4 +41,4 @@ method = "seat/read"
 params = { of = "changes", since = 7 }
 
 [step.expect]
-answers = { text = "changes 7 to 8\n~ list \"Days\" (4 items, 4 in view) 7.6\n+ listitem \"Thu\" 7.11", mark = 8 }
+answers = { text = "changes 7 to 8\n~ list \"Days\" (4 items, 4 in view) 1.6\n+ listitem \"Thu\" 1.11", mark = 8 }

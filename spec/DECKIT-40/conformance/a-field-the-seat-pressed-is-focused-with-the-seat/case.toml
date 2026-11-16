@@ -32,19 +32,19 @@ answers = 7
 input = "ask"
 party = "p"
 method = "seat/input"
-params = { event = "pointer", type = "down", ref = "7.4", button = 0, count = 1 }
+params = { event = "pointer", type = "down", ref = "1.4", button = 0, count = 1 }
 
 [[step]]
 input = "ask"
 party = "p"
 method = "seat/input"
-params = { event = "pointer", type = "up", ref = "7.4", button = 0, count = 1 }
+params = { event = "pointer", type = "up", ref = "1.4", button = 0, count = 1 }
 
 [[step]]
 input = "ask"
 party = "p"
 method = "seat/read"
-params = { of = "node", ref = "7.4" }
+params = { of = "node", ref = "1.4" }
 
 [step.expect]
-answers = { text = "textbox \"Find\" [focused s1, value \"\"] 7.4 at 283,287 200x30\n  selection 0", mark = 9 }
+answers = { text = "textbox \"Find\" [focused s1, value \"\"] 1.4 at 283,287 200x30\n  selection 0", mark = 9 }

@@ -25,4 +25,4 @@ method = "seat/read"
 params = { of = "window", window = "w1", roles = ["textbox"] }
 
 [step.expect]
-answers = { text = "window w1 \"mod-a\" mod-a at 283,107 720x480 mark 7\n  button \"Close\" w1.close\n  button \"Minimize\" w1.minimize\n  button \"Zoom\" w1.zoom\n  titlebar w1.bar\n  document 7 content 720x480\n    textbox \"Name\" [value \"say \\\"a\\\", b\"] 7.3\n    textbox \"Find\" [value \"\"] 7.4", mark = 7 }
+answers = { text = "window w1 \"mod-a\" mod-a at 283,107 720x480 mark 7\n  button \"Close\" w1.close\n  button \"Minimize\" w1.minimize\n  button \"Zoom\" w1.zoom\n  titlebar w1.bar\n  document 1 content 720x480\n    textbox \"Name\" [value \"say \\\"a\\\", b\"] 1.3\n    textbox \"Find\" [value \"\"] 1.4", mark = 7 }

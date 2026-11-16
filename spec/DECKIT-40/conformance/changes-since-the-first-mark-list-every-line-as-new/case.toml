@@ -25,4 +25,4 @@ method = "seat/read"
 params = { of = "changes", since = 0 }
 
 [step.expect]
-answers = { text = "changes 0 to 7\n+ desktop 1280x800\n+ seat local \"Deckit conformance\" blue\n+ seat s1 \"Ada Lovelace\" green (you)\n+ item \"mod-a\" [running] dock.mod-a\n+ window w1 \"mod-a\" mod-a at 283,107 720x480\n+ document 7 content 720x480 in w1", mark = 7 }
+answers = { text = "changes 0 to 7\n+ desktop 1280x800\n+ seat local \"Deckit conformance\" blue\n+ seat s1 \"Ada Lovelace\" green (you)\n+ item \"mod-a\" [running] dock.mod-a\n+ window w1 \"mod-a\" mod-a at 283,107 720x480\n+ document 1 content 720x480 in w1", mark = 7 }

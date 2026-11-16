@@ -32,7 +32,7 @@ answers = 7
 input = "ask"
 party = "p"
 method = "seat/read"
-params = { of = "node", ref = "7.10", format = "json" }
+params = { of = "node", ref = "1.10", format = "json" }
 
 [step.expect]
-answers = { data = { node = { depth = 0, role = "region", states = [], name = "Log", ref = "7.10" }, rect = { x = 283, y = 487, width = 200, height = 60 }, scroll = { top = 0, height = 120, left = 0, width = 200 }, lines = [{ depth = 1, role = "text", name = "First line." }, { depth = 1, role = "text", name = "Second line." }], mark = 7 }, mark = 7 }
+answers = { data = { node = { depth = 0, role = "region", states = [], name = "Log", ref = "1.10" }, rect = { x = 283, y = 487, width = 200, height = 60 }, scroll = { top = 0, height = 120, left = 0, width = 200 }, lines = [{ depth = 1, role = "text", name = "First line." }, { depth = 1, role = "text", name = "Second line." }], mark = 7 }, mark = 7 }

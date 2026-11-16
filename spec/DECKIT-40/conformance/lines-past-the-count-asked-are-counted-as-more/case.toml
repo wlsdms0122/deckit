@@ -32,7 +32,7 @@ answers = 7
 input = "ask"
 party = "p"
 method = "seat/read"
-params = { of = "node", ref = "7.10", all = true, lines = 1 }
+params = { of = "node", ref = "1.10", all = true, lines = 1 }
 
 [step.expect]
-answers = { text = "region \"Log\" 7.10 at 283,487 200x60 scroll 0 of 120\n  text \"First line.\"\n  ... 2 more", mark = 7 }
+answers = { text = "region \"Log\" 1.10 at 283,487 200x60 scroll 0 of 120\n  text \"First line.\"\n  ... 2 more", mark = 7 }
