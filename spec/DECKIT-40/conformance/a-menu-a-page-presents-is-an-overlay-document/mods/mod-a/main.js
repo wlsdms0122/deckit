@@ -1,31 +1,14 @@
-// The probe of DECKIT-42's cases: it runs a command it declares by saying so, and opens a view under its item's
-// anchor as the event <id>:go tells it, each callback said.
-const CALLBACKS = ['didAppear', 'didDisappear', 'didClose'];
+// A window that holds a heading, and a menu its page presents over itself as the event mod-a:menu tells it.
 module.exports = class {
-    start(deckit) {
-        const say = (what) => deckit.openExternal('https://said.test/' + what).catch(() => {});
-        deckit.exports.register({ connect: () => ({ runCommand: (id) => say('mod-a/ran/' + id) }) });
-    }
     attach(shell, deckit) {
-        const id = 'mod-a';
-        const say = (what) => deckit.openExternal('https://said.test/' + what).catch(() => {});
-        deckit.events.on(id + ':go', (options = {}) => {
-            const told = Object.fromEntries(CALLBACKS.map((one) => [one, () => say(id + '/view/' + one)]));
-            try {
-                shell.windows.open({
-                    ...told,
-                    name: 'view',
-                    level: 'panel',
-                    activates: false,
-                    anchor: { mod: 'status-bar', id },
-                    content: document.createElement('div'),
-                    width: 320,
-                    height: 200,
-                    ...options,
-                });
-            } catch (error) {
-                say(id + '/view/threw/' + error.kind);
-            }
-        });
+        const content = document.createElement('div');
+        const heading = document.createElement('h1');
+        heading.textContent = 'Notes';
+        heading.style.cssText = 'position:absolute;margin:0;left:0;top:60px;width:720px;height:40px';
+        content.append(heading);
+        deckit.events.on('mod-a:menu', () =>
+            shell.ui.menu({ items: [{ label: 'Keep', run: () => {} }], point: { x: 100, y: 120 } })
+        );
+        shell.windows.open({ name: 'main', content });
     }
 };
