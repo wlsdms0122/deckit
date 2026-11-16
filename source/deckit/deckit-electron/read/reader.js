@@ -223,7 +223,8 @@ function install() {
                 if (drawn) clip = clipOf(el, rect, clip);
             }
             let line = null;
-            let below = level;
+            // The root of a node's reading is its first line with a role or none, what it holds one level under it.
+            let below = detail && el === root ? level + 1 : level;
             let mine = counter;
             if (role) {
                 if (item) {

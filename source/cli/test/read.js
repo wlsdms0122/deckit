@@ -285,6 +285,28 @@ async function run({ check, main, open }) {
         `${JSON.stringify(across)} ${JSON.stringify(broken)}`
     );
 
+    // A node whose element has no role still stands as the first line, what it holds one level under it.
+    await editor.evaluate(`(() => {
+        const aside = Object.assign(document.createElement('div'), { id: 'deckit-read-aside', textContent: 'Aside' });
+        aside.setAttribute('role', 'note');
+        aside.style.cssText = 'position:fixed;left:24px;top:320px;width:220px;height:24px;z-index:99999';
+        document.body.append(aside);
+    })()`);
+    const note = (await read('outline', editor.id)).lines?.find((line) => line.role === 'note');
+    await editor.evaluate(`document.querySelector('#deckit-read-aside').removeAttribute('role')`);
+    const bare = await read('node', editor.id, note?.ref);
+    await editor.evaluate(`document.querySelector('#deckit-read-aside').remove()`);
+    check(
+        'read: the node of an element with no role reads as generic, its text one level under it',
+        bare.line?.role === 'generic' &&
+            bare.line.depth === 0 &&
+            bare.lines?.length === 1 &&
+            bare.lines[0].role === 'text' &&
+            bare.lines[0].name === 'Aside' &&
+            bare.lines[0].depth === 1,
+        JSON.stringify(bare)
+    );
+
     // An element's place, once it is in view.
     const far = named((await read('outline', editor.id, { all: true })).lines, 'Far');
     const hidden = named((await read('outline', editor.id)).lines, 'Far');
