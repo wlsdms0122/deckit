@@ -1,0 +1,31 @@
+case = 27
+name = "a-set-with-no-name-by-a-mod-that-declared-none-is-refused"
+note = "The host ships the status bar by its id, on the base shell, 1280 by 800, under a bar 32 high. Each mod-* is granted deckit.panel-windows and uses status-bar/items; one with a command runs it by opening https://said.test/<id>/ran/<command> outside the app, and opens the view view, 320 by 200, activates false, under the anchor { mod = \"status-bar\", id = <its id> } as the event <id>:go tells it, its didAppear, didDisappear and didClose opening https://said.test/<id>/view/<callback>. mod-b, which declares none, sets { icon = \"users\" }."
+
+[host]
+base = "shell"
+api = "1.0.0"
+mods = ["status-bar"]
+ship = ["mod-b"]
+bar = 32
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "dependencies.onConnect"
+args = ["status-bar/items"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "set"
+handed = true
+args = [{ icon = "users" }]
+
+[step.expect]
+refuses = "call"
+kind = "INVALID_ARGUMENT"
