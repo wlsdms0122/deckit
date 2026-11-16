@@ -1,0 +1,68 @@
+case = 27
+name = "the-center-lists-what-is-kept-newest-first"
+note = "The host ships the owner of deckit/notifications and of deckit/commands, and the status bar by its id, on the base shell, 1280 by 800, under a bar 32 high. ada sits at s1. mod-a posts to deckit/notifications what its event post tells it and takes its own away as its event clear tells it, runs in the background, and runs its commands ping and snooze by opening https://said.test/mod-a/ran/<command> outside the app. mod-a posts Standup, and then Review with the body Room 4, each with the action Snooze. ada presses the item and reads the center: Review, Room 4 above Standup, each with its Snooze and Remove."
+
+[host]
+base = "shell"
+api = "1.0.0"
+owners = ["deckit/notifications", "deckit/commands"]
+mods = ["status-bar"]
+ship = ["mod-a"]
+bar = 32
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["post", { title = "Standup", command = "ping", actions = [{ title = "Snooze", command = "snooze" }] }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["post", { title = "Review", body = "Room 4", command = "ping", actions = [{ title = "Snooze", command = "snooze" }] }]
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w1" }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", ref = "1.2", button = 0 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", ref = "1.2", button = 0 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w3" }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "node", ref = "2.1", lines = 0 }
+part = "text"
+
+[step.expect]
+answers = "region \"Notifications\" 2.1 at 910,40 360x249\n  button \"Clear All\" 2.2\n  listbox (2 items, 2 in view) 2.3\n    option \"Review, Room 4\" 2.4\n      img \"mod-a\" 2.5\n      button \"Snooze\" 2.6\n      button \"Remove\" 2.7\n    option \"Standup\" 2.8\n      img \"mod-a\" 2.9\n      button \"Snooze\" 2.10\n      button \"Remove\" 2.11\n  ... 9 more"
