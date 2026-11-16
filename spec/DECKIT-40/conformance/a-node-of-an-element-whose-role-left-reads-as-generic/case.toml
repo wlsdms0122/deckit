@@ -1,0 +1,44 @@
+case = 26
+name = "a-node-of-an-element-whose-role-left-reads-as-generic"
+note = "mod-a opens the window 1 at 283, 107, 720 by 480. Its content holds, each in a box of its own: the field Secret, of the type password, holding abc; Draft, editable content that holds Hello; the field Span, holding abcdef with bcd selected; the empty field Auto, which the page focuses as the window appears; the region Feed, 60 high, that scrolls the buttons One, Two and Three, 40 high each; and an element of the role note that holds Aside. The desktop is the base shell, 1280 by 800, ada sits at s1, and no seat pressed the window. It reads the window with all. Then mod-a sends its event bare, and at it the page takes the role off the note. It reads the node of the ref the note had: generic, as the element is there and has no role, and its text Aside one level under it."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w1", all = true }
+part = "mark"
+
+[step.expect]
+answers = 7
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["bare"]
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "node", ref = "1.9" }
+
+[step.expect]
+answers = { text = "generic 1.9 at 283,397 200x20\n  text \"Aside\"", mark = 8 }
