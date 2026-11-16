@@ -1,0 +1,31 @@
+case = 27
+name = "the-item-stands-while-a-user-asks-to-sit"
+note = "The host ships the status bar and the seats mod by their ids, on the base shell, 1280 by 800, under a bar 32 high. With asking true, ada attaches and waits: the bar stands for the local seat, the item laid with its glyph alone, no seat beside the local seat to count."
+
+[host]
+base = "shell"
+api = "1.0.0"
+owners = ["deckit/commands"]
+mods = ["status-bar", "seats"]
+ship = ["mod-a"]
+system = ["mod-a"]
+bar = 32
+users = [{ id = "ada", name = "Ada Lovelace" }, { id = "bob", name = "Bob Hope" }]
+keys = [{ principal = "ada", key = "first" }, { principal = "bob", key = "second" }]
+seats = { asking = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+waits = true
+
+[[step]]
+look = "windows"
+seat = "local"
+[step.expect]
+answers = [{ mod = "status-bar", name = "bar", level = "panel", frame = { x = 1236, y = 2, width = 36, height = 28 }, key = false, minimized = false }]
