@@ -1,0 +1,19 @@
+id = "mod-a"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[permissions]
+"deckit.panel-windows" = "Stands a view under its item."
+
+[interfaces]
+uses = { "status-bar/items" = 2 }
+
+[[contributes."status-bar/items"]]
+name = "Alpha"
+icon = "bell"
+command = "ping"
+
+[[contributes."deckit/commands"]]
+id = "ping"
+title = "Ping"
