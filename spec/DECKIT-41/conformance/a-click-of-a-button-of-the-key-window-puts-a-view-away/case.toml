@@ -1,0 +1,36 @@
+case = 26
+name = "a-click-of-a-button-of-the-key-window-puts-a-view-away"
+note = "Each mod's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as its event go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. A view shown for a seat by activation is put away for it as the seat presses down anywhere but in the view, and the person's click of a button of a title bar is a press down of the local seat. The person presses main, and mod-a is told to open v 320 by 240 at the place top-right, at the level panel: v is shown by activation for the local seat, whose keyboard it takes, main its key window still. The person clicks the zoom button of main, and v is put away, the keyboard back with main, which is zoomed."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "press"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { open = { name = "v", level = "panel", place = "top-right", width = 320, height = 240 } }]
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "zoom"
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 6, y = 52, width = 1274, height = 748 }, key = true, minimized = false }]
