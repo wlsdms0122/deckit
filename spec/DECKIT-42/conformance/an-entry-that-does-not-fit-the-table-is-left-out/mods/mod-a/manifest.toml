@@ -1,0 +1,16 @@
+id = "mod-a"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+background = "Runs."
+
+[permissions]
+"deckit.panel-windows" = "Stands a view under its item."
+
+[interfaces]
+uses = { "status-bar/items" = 2 }
+
+[[contributes."status-bar/items"]]
+name = "Alpha"
+icon = "bell"
+size = 1
