@@ -78,7 +78,7 @@ An item is what stands of a mod's: its `name`, `icon`, `command`, `label`, `coun
 
 An item is laid 24 high, holding its glyph, 16 wide, then its label, as wide as it is drawn and 160 at most, then its count, 7 wide for each character of its text, each that it shows, 4 apart, with 8 on each side. A count's **text** is its number, and `99+` above 99.
 
-A seat reads the capsule's content as [what a seat reads](../DECKIT-40/SPEC.md) reads a document: a `toolbar` named `Status Bar`, holding a `button` for each item laid and in view, named by the item's name, its label, its count's text and `attention` where that is its tone, each that it has, joined by a comma and a space, and `disabled` where the item has no command. The buttons are read region by region, the region that scrolls first and then the fixed region, each region's from its right end.
+A seat reads the capsule's content as [what a seat reads](../DECKIT-40/SPEC.md) reads a document: a `toolbar` named `Status Bar`, holding a `button` for each item laid and in view, named by the item's name, its label, its count's text and `attention` where that is its tone, each that it has, joined by a comma and a space, and `disabled` where the item has no command. The buttons are read in the order they stand, left to right: the region that scrolls, and then the fixed region.
 
 ### The two regions and their order
 

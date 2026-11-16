@@ -1,6 +1,6 @@
 case = 27
 name = "keeping-an-item-fixes-it-and-choosing-again-lets-it-scroll"
-note = "The host ships the status bar by its id, on the base shell, 1280 by 800, under a bar 32 high. ada sits at s1. Each mod-* is granted deckit.panel-windows and uses status-bar/items; one with a command runs it by opening https://said.test/<id>/ran/<command> outside the app, and opens the view view, 320 by 200, activates false, under the anchor { mod = \"status-bar\", id = <its id> } as the event <id>:go tells it, its didAppear, didDisappear and didClose opening https://said.test/<id>/view/<callback>. mod-a declares Alpha with the glyph bell, mod-b Beta and mod-c Gamma with the glyph users: they came in that order, Alpha at the right, and a seat reads Alpha, Beta, Gamma. ada presses Alpha with the second button and chooses the one entry of the menu that opens: Alpha is fixed, at the capsule's right end, and a seat reads Beta, Gamma, which scroll, then Alpha. ada does so again: Alpha scrolls again where it came, at the right of the others."
+note = "The host ships the status bar by its id, on the base shell, 1280 by 800, under a bar 32 high. ada sits at s1. Each mod-* is granted deckit.panel-windows and uses status-bar/items; one with a command runs it by opening https://said.test/<id>/ran/<command> outside the app, and opens the view view, 320 by 200, activates false, under the anchor { mod = \"status-bar\", id = <its id> } as the event <id>:go tells it, its didAppear, didDisappear and didClose opening https://said.test/<id>/view/<callback>. mod-a declares Alpha with the glyph bell, mod-b Beta and mod-c Gamma with the glyph users: they came in that order, Alpha at the right, and a seat reads Gamma, Beta, Alpha. ada presses Gamma with the second button and chooses the one entry of the menu that opens: Gamma is fixed, at the capsule's right end, and a seat reads Beta, Alpha, which scroll, then Gamma. ada does so again: Gamma scrolls again where it came, at the left of the others."
 
 [host]
 base = "shell"
@@ -70,7 +70,7 @@ params = { of = "node", ref = "13.1" }
 part = "text"
 
 [step.expect]
-answers = "toolbar \"Status Bar\" 13.1 at 1164,2 108x28\n  button \"Beta\" [disabled] 13.3\n  button \"Gamma\" [disabled] 13.4\n  button \"Alpha\" [disabled] 13.2"
+answers = "toolbar \"Status Bar\" 13.1 at 1164,2 108x28\n  button \"Beta\" [disabled] 13.3\n  button \"Alpha\" [disabled] 13.4\n  button \"Gamma\" [disabled] 13.2"
 
 [[step]]
 input = "ask"
@@ -116,4 +116,4 @@ params = { of = "node", ref = "13.1" }
 part = "text"
 
 [step.expect]
-answers = "toolbar \"Status Bar\" 13.1 at 1164,2 108x28\n  button \"Alpha\" [disabled] 13.2\n  button \"Beta\" [disabled] 13.3\n  button \"Gamma\" [disabled] 13.4"
+answers = "toolbar \"Status Bar\" 13.1 at 1164,2 108x28\n  button \"Gamma\" [disabled] 13.2\n  button \"Beta\" [disabled] 13.3\n  button \"Alpha\" [disabled] 13.4"

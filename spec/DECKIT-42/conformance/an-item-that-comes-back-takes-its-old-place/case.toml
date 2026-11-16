@@ -75,4 +75,4 @@ params = { of = "node", ref = "11.1" }
 part = "text"
 
 [step.expect]
-answers = "toolbar \"Status Bar\" 11.1 at 1200,2 72x28\n  button \"Beta\" [disabled] 11.2\n  button \"Gamma\" [disabled] 11.3"
+answers = "toolbar \"Status Bar\" 11.1 at 1200,2 72x28\n  button \"Gamma\" [disabled] 11.2\n  button \"Beta\" [disabled] 11.3"
