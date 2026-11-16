@@ -1,0 +1,87 @@
+case = 27
+name = "an-ask-that-waits-is-a-row-with-deny-and-allow"
+note = "The host ships the status bar and the seats mod by their ids, on the base shell, 1280 by 800, under a bar 32 high. With asking true, ada sits at s1 as mod-a, granted deckit.seats, allows her ask. bob attaches and waits. ada presses the item and reads the view: the row of bob's ask, with Deny and Allow, above the rows of the seats."
+
+[host]
+base = "shell"
+api = "1.0.0"
+owners = ["deckit/commands"]
+mods = ["status-bar", "seats"]
+ship = ["mod-a"]
+system = ["mod-a"]
+bar = 32
+users = [{ id = "ada", name = "Ada Lovelace" }, { id = "bob", name = "Bob Hope" }]
+keys = [{ principal = "ada", key = "first" }, { principal = "bob", key = "second" }]
+seats = { asking = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+waits = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.answer"
+handle = "shell"
+args = ["2", true]
+
+[[step]]
+look = "admitted"
+party = "p"
+part = "seat"
+
+[step.expect]
+answers = { id = "s1", local = false, user = { id = "ada", name = "Ada Lovelace" } }
+
+[[step]]
+input = "attach"
+party = "q"
+principal = "bob"
+key = "second"
+waits = true
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "desktop" }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w2" }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", ref = "1.2", button = 0 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", ref = "1.2", button = 0 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w3" }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "node", ref = "2.1" }
+part = "text"
+
+[step.expect]
+answers = "group \"Seats\" 2.1 at 990,40 280x108\n  group \"Bob Hope asks to sit\" 2.2\n    text \"Bob Hope\"\n    text \"asks to sit\"\n    button \"Deny Bob Hope\" 2.3\n      text \"Deny\"\n    button \"Allow Bob Hope\" 2.4\n      text \"Allow\"\n  button \"Deckit conformance\" [not pressed] 2.5\n    text \"Deckit conformance\"\n  button \"Ada Lovelace\" [not pressed] 2.6\n    text \"Ada Lovelace\""
