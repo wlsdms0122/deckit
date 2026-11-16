@@ -1,0 +1,36 @@
+case = 23
+name = "minimize-and-zoom-do-nothing-to-a-view"
+note = "Each mod's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as its event go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. A view is never minimized or zoomed: mod-a opens v 320 by 240 at the place top-right, at the level panel with activates false, and is told to call minimize() and zoom() of it. v stands where it stood, and is told nothing past didAppear."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { do = "minimize", name = "v" }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { do = "zoom", name = "v" }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "v", level = "panel", frame = { x = 952, y = 60, width = 320, height = 240 }, key = false, minimized = false }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/v/didAppear", activates = true }]

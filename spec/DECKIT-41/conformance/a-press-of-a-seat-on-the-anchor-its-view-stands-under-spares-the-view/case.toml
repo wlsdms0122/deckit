@@ -1,0 +1,100 @@
+case = 26
+name = "a-press-of-a-seat-on-the-anchor-its-view-stands-under-spares-the-view"
+note = "Each mod's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as its event go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. A view shown for a seat by activation is not put away as the seat presses down on the anchor the view stands under, and is as it presses elsewhere in the anchor's window. mod-a opens main and p 120 by 32 in the bar, at { x = 1152, y = 10 }. A party attaches as ada, at the seat s1, and presses main, so mod-a acts for s1, and mod-a is told to name the anchor spot of p at { x = 20, y = 0, width = 40, height = 32 }, for mod-a, and to open v 320 by 240 under it: v is shown by activation for s1, at { x = 892, y = 60 }. s1 presses at { x = 1190, y = 26 }, on the anchor, and v stays on its screen; and then at { x = 1160, y = 26 }, in p but not on the anchor: v is put away, open still, and the keyboard is back with main."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { do = "setAnchors", name = "p", args = [[{ id = "spot", rect = { x = 20, y = 0, width = 40, height = 32 }, mod = "mod-a" }]] }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { open = { name = "v", level = "panel", anchor = { mod = "mod-a", id = "spot" }, width = 320, height = 240 } }]
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 1190, y = 26, button = 0, count = 1 }
+
+[step.expect]
+answers = { over = 2, at = { x = 1190, y = 26 } }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 1190, y = 26, button = 0, count = 1 }
+
+[[step]]
+look = "windows"
+seat = "s1"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 141, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "p", level = "panel", frame = { x = 1152, y = 10, width = 120, height = 32 }, key = false, minimized = false }, { mod = "mod-a", name = "v", level = "panel", frame = { x = 892, y = 60, width = 320, height = 240 }, key = false, minimized = false }]
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 1160, y = 26, button = 0, count = 1 }
+
+[step.expect]
+answers = { over = 2, at = { x = 1160, y = 26 } }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 1160, y = 26, button = 0, count = 1 }
+
+[[step]]
+look = "windows"
+seat = "s1"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 141, width = 720, height = 480 }, key = true, minimized = false }, { mod = "mod-a", name = "p", level = "panel", frame = { x = 1152, y = 10, width = 120, height = 32 }, key = false, minimized = false }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { list = true }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/main/didAppear", activates = true }, { url = "https://said.test/p/didAppear", activates = true }, { url = "https://said.test/main/didBecomeKey", activates = true }, { url = "https://said.test/main/didResignKey", activates = true }, { url = "https://said.test/v/didAppear", activates = true }, { url = "https://said.test/v/didBecomeKey", activates = true }, { url = "https://said.test/v/didResignKey", activates = true }, { url = "https://said.test/v/didDisappear", activates = true }, { url = "https://said.test/main/didBecomeKey", activates = true }, { url = "https://said.test/list/main,p,v", activates = true }]

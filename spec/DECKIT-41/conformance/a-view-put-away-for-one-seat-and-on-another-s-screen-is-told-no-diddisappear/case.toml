@@ -1,0 +1,128 @@
+case = 26
+name = "a-view-put-away-for-one-seat-and-on-another-s-screen-is-told-no-diddisappear"
+note = "Each mod's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as its event go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the base shell, 1280 by 800, under a bar 52 high across its top, so that its desktop is { x = 0, y = 52, width = 1280, height = 748 }. A view is told didDisappear as it is on no seat's screen any more, and not as it is put away for one seat while on another's screen. mod-a has the windows main and second. Two parties attach, as ada at the seat s1 and as bob at s2. s1 presses second, and mod-a is told to open v 320 by 240 at the place top-right, at the level panel: v is shown by activation for s1, which holds its keyboard. s2 presses main, so mod-a acts for s2, and mod-a is told to call makeKeyAndOrderFront() of v: v is shown for s2 too, and s2 does not hold its keyboard. s1 presses the desktop at { x = 100, y = 700 }: v is put away for s1 and on the screen of s2 still, told didResignKey, as no seat holds its keyboard, and no didDisappear, and second, the key window of s1, is told didBecomeKey. s2 presses there: v is on no seat's screen, told didDisappear, and open still."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }, { id = "bob", name = "Bob Kahn" }]
+keys = [{ principal = "ada", key = "first" }, { principal = "bob", key = "second" }]
+bar = 52
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "attach"
+party = "q"
+principal = "bob"
+key = "second"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { open = { name = "v", level = "panel", place = "top-right", width = 320, height = 240 } }]
+
+[[step]]
+input = "ask"
+party = "q"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 290, y = 300, button = 0, count = 1 }
+
+[step.expect]
+answers = { over = 1, key = "key", holder = "s2", at = { x = 290, y = 300 } }
+
+[[step]]
+input = "ask"
+party = "q"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 290, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { do = "makeKeyAndOrderFront", name = "v" }]
+
+[[step]]
+look = "windows"
+seat = "s2"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "second", level = "normal", frame = { x = 307, y = 165, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 141, width = 720, height = 480 }, key = true, minimized = false }, { mod = "mod-a", name = "v", level = "panel", frame = { x = 952, y = 60, width = 320, height = 240 }, key = false, minimized = false }]
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 100, y = 700, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 100, y = 700, button = 0, count = 1 }
+
+[[step]]
+look = "windows"
+seat = "s2"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "second", level = "normal", frame = { x = 307, y = 165, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 141, width = 720, height = 480 }, key = true, minimized = false }, { mod = "mod-a", name = "v", level = "panel", frame = { x = 952, y = 60, width = 320, height = 240 }, key = false, minimized = false }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/main/didAppear", activates = true }, { url = "https://said.test/second/didAppear", activates = true }, { url = "https://said.test/second/didBecomeKey", activates = true }, { url = "https://said.test/second/didResignKey", activates = true }, { url = "https://said.test/v/didAppear", activates = true }, { url = "https://said.test/v/didBecomeKey", activates = true }, { url = "https://said.test/main/didBecomeKey", activates = true }, { url = "https://said.test/v/didResignKey", activates = true }, { url = "https://said.test/second/didBecomeKey", activates = true }]
+
+[[step]]
+input = "ask"
+party = "q"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 100, y = 700, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "q"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 100, y = 700, button = 0, count = 1 }
+
+[[step]]
+look = "windows"
+seat = "s2"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "second", level = "normal", frame = { x = 307, y = 165, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 141, width = 720, height = 480 }, key = true, minimized = false }]
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { list = true }]
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/main/didAppear", activates = true }, { url = "https://said.test/second/didAppear", activates = true }, { url = "https://said.test/second/didBecomeKey", activates = true }, { url = "https://said.test/second/didResignKey", activates = true }, { url = "https://said.test/v/didAppear", activates = true }, { url = "https://said.test/v/didBecomeKey", activates = true }, { url = "https://said.test/main/didBecomeKey", activates = true }, { url = "https://said.test/v/didResignKey", activates = true }, { url = "https://said.test/second/didBecomeKey", activates = true }, { url = "https://said.test/v/didDisappear", activates = true }, { url = "https://said.test/list/main,second,v", activates = true }]
