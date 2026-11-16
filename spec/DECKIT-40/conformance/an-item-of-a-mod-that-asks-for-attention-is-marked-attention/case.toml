@@ -1,0 +1,46 @@
+case = 26
+name = "an-item-of-a-mod-that-asks-for-attention-is-marked-attention"
+note = "Each mod opens the windows the case says. The desktop is the base shell, 1280 by 800, and ada sits at s1. mod-a opens main, the window 1 at 283, 107, 720 by 480, and ada presses it, so mod-a is the active mod for s1. mod-b, which no input reached, is told to open x, the window 2, and asks for attention: the desktop is read, and the item of mod-b is marked running and attention."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "call"
+mod = "mod-b"
+member = "events.emit"
+args = ["go", { open = { name = "x" } }]
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "desktop" }
+
+[step.expect]
+answers = { text = "desktop 1280x800 mark 12\nseat local \"Deckit conformance\" blue\nseat s1 \"Ada Lovelace\" green at 600,300 key w1 (you)\ndock (2 items)\n  item \"mod-a\" [running, active] dock.mod-a\n  item \"mod-b\" [running, attention] dock.mod-b\nwindow w1 \"mod-a\" mod-a at 283,107 720x480 [key s1]\nwindow w2 \"mod-b\" mod-b at 307,131 720x480", mark = 12 }

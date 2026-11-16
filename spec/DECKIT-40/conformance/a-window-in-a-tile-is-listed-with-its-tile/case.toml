@@ -1,0 +1,41 @@
+case = 26
+name = "a-window-in-a-tile-is-listed-with-its-tile"
+note = "Each mod opens the windows the case says. The desktop is the base shell, 1280 by 800, and ada sits at s1. mod-a opens main, the window 1 at 283, 107, 720 by 480. The person presses main and drags it 640 to the left, where it takes the left half: the desktop is read, and the line of the window holds the key of the local seat, then tile and left."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "press"
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "move"
+by = { x = -640, y = 0 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "desktop" }
+
+[step.expect]
+answers = { text = "desktop 1280x800 mark 12\nseat local \"Deckit conformance\" blue key w1\nseat s1 \"Ada Lovelace\" green (you)\ndock (1 items)\n  item \"mod-a\" [running] dock.mod-a\nwindow w1 \"mod-a\" mod-a at 6,0 637x800 [key local, tile left]", mark = 12 }
