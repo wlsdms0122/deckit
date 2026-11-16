@@ -1,0 +1,60 @@
+case = 26
+name = "changes-after-an-item-came-to-the-dock-list-it-new"
+note = "Each mod opens the windows the case says. The desktop is the base shell, 1280 by 800, and ada sits at s1. mod-a opens main, the window 1, with a region of the interface case/view over its box at 100, 100, 200 by 150; mod-b is a view of that interface. The person quits mod-b and takes its item out of the Dock, and ada reads the desktop at the mark 10. mod-a places mod-b in its region, which launches it, ada reads w1, which gives the window's content the number 1, and asks what changed since 10: the item of mod-b, new, and the document the child is, new in w1, given the number 2."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a", "mod-b"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "dock"
+mod = "mod-b"
+action = "quit"
+
+[[step]]
+input = "dock"
+mod = "mod-b"
+action = "remove"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "desktop" }
+part = "mark"
+
+[step.expect]
+answers = 10
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { region = 1, interface = "case/view", box = { x = 100, y = 100, width = 200, height = 150 } }, { place = 1, id = "mod-b" }]
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w1" }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "changes", since = 10 }
+
+[step.expect]
+answers = { text = "changes 10 to 14\n+ item \"mod-b\" [running] dock.mod-b\n+ document 2 child \"mod-b\" 200x150 in w1", mark = 14 }
