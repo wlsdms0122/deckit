@@ -68,10 +68,11 @@ main
 separator "Sidebar"`,
 };
 const CENTER = 'region "Notifications"';
-// The status bar's band: the clock named with the time it says, an item with its count and its attention.
+// The status bar's band, read left to right as it stands: the Notifications item with its count and its attention,
+// then the clock at the right end, named with the time it says.
 const BAND = `toolbar "Status Bar"
-  button "Clock, *"
-  button "Notifications*"`;
+  button "Notifications*"
+  button "Clock, *"`;
 // Mods: the mods a named list, each an item.
 const LAUNCHER = `toolbar "Mods"
   textbox "Search"
@@ -161,7 +162,11 @@ async function run({ check, main, open, show, desktopLaid, pressIn }) {
     const [bar] = await laidOf(desktopLaid, 'status-bar');
     const band = bar ? (await reading(bar.id)).text : '';
     console.log(`[views] the status bar\n${band}`);
-    check('views: the status bar reads as its items, the clock by the time it says', holds(band, BAND), band);
+    check(
+        'views: the status bar reads as its items left to right, the clock by the time it says',
+        holds(band, BAND),
+        band
+    );
     await pressIn(bar, bell);
     const center = await until(async () => (await laidOf(desktopLaid, 'notifications'))[0], 4000);
     await sleep(500);

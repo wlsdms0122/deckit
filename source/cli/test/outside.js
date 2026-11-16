@@ -1154,17 +1154,20 @@ async function run({
         const seatReadsKept = seatKept.asRead ? seatA.as('read', 'window', seatKept.asRead) : '';
         const seatFreed = await bySeat("Don't Keep in Bar", scrolls);
         const seatReadsFreed = seatFreed.asRead ? seatA.as('read', 'window', seatFreed.asRead) : '';
+        // Fixed or not, the item stands just left of the fixed items, so a reading in the order on screen is the same.
+        const beforeFixed = /button "Star[^\n]*\n(?: +button "Notifications[^\n]*\n)? +button "Clock, /;
         check(
             'outside: a seat fixes the item by button 2 on it as it reads it and the entry Keep in Bar as it reads ' +
                 "that, and lets it scroll again by Don't Keep in Bar: the bar the local seat sees has it so, and the " +
-                'seat reads it after the clock while it is fixed and before it once it is not',
+                'seat reads the bar left to right as it stands either way: the item right before the Notifications ' +
+                'item and the clock',
             !!seatKept.entry &&
                 fixedWhole(seatKept.now) &&
-                /button "Clock, [^\n]*\n(?: +button "Notifications[^\n]*\n)? +button "Star/.test(seatReadsKept) &&
+                beforeFixed.test(seatReadsKept) &&
                 !!seatFreed.entry &&
                 scrolls(seatFreed.now) &&
                 inView(seatFreed.now) &&
-                /button "Star[^\n]*\n(?: +button "[^\n]*\n)* +button "Clock, /.test(seatReadsFreed),
+                beforeFixed.test(seatReadsFreed),
             JSON.stringify({ seatKept, seatReadsKept, seatFreed, seatReadsFreed })
         );
     }

@@ -310,6 +310,20 @@ async function main() {
             BAR.FIXED.join() === 'clock,notifications',
         listed
     );
+    const shown = ['fixed', 'scrolled'].map((region) =>
+        BAR.shownOf(listed, region)
+            .map(({ id }) => id)
+            .join()
+    );
+    check(
+        "a region's items are in the order they stand, left to right, the first that came or was fixed last",
+        same(shown, ['clock,seats', 'bell']) &&
+            same(
+                BAR.shownOf(bar, 'scrolled').map(({ id }) => id),
+                ['seats', 'bell']
+            ),
+        shown
+    );
     const loose = BAR.barOf([clock, bell], { widths: measured });
     check(
         'with nothing fixed every item is in the strip and there is no fixed region',
@@ -677,11 +691,18 @@ async function modChecks(check) {
             fixed.point.x === 2 &&
             fixed.point.y === BAR.CAPSULE.height + BAR.CAPSULE.gap &&
             fixed.strip === '' &&
-            fixed.fixed === 'clock,star' &&
+            fixed.fixed === 'star,clock' &&
             fixed.kept.join() === 'clock,notifications,star' &&
             fixed.width === alone + 57 + BAR.CAPSULE.gap &&
             fixed.right,
         { nowhere, loose, fixed }
+    );
+    const read = buttons().map((button) => button.dataset.item);
+    const shown = [...band.anchors].sort((one, other) => one.rect.x - other.rect.x).map(({ id }) => id);
+    check(
+        "the capsule's document holds its buttons in the order they stand, left to right, so a seat reads them so",
+        read.join() === 'star,clock' && read.join() === shown.join(),
+        { read, shown }
     );
     // A fixed item whose mod takes it back shows nothing and stays in the list: it stands fixed again as it is set.
     await item.remove();
@@ -703,7 +724,7 @@ async function modChecks(check) {
         away.fixed === 'clock' &&
             away.kept === 'clock,notifications,star' &&
             away.width === alone &&
-            given.fixed === 'clock,star' &&
+            given.fixed === 'star,clock' &&
             given.strip === '' &&
             freed.label === "Don't Keep in Bar" &&
             freed.strip === 'star' &&

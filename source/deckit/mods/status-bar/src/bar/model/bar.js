@@ -146,6 +146,12 @@ function barOf(items, { widths = {}, fixed = [], room = null, scroll = 0 } = {})
     return { width, height: CAPSULE.height, scroll: at, most, ...regions, items: laid };
 }
 
+// The items of the bar `bar` (barOf) in the region `region` in the order they stand, left to right: the order the
+// capsule's document holds them in, so a reading reads them as they show.
+function shownOf(bar, region) {
+    return bar.items.filter((item) => item.region === region).sort((one, other) => one.at.x - other.at.x);
+}
+
 // How far the bar `bar` (barOf) is scrolled once the item `id` is in view whole: as it is where it is already, else
 // the least from there. An item wider than the scrolled region shows from its left end.
 function scrollTo(bar, id) {
@@ -215,6 +221,7 @@ module.exports = {
     shows,
     widthOf,
     barOf,
+    shownOf,
     scrollTo,
     turnOf,
     fixedBy,

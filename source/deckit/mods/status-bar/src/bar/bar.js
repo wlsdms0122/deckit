@@ -135,15 +135,15 @@ function bar(shell, held, { commands = () => null } = {}) {
         told = next;
     }
 
-    // The two regions where the model has them, each item a button where it is drawn in its region, and the strip
-    // moved by how far it is scrolled. The scrolled region says at which ends more goes on past it. An item's button
-    // is the same element while the item is laid, and nothing that holds what it held already is written again, so
-    // what a reader named and what has the focus stay as items are set anew.
+    // The two regions where the model has them, left to right, each item a button where it is drawn in its region and
+    // in the order it stands there (BAR.shownOf), so the document reads as the capsule shows; and the strip moved by
+    // how far it is scrolled. The scrolled region says at which ends more goes on past it. An item's button is the
+    // same element while the item is laid, and nothing that holds what it held already is written again, so what a
+    // reader named and what has the focus stay as items are set anew.
     function draw(laid, items) {
         const given = new Map(items.map((item) => [item.id, item]));
         for (const id of [...kept.keys()]) if (!laid.items.some((item) => item.id === id)) kept.delete(id);
-        const buttons = (region) =>
-            laid.items.filter((item) => item.region === region).map(({ id, at }) => buttonOf(given.get(id), at));
+        const buttons = (region) => BAR.shownOf(laid, region).map(({ id, at }) => buttonOf(given.get(id), at));
         const standing = Object.keys(regions).filter((region) => laid[region]);
         for (const region of standing) place(regions[region], laid[region]);
         hold(regions.fixed, buttons('fixed'));
