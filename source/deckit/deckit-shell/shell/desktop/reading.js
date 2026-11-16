@@ -21,17 +21,22 @@ const FRAME = 16;
 // what the desktop keeps; a window, the parts the shell draws of it and each document it shows as the environment
 // reads it; what is under one ref; what changed since a mark; and a picture. Refs: a window is `w<id>`, its parts
 // `w<id>.close`, `.minimize`, `.zoom`, `.bar` and `.edge.<name>`, an item of the Dock `dock.<mod>`, and an element
-// `<document>.<n>` as the environment names it, the same for every seat.
+// `<document>.<n>`, the same for every seat: `n` as the environment numbers the element, and `<document>` a count the
+// shell gives a document as a seat is first told of it, in the order it is listed, whichever page answered first.
 // The mark is one count for the desktop: it goes up as a line of the desktop reads otherwise for some seat, a
 // pointer's place apart, and as a document tells that what it shows changed. `READ` reads a page (environment: SHELL
 // `read`), `OVERLAY` is the pages' overlays, `web` what the web engine answered, `deckit` what connect answered,
 // and `desk` is what the desktop keeps and answers of itself.
 export function createReading({ READ, OVERLAY, web, deckit, desk }) {
     // MARK: - Property
-    // a document's number -> { page, born, first, pairs }: the mark and the reader's count it was first read at, and
-    // the last KEPT marks it changed at, each with its count
+    // a document's number as the environment has it -> { page, born, first, pairs }: the mark and the reader's count
+    // it was first read at, and the last KEPT marks it changed at, each with its count; a number a seat was told
+    // stays the document's while its page shows it, in a window or not
     const documents = new Map();
-    const numbers = new WeakMap(); // a page -> the number of the document it shows
+    const numbers = new WeakMap(); // a page -> the environment's number of the document it shows
+    const given = new Map(); // the environment's number of a document a seat was told of -> the number it was told
+    const taken = new Map(); // the number a seat was told of a document -> the environment's
+    let last = 0;
     const webs = new Set(); // the web pages mods show
     const tracks = new Map(); // seat id -> ref -> { text, born, at }: its desktop lines and the marks they changed at
     // seat id -> ref -> the mark it last went at: what went from a seat's desktop, or from every seat's under null
@@ -141,7 +146,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
                 if (!kept || kept.pairs.at(-1).mark <= from) continue;
                 if (kept.born > from) {
                     const size = rect ?? { width: 0, height: 0 };
-                    const line = `${TEXT.documentLine({ document: number, part, name, ...size })} in w${id}`;
+                    const line = `${TEXT.documentLine({ document: toldOf(number), part, name, ...size })} in w${id}`;
                     entries.push({ kind: '+', line });
                     continue;
                 }
@@ -151,8 +156,13 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
                 const answer = await asked(READ.changes(page, { document: number, count }), true);
                 if (!answer) continue;
                 noted(page, answer.document, answer.count);
-                for (const { kind, depth: _depth, ...line } of answer.entries)
-                    entries.push({ kind, line: kind === '-' ? line.ref : TEXT.elementLine(withSeat(line, typing)) });
+                for (const { kind, depth: _depth, ...line } of answer.entries) {
+                    const listed = toldLine(line);
+                    entries.push({
+                        kind,
+                        line: kind === '-' ? listed.ref : TEXT.elementLine(withSeat(listed, typing)),
+                    });
+                }
             }
         }
         return { text: TEXT.changes({ from, to: mark, entries }), mark };
@@ -243,10 +253,26 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         let kept = documents.get(document);
         if (kept && kept.pairs.at(-1).count >= count) return;
         raise();
-        if (had !== undefined && had !== document && documents.delete(had)) went(null, `document ${had}`);
+        if (had !== undefined && had !== document && documents.delete(had) && given.has(had)) {
+            went(null, `document ${given.get(had)}`);
+            taken.delete(given.get(had));
+            given.delete(had);
+        }
         if (!kept) documents.set(document, (kept = { page, born: mark, first: count, pairs: [] }));
         kept.pairs.push({ mark, count });
         if (kept.pairs.length > KEPT) kept.pairs.shift();
+    }
+
+    // The number a seat is told of the document the environment numbers `document`: the next count where none was.
+    function toldOf(document) {
+        if (!given.has(document)) (given.set(document, ++last), taken.set(last, document));
+        return given.get(document);
+    }
+
+    // An element's line with its ref as a seat is told it.
+    function toldLine(line) {
+        const [, document, number] = /^(\d+)\.(\d+)$/.exec(line.ref ?? '') ?? [];
+        return document === undefined ? line : { ...line, ref: `${toldOf(Number(document))}.${number}` };
     }
 
     function idOf(window) {
@@ -366,19 +392,21 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         return { ...line, states: line.states.map((state) => (state === 'focused' ? `focused ${seat}` : state)) };
     }
 
+    // The documents are numbered in the order they are listed, as the pages answer in any order.
     async function windowOf(seat, id, knobs) {
         const own = factOf(seat, id);
-        const outlines = await Promise.all(
-            pagesOf(id).map(async ({ page, part, name, typing }) => {
-                const outline = await asked(READ.outline(page, knobs), true);
-                if (!outline) return [];
-                noted(page, outline.document, outline.count);
-                const { document, width, height } = outline;
-                const lines = outline.lines.map((line) => withSeat(line, typing));
-                return [{ document, part, ...(name ? { name } : {}), width, height, lines }];
-            })
-        );
-        return { window: own, parts: partsOf(id).map(({ rect: _rect, ...part }) => part), documents: outlines.flat() };
+        const pages = pagesOf(id);
+        const outlines = await Promise.all(pages.map(({ page }) => asked(READ.outline(page, knobs), true)));
+        const documents = pages.flatMap(({ page, part, name, typing }, at) => {
+            const outline = outlines[at];
+            if (!outline) return [];
+            noted(page, outline.document, outline.count);
+            const { width, height } = outline;
+            const document = toldOf(outline.document);
+            const lines = outline.lines.map((line) => withSeat(toldLine(line), typing));
+            return [{ document, part, ...(name ? { name } : {}), width, height, lines }];
+        });
+        return { window: own, parts: partsOf(id).map(({ rect: _rect, ...part }) => part), documents };
     }
 
     // The parts of a normal window the shell draws that are listed: the buttons of its title bar, and its bar, the
@@ -433,15 +461,17 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         return { line: { role: 'edge', name: edge, states: [], ref }, rect, window: id };
     }
 
-    // The page whose document has the element `ref` names, with where the page is on the desktop: refused GONE for a
-    // ref no document here has.
+    // The page whose document has the element `ref` names, with the ref as the environment has it and where the page
+    // is on the desktop: refused GONE for a ref no document here has.
     function pageOf(ref) {
-        const [, number] = /^(\d+)\.\d+$/.exec(ref) ?? [];
-        const kept = documents.get(Number(number));
+        const [, number, element] = /^(\d+)\.(\d+)$/.exec(ref) ?? [];
+        const document = taken.get(Number(number));
+        const kept = documents.get(document);
         const window = kept && desk.windowAt(kept.page);
         if (!window) throw refusal('GONE', 'nothing read here has that ref');
         const { rect, typing } = pagesOf(window.id).find(({ page }) => page === kept.page) ?? {};
-        return { page: kept.page, window: window.id, rect: rect ?? null, typing: typing ?? null };
+        const inPage = `${document}.${element}`;
+        return { page: kept.page, ref: inPage, window: window.id, rect: rect ?? null, typing: typing ?? null };
     }
 
     // Where what `ref` names is on the desktop, `{ rect, window, by }`, what shows of an element in its page; with
@@ -449,9 +479,9 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
     async function placeOf(seat, ref, { scrolls }) {
         const part = partOf(seat, ref);
         if (part) return part;
-        const { page, window, rect: on } = pageOf(ref);
+        const { page, ref: named, window, rect: on } = pageOf(ref);
         if (!on) throw refusal('REFUSED', 'where a web page lies on the desktop is not told yet');
-        const inPage = scrolls ? await asked(READ.place(page, ref)) : (await asked(READ.node(page, ref, {}))).rect;
+        const inPage = scrolls ? await asked(READ.place(page, named)) : (await asked(READ.node(page, named, {}))).rect;
         const left = Math.max(0, inPage.x);
         const top = Math.max(0, inPage.y);
         const width = Math.max(1, Math.min(on.width, inPage.x + inPage.width) - left);
@@ -462,13 +492,14 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
     async function nodeOf(seat, ref, knobs) {
         const part = partOf(seat, ref);
         if (part) return { node: part.line, rect: part.rect };
-        const { page, rect: on, typing } = pageOf(ref);
-        const answer = await asked(READ.node(page, ref, knobs));
+        const { page, ref: named, rect: on, typing } = pageOf(ref);
+        const answer = await asked(READ.node(page, named, knobs));
         noted(page, answer.document, answer.count);
-        const { line, rect, scroll, lines, more, selection, caret, selected } = answer;
+        const { line, rect, scroll, lines: under, more, selection, caret, selected } = answer;
+        const lines = under.map(toldLine);
         const moved = (each) => (on ? { ...each, x: on.x + each.x, y: on.y + each.y } : null);
         return {
-            node: withSeat(line, typing),
+            node: withSeat(toldLine(line), typing),
             ...(on ? { rect: moved(rect) } : { size: { width: rect.width, height: rect.height } }),
             ...(scroll ? { scroll } : {}),
             lines,

@@ -114,6 +114,14 @@ async function run({ check, reader, other, window, editor, settings, showsFor, i
             !!ref,
         outline.join('\n')
     );
+    const numbers = (lines) =>
+        lines.filter((line) => /^ {2}document \d+ /.test(line)).map((line) => line.split(' ')[3]);
+    const again = other.as('read', 'window', `w${window.id}`).split('\n');
+    check(
+        'reading: a document keeps its number across readings, whichever seat reads it',
+        numbers(outline).length > 0 && numbers(again).join() === numbers(outline).join(),
+        JSON.stringify({ outline: numbers(outline), again: numbers(again) })
+    );
     const node = reader.as('read', 'node', String(ref)).split('\n');
     const asData = JSON.parse(reader.as('read', 'node', String(ref), '--json'));
     check(

@@ -864,6 +864,7 @@ async function main() {
     seatChecks({ LAYOUT, DOCK, createDesktop }, check);
     await dockChecks({ LAYOUT, DOCK, createDesktop }, check);
     await readingChecks({ LAYOUT, createDesktop }, check);
+    await numberingChecks({ LAYOUT, createDesktop }, check);
     const COLOURS = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'colours.js'));
     drawnChecks({ COLOURS, LAYOUT, createDesktop }, check);
     routeChecks(await import(url('deckit-shell', 'shell', 'desktop', 'model', 'routes.js')), check);
@@ -3792,11 +3793,11 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
         '  button "Minimize" w1.minimize',
         '  button "Zoom" [disabled] w1.zoom',
         '  titlebar w1.bar',
-        '  document 4 content 200x172',
-        '    toolbar "Tools" (40 items, 2 in view) 4.1',
-        '      textbox "Line" [focused s1, text 5] 4.2',
-        '      button "A long na…" (31) [pressed] 4.3',
-        '      group (12 elements below) 4.4',
+        '  document 1 content 200x172',
+        '    toolbar "Tools" (40 items, 2 in view) 1.1',
+        '      textbox "Line" [focused s1, text 5] 1.2',
+        '      button "A long na…" (31) [pressed] 1.3',
+        '      group (12 elements below) 1.4',
     ].join('\n');
     check(
         'a window reads as its parts and its documents, focused naming the seat, and the knobs reach the reader',
@@ -3806,12 +3807,12 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
     const other = await served.read(me, { of: 'window', window: 'w2' });
     check(
         'a titled window lists its title bar, and focused names the seat whose keys go there',
-        other.text.includes('  titlebar "Second" w2.bar\n') && other.text.includes('[focused local, text 5] 5.2'),
+        other.text.includes('  titlebar "Second" w2.bar\n') && other.text.includes('[focused local, text 5] 2.2'),
         other.text
     );
-    const node = await served.read(me, { of: 'node', ref: '4.2' });
+    const node = await served.read(me, { of: 'node', ref: '1.2' });
     const under = [
-        'textbox "Line" [focused s1, text 5] 4.2 at 110,320 100x30 scroll 0 of 900',
+        'textbox "Line" [focused s1, text 5] 1.2 at 110,320 100x30 scroll 0 of 900',
         '  text "hello"',
         '  ... 17 more',
         '  selection 1:5',
@@ -3825,7 +3826,7 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
     check(
         'a ref no document has, a window none has and a level there is none of are refused',
         (await refused(served.read(me, { of: 'node', ref: '99.1' }))) === 'GONE' &&
-            (await refused(served.read(me, { of: 'node', ref: '4.9' }))) === 'GONE' &&
+            (await refused(served.read(me, { of: 'node', ref: '1.9' }))) === 'GONE' &&
             (await refused(served.read(me, { of: 'window', window: 'w9' }))) === 'NOT_FOUND' &&
             (await refused(served.read(me, { of: 'all' }))) === 'INVALID_ARGUMENT',
         ''
@@ -3864,7 +3865,7 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
     check(
         'what changed after a typed line is one line, and nothing where nothing did',
         quiet.text === `changes ${from} to ${from}` &&
-            typed.text === `changes ${from} to ${from + 1}\n~ textbox "Line" [focused s1, text 6] 4.2`,
+            typed.text === `changes ${from} to ${from + 1}\n~ textbox "Line" [focused s1, text 6] 1.2`,
         `${quiet.text}\n${typed.text}`
     );
     desk.desktop.control.hand.button(2, 'minimize');
@@ -3892,7 +3893,7 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
     check(
         'what changed since a mark 400 marks old is answered, and a mark the desktop never had refused STALE',
         old.mark - left.mark >= 400 &&
-            old.text.split('\n').slice(1).join() === '~ textbox "Line" [focused s1, text 6] 4.2' &&
+            old.text.split('\n').slice(1).join() === '~ textbox "Line" [focused s1, text 6] 1.2' &&
             (await refused(served.read(me, { of: 'changes', since: old.mark + 5 }))) === 'STALE',
         JSON.stringify({ left: left.mark, old })
     );
@@ -3901,7 +3902,7 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
     const entering = async (event) => desk.enter(me, event);
     const byRef = (type, ref) => entering({ ...pointer(type, {}), ref });
     const toldBefore = desk.told().length;
-    const acted = await byRef('down', '4.2');
+    const acted = await byRef('down', '1.2');
     const lifted = await desk.enter(me, pointer('up', acted.at));
     const glided = desk
         .told()
@@ -3927,7 +3928,7 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
         JSON.stringify({ acted, lifted, puts: desk.puts, text: after.text })
     );
     desk.puts.length = 0;
-    const order = await Promise.all([byRef('down', '4.2'), desk.enter(me, pointer('up', { x: 160, y: 335 }))]);
+    const order = await Promise.all([byRef('down', '1.2'), desk.enter(me, pointer('up', { x: 160, y: 335 }))]);
     check(
         "a seat's events keep their order: one that enters while one at a ref is placed waits its turn",
         desk.puts.map(({ event }) => event.type).join() === 'down,up' && order[1].over === 1,
@@ -3942,17 +3943,17 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
     );
     check(
         'a move at a ref with no button held, a place that is neither a point nor a ref, and a ref gone are refused',
-        (await refused(byRef('move', '4.2'))) === 'REFUSED' &&
-            (await refused(entering({ ...pointer('down', { x: 1, y: 1 }), ref: '4.2' }))) === 'INVALID_ARGUMENT' &&
+        (await refused(byRef('move', '1.2'))) === 'REFUSED' &&
+            (await refused(entering({ ...pointer('down', { x: 1, y: 1 }), ref: '1.2' }))) === 'INVALID_ARGUMENT' &&
             (await refused(entering(pointer('down', {})))) === 'INVALID_ARGUMENT' &&
-            (await refused(entering({ event: 'act', ref: '4.2', action: 'press' }))) === 'INVALID_ARGUMENT' &&
+            (await refused(entering({ event: 'act', ref: '1.2', action: 'press' }))) === 'INVALID_ARGUMENT' &&
             (await refused(byRef('down', 'w9.close'))) === 'GONE',
         ''
     );
 
     const whole = await served.read(me, { of: 'picture', scale: 2 });
     const one = await served.read(me, { of: 'picture', window: 'w1' });
-    const element = await served.read(me, { of: 'picture', ref: '4.2' });
+    const element = await served.read(me, { of: 'picture', ref: '1.2' });
     const [, alone, inWindow] = desk.pictures;
     check(
         "a picture is of the desktop in the seat's order, of one window alone, or of what a ref names",
@@ -3966,7 +3967,7 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
             element.at.y === 320 &&
             inWindow.pages.join() === alone.pages.join() &&
             typeof whole.png === 'string' &&
-            (await refused(served.read(me, { of: 'picture', window: 'w1', ref: '4.2' }))) === 'INVALID_ARGUMENT',
+            (await refused(served.read(me, { of: 'picture', window: 'w1', ref: '1.2' }))) === 'INVALID_ARGUMENT',
         JSON.stringify(desk.pictures)
     );
 
@@ -3978,7 +3979,7 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
     desk.puts.length = 0;
     const covered = desk.enter(me, pointer('down', { x: 160, y: 335 }));
     desk.enter(me, pointer('up', { x: 160, y: 335 }));
-    const raised = await byRef('down', '4.2');
+    const raised = await byRef('down', '1.2');
     await desk.enter(me, pointer('up', raised.at));
     check(
         "a press at a ref of a window another covers in the seat's order brings its window to the front and lands on it",
@@ -3998,6 +3999,64 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
         "a window's bar is listed with a ref, and a press there brings the window forward",
         listed.text.includes('  titlebar "Cover" w3.bar\n') && onBar.over === 3 && front.over === 3,
         JSON.stringify({ listed: listed.text, onBar, front })
+    );
+}
+
+// A document's number as a seat reads it, the same whichever of two pages the environment heard first and answers
+// first: the window read first lists 1, and a number stays across readings.
+async function numberingChecks({ LAYOUT, createDesktop }, check) {
+    const once = async (first) => {
+        const heard = { 'content-1': first ? 6 : 7, 'content-2': first ? 7 : 6 };
+        const asked = [];
+        const read = {
+            listen() {},
+            outline: async (page) => {
+                if (page.name === 'content-1') await new Promise((done) => setTimeout(done, 20));
+                const document = heard[page.name];
+                const lines = [{ depth: 0, role: 'textbox', name: 'Line', states: [], ref: `${document}.2` }];
+                return { document, count: 1, width: 200, height: 172, lines };
+            },
+            node: async (page, ref) => {
+                asked.push(`${page.name} ${ref}`);
+                const line = { depth: 0, role: 'textbox', name: 'Line', states: [], ref };
+                return {
+                    document: heard[page.name],
+                    count: 1,
+                    line,
+                    rect: { x: 0, y: 0, width: 9, height: 9 },
+                    lines: [],
+                };
+            },
+        };
+        const desk = desktopOver(createDesktop, { read });
+        desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
+        desk.desktop.control.show();
+        for (const id of [1, 2]) {
+            const page = { name: `page-${id}`, mod: 'a' };
+            const surface = { name: `content-${id}`, of: page };
+            const [size, minimum, bar] = [{ width: 200, height: 200 }, { width: 0, height: 0 }, LAYOUT.DEFAULT_BAR];
+            desk.desktop.open({ id, mod: 'a', name: `w${id}`, level: 'normal', page, surface, size, minimum, bar });
+            desk.openSurfaces(id);
+        }
+        const me = desk.sit('s1');
+        const documentsOf = async (window) =>
+            (await desk.seats.served.read(me, { of: 'window', window, format: 'json' })).data.documents
+                .map(({ document, lines }) => `${document} ${lines[0].ref}`)
+                .join();
+        const both = await Promise.all([documentsOf('w2'), documentsOf('w1')]);
+        const again = await documentsOf('w2');
+        const node = (await desk.seats.served.read(me, { of: 'node', ref: '2.2', format: 'json' })).data.node.ref;
+        return { both, again, node, asked };
+    };
+    const runs = [await once(true), await once(false)];
+    check(
+        'a document is numbered as a reading first lists it, whichever page was heard or answered first, and keeps it',
+        runs.every(
+            ({ both, again, node }) => both.join(' ') === '1 1.2 2 2.2' && again === '1 1.2' && node === '2.2'
+        ) &&
+            runs[0].asked.join() === 'content-1 6.2' &&
+            runs[1].asked.join() === 'content-1 7.2',
+        JSON.stringify(runs)
     );
 }
 
