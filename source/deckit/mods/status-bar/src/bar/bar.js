@@ -13,23 +13,24 @@ const FADE = 12;
 const STYLE = `
     .status-bar { position: relative; height: 100%; font-size: 12px; font-variant-numeric: tabular-nums; }
     .status-bar-fixed, .status-bar-scrolled, .status-bar-strip { position: absolute; }
-    .status-bar-scrolled { overflow: hidden; --status-bar-left: #000; --status-bar-right: #000; }
-    .status-bar-scrolled[data-more~='left'] { --status-bar-left: transparent; }
-    .status-bar-scrolled[data-more~='right'] { --status-bar-right: transparent; }
+    /* How opaque each end of the scrolled region is drawn in its mask: none where more goes on past it. */
+    .status-bar-scrolled { overflow: hidden; --status-bar-left: 1; --status-bar-right: 1; }
+    .status-bar-scrolled[data-more~='left'] { --status-bar-left: 0; }
+    .status-bar-scrolled[data-more~='right'] { --status-bar-right: 0; }
     .status-bar-scrolled[data-more] {
         -webkit-mask-image: linear-gradient(
             to right,
-            var(--status-bar-left),
+            rgb(0 0 0 / var(--status-bar-left)),
             #000 ${FADE}px,
             #000 calc(100% - ${FADE}px),
-            var(--status-bar-right)
+            rgb(0 0 0 / var(--status-bar-right))
         );
         mask-image: linear-gradient(
             to right,
-            var(--status-bar-left),
+            rgb(0 0 0 / var(--status-bar-left)),
             #000 ${FADE}px,
             #000 calc(100% - ${FADE}px),
-            var(--status-bar-right)
+            rgb(0 0 0 / var(--status-bar-right))
         );
     }
     .status-bar-strip { top: 0; left: 0; height: 100%; }
