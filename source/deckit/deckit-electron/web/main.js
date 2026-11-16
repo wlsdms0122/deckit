@@ -7,7 +7,6 @@ import { createRegistry } from './registry.js';
 import { createCertificate } from './certificate.js';
 import { createDownload } from './download.js';
 import { createScript } from './script.js';
-import { storeOf } from '../webkit/index.js';
 import { CHANNEL } from '../messages/main.js';
 
 // The web pages a mod's page shows, as the Electron environment shows them (deckit-shell/environment: WEB), on WebKit:
@@ -180,7 +179,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
     // An answer past `fetchLimit` bytes is refused QUOTA_EXCEEDED. The module refuses it with its message alone,
     // `response too large`.
     function fetch(mod, session, request) {
-        return WEBKIT.fetch(storeOf(PARTITION.spell(mod, session)), request, {
+        return WEBKIT.fetch(PARTITION.spell(mod, session), request, {
             limit: client.fetchLimit,
             cookieLifetime: client.cookieLifetime,
         }).catch((error) => {
@@ -190,7 +189,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
     }
 
     function clear(mod, session) {
-        return WEBKIT.clear(storeOf(PARTITION.spell(mod, session)));
+        return WEBKIT.clear(PARTITION.spell(mod, session));
     }
 
     // MARK: - Private
@@ -396,7 +395,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
     // not take it from what has it by focusing an element of its own.
     function makePage(partition, modPage) {
         return WEBKIT.make({
-            store: storeOf(partition),
+            store: partition,
             cookieLifetime: client.cookieLifetime,
             clearWhileBlank: true,
             takesKeyboard: false,

@@ -76,6 +76,7 @@ function createEnvironment({ core, preload, openWindow }) {
     // WebKit's module is the core's neighbour in the archive.
     const WEBKIT = createWebKit({
         path: require('path').join(require('path').dirname(core), 'deckit-web.node'),
+        folder: require('electron').app.getPath('userData'),
         LOG,
         containerOf: (page) => WEB.containerOf(page),
         always: [READER],

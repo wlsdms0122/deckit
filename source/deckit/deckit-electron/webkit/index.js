@@ -1,3 +1,5 @@
+import { keyIn, storeOf } from './model/store.js';
+
 // Every page deckit shows is WebKit's, through the module beside the core (deckit-web.node): a page of deck's, a
 // surface one opened, or a web page. Each is a token that tells what becomes of it as events and answers what it is
 // asked: `changed`, `started`, `stopped`, `committed` (url), `failed` (code, description, url), `gone`, `focus`,
@@ -6,20 +8,22 @@
 // is called, and `destroyed`, once, as it closes; `source`, of `mouse` and in `pressed`, is the one an event was put
 // with, and there is none on the machine's own. A key down a page shown in another (`containerOf(page)`, that page or
 // null) did not handle is that page's next: a key down at its element with the keyboard, which its listeners may
-// cancel, and then a key it did not handle. `path` is the module's. `always` are scripts every document of every page
-// starts with, beside its own, and `posted(page, body)` is asked of what deckit's scripts post in a page's main frame
-// before its delegate is: true for a word that is its own, which the delegate is not told.
-export function createWebKit({ path, LOG, containerOf, always = [], posted = null }) {
+// cancel, and then a key it did not handle. `path` is the module's, `folder` the system's own, which keeps the key its
+// data stores are named by. `always` are scripts every document of every page starts with, beside its own, and
+// `posted(page, body)` is asked of what deckit's scripts post in a page's main frame before its delegate is: true for a
+// word that is its own, which the delegate is not told.
+export function createWebKit({ path, folder, LOG, containerOf, always = [], posted = null }) {
     // MARK: - Property
     // WebKit's code for a load another one replaced.
     const CANCELLED = -999;
     const pages = new Map(); // id -> page, while it is open
     let module = null;
     let applicationName = null;
+    let key = null; // the system's key of its web data, once a store is named (keyIn)
 
     // MARK: - Initializer
     // MARK: - Public
-    // A page in the data store `store`, a UUID (storeOf), its session cookies lasting `cookieLifetime` seconds where
+    // A page in the data store named `store`, its session cookies lasting `cookieLifetime` seconds where
     // that is given. `scheme` is served by the page's delegate (`request`), `clear` draws nothing where the document
     // does not, `clearWhileBlank` so until it commits its first page, `fullSpeed` runs off screen as on it, and
     // `takesKeyboard` false has the keyboard only as it is given it or pressed. `delegate` answers what the page asks
@@ -40,7 +44,7 @@ export function createWebKit({ path, LOG, containerOf, always = [], posted = nul
         const { page, listener } = pageOf({ delegate, fields });
         const options = {
             scripts: [...(scripts?.(page) ?? []), ...always],
-            store,
+            store: storeNamed(store),
             applicationName: agentName(),
             cookieLifetime,
             scheme,
@@ -74,10 +78,10 @@ export function createWebKit({ path, LOG, containerOf, always = [], posted = nul
         return id === null || id === undefined ? null : pageById(id);
     }
 
-    // `request` sent as the pages of `store` send one, its answer refused past `limit` bytes, the session cookies it is
-    // set lasting `cookieLifetime` seconds where that is given.
+    // `request` sent as the pages of the store named `store` send one, its answer refused past `limit` bytes, the
+    // session cookies it is set lasting `cookieLifetime` seconds where that is given.
     function fetch(store, request, { limit, cookieLifetime }) {
-        return loaded().fetch(store, request, { limit, applicationName: agentName(), cookieLifetime });
+        return loaded().fetch(storeNamed(store), request, { limit, applicationName: agentName(), cookieLifetime });
     }
 
     // A download a page started, stopped where it is still under way.
@@ -85,9 +89,9 @@ export function createWebKit({ path, LOG, containerOf, always = [], posted = nul
         loaded().cancelDownload(id);
     }
 
-    // What `store` kept, taken.
+    // What the store named `store` kept, taken.
     function clear(store) {
-        return loaded().clear(store);
+        return loaded().clear(storeNamed(store));
     }
 
     // The module itself, for the windows and stages pages are laid in.
@@ -287,6 +291,12 @@ export function createWebKit({ path, LOG, containerOf, always = [], posted = nul
         }
     }
 
+    // The data store of this system named `name`: one of its own, apart from every other system's (keyIn).
+    function storeNamed(name) {
+        key ??= keyIn(folder);
+        return storeOf(key, name);
+    }
+
     function loaded() {
         if (!module) {
             const holder = { exports: {} };
@@ -306,13 +316,4 @@ export function createWebKit({ path, LOG, containerOf, always = [], posted = nul
     }
 
     return { make, listenerFor, pageById, focusedPage, fetch, cancelDownload, clear, native };
-}
-
-// A UUID made from `name`, the same each run, as WebKit names a data store.
-export function storeOf(name) {
-    const hash = require('crypto').createHash('sha1').update(`deckit-web:${name}`).digest();
-    hash[6] = (hash[6] & 0x0f) | 0x50;
-    hash[8] = (hash[8] & 0x3f) | 0x80;
-    const hex = hash.subarray(0, 16).toString('hex');
-    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }

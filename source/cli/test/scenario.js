@@ -154,9 +154,11 @@ function shipProbe({ data, app }) {
     );
 }
 
-// The data store WebKit keeps the session `partition` spells in: a UUID made from its name.
-function storeOf(partition) {
-    const hash = require('crypto').createHash('sha1').update(`deckit-web:${partition}`).digest();
+// The data store WebKit keeps the session `partition` spells in, for the app whose data folder is `data`: a UUID made
+// from the key the folder keeps and the name.
+function storeOf(data, partition) {
+    const key = fs.readFileSync(path.join(data, 'webkit-key'), 'utf8').trim();
+    const hash = require('crypto').createHash('sha1').update(`deckit-web:${key}:${partition}`).digest();
     hash[6] = (hash[6] & 0x0f) | 0x50;
     hash[8] = (hash[8] & 0x3f) | 0x80;
     const hex = hash.subarray(0, 16).toString('hex');
@@ -1227,7 +1229,11 @@ async function walk({
         const shownPage = `[...document.querySelectorAll('[data-web-page]')].find((element) => element.style.visibility === 'visible')?.dataset.webPage`;
         const front = webPage(await until(() => browser?.evaluate(shownPage), 3000));
         const store = (await front.state())?.store;
-        check('browser web page is in its own session', store === storeOf(`persist:${appId}:browser:web`), store);
+        check(
+            'browser web page is in its own session',
+            store === storeOf(path.dirname(home), `persist:${appId}:browser:web`),
+            store
+        );
         const pagesShown = `document.querySelectorAll('[data-web-page]').length`;
         const asleep = await browser?.evaluate(pagesShown);
         check('a tab brought back sleeps until it comes to the front', asleep === 1, asleep);
