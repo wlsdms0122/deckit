@@ -1,4 +1,4 @@
-case = 13
+case = 28
 name = "a-click-handed-back-gives-no-user-activation"
 note = "A click handed back gives the document no user activation, as the web platform gives none for a click of a notification. site-a, let have notifications, writes its user activation in its title as its notification is clicked."
 
@@ -67,50 +67,8 @@ answers = "Start"
 [[step]]
 input = "call"
 mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
 member = "click"
 delegated = 1
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
 
 [[step]]
 input = "call"

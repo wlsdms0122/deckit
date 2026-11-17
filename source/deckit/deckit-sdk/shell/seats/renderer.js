@@ -14,7 +14,7 @@ function createSeats({ mod, granted, channels, deliver }) {
     let watched = false; // whether main was asked to tell each change
 
     // MARK: - Initializer
-    PROTOCOL.changed.on(() => {
+    PROTOCOL.changed.handle(() => {
         for (const listener of [...listeners]) deliver('seats.onChange()', listener);
     });
 

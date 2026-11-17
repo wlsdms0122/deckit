@@ -1,0 +1,51 @@
+case = 26
+name = "a-menu-a-page-presents-is-a-document-over-its-content"
+note = "mod-a opens main, the window 1 at 283, 107, 720 by 480, that holds the heading Notes. The desktop is the base shell, 1280 by 800, and ada sits at s1. mod-a sends its event menu, and at it the page presents a menu over itself, of the one entry Keep. ada reads the window, which numbers its documents, its content 1 and the menu's 2, then reads the menu, focused with its one entry, and the heading, still under it."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["menu"]
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w1" }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "node", ref = "2.1" }
+part = "text"
+
+[step.expect]
+answers = "menu [focused] (1 items, 1 in view) 2.1 at 383,227 160x36\n  menuitem \"Keep\" [unchecked] 2.2\n    text \"Keep\""
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "node", ref = "1.1" }
+part = "text"
+
+[step.expect]
+answers = "heading \"Notes\" [level 1] 1.1 at 283,167 720x40\n  text \"Notes\""

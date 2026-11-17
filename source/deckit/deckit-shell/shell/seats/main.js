@@ -8,6 +8,7 @@ export function createSeats({ deckit, DESKTOP }) {
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const ROSTERED = ROSTER.createRoster();
     const pages = new Set(); // the pages told each change
+    let untaken = 0; // how many changes told a page it has not yet answered it heard
 
     // MARK: - Initializer
     // MARK: - Public
@@ -34,11 +35,24 @@ export function createSeats({ deckit, DESKTOP }) {
         noted();
         DESKTOP.seats.onChange(() => {
             noted();
-            for (const page of pages) PROTOCOL.changed.send(page, {});
+            for (const page of pages) tell(page);
         });
     }
 
-    // MARK: - Private
+    // How many changes of the seats the shell told a mod's page of its own accord and the page has not yet taken: a
+    // page takes one once its every listener heard it, and a page gone takes none.
+    function untakenChanges() {
+        return untaken;
+    }
 
-    return { start };
+    // MARK: - Private
+    function tell(page) {
+        untaken++;
+        PROTOCOL.changed
+            .invoke(page, {})
+            .catch(() => {})
+            .finally(() => untaken--);
+    }
+
+    return { start, untaken: untakenChanges };
 }

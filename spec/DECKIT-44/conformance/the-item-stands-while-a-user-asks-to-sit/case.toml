@@ -1,4 +1,4 @@
-case = 27
+case = 28
 name = "the-item-stands-while-a-user-asks-to-sit"
 note = "The host ships the status bar and the seats mod by their ids, on the base shell, 1280 by 800, under a bar 32 high. With asking true, ada attaches and waits: the bar stands for the local seat, the item laid with its glyph alone, no seat beside the local seat to count."
 

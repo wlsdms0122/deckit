@@ -3,8 +3,9 @@
 // answers, the seats main keeps, deck's client of the core, its runner, the exports a page opens by interface, the
 // mods a connection launches, the scope a lifecycle cuts and the events a page hears, deckit as a layer on deck, the
 // key map, the local sockets under a folder of a long path, the wire a party from outside speaks, the mods as
-// the core reads them, an address offered to its handlers in turn, the web pages a mod shows, what a page is told as it
-// starts, the styles a page wears, the regions mods give their children, forge's runs, the commands, urls, keymap and
+// the core reads them, an address offered to its handlers in turn, the web pages a mod shows, what the web engine
+// tells a document of its own accord, what a page is told as it starts, the styles a page wears, the regions mods give
+// their children, forge's runs, the commands, urls, keymap and
 // configuration mods, the Switcher's list, the Browser's game, Settings' Activity and the Mods mod's search, runs the core's tests, then
 // drives Deckit.app, put together from the archive it builds first, through the scenario, with data of its own that is
 // thrown away. With areas named, only the unit files that go with them and their checks of the scenario run, with the
@@ -72,6 +73,7 @@ const main = async () => {
         'catalog.js',
         'open.js',
         'web.js',
+        'tellings.js',
         'main-process.js',
         'page.js',
         'desktop.js',

@@ -1,4 +1,4 @@
-case = 27
+case = 28
 name = "the-item-stands-while-a-seat-sits-beside-another"
 note = "The host ships the status bar and the seats mod by their ids, on the base shell, 1280 by 800, under a bar 32 high. Alone at the desktop, the local seat sees no window. ada sits at s1 and bob at s2, and bob leaves: s1 reads the item Seats with the count 1."
 
@@ -35,12 +35,6 @@ key = "second"
 [[step]]
 input = "detach"
 party = "q"
-
-[[step]]
-input = "ask"
-party = "p"
-method = "seat/read"
-params = { of = "desktop" }
 
 [[step]]
 input = "ask"

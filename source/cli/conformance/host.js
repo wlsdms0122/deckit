@@ -397,9 +397,10 @@ socket.on('data', (chunk) => {
             ).then(async (came) => {
                 // A run a page starts or ends as it takes what it was told is waited for too.
                 if (asked.input) {
+                    await tellingsTaken();
                     await runsSettled();
                     await told();
-                    while (await runsSettled()) await told();
+                    while ((await runsSettled()) || (await tellingsTaken())) await told();
                 }
                 say({ id: asked.id, came });
             });
@@ -621,6 +622,19 @@ function runningOf(mod) {
     if (!deckit) return { none: 'deckit was not connected' };
     const running = deckit.mods.runs().find(({ run }) => run.mod.id === mod && run.state === 'running');
     return running ? { page: running.page } : { none: `no run of ${mod} is running` };
+}
+
+// Resolves once each telling told a page of its own accord is taken, by the web engine to a web page's document, a
+// click on a notification or the news that a site may have notifications, or by the shell to a mod's page, a change
+// of the seats, and then once each running mod's page is quiet, as after a press: what the page asked as it took it is
+// told by then. Answers whether one was untaken.
+async function tellingsTaken() {
+    const untaken = () => (environment?.web.untaken() ?? 0) + (controls?.untaken() ?? 0);
+    if (!untaken() || !deckit) return false;
+    while (untaken()) await new Promise((resolve) => setTimeout(resolve, 10));
+    for (const { run, page } of deckit.mods.runs())
+        if (run.state === 'running') await quiet.invoke(page, {}).catch(() => {});
+    return true;
 }
 
 // Resolves once no run is between two states: each has started, or has ended. Answers whether one was.

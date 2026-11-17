@@ -39,7 +39,8 @@ let attached = false;
 // is what the web engine's attach answered, the UI laying the web pages mods show and taking the keys pressed in each
 // as the web engine adopts it, and `config` is the UI's configuration: `dock`, the ids of the mods the Dock keeps at
 // the first start, in order, or else the app mods the host app ships. The UI starts with deckit, before any mod
-// launches.
+// launches, and hands the host's `start` what the host drives of it: `setTheme`, `desktop`, `openWindow`, and
+// `untaken()`, how many changes of the seats it told a mod's page of its own accord and the page has not yet taken.
 function attach(deckit, environment, { host, web, config = {} } = {}) {
     if (attached) throw new Error('[deckit] attach is called once');
     if (!answered()) throw new Error('[deckit] attach comes after connect');
@@ -117,7 +118,12 @@ function attach(deckit, environment, { host, web, config = {} } = {}) {
         WINDOWS.start();
         DOCK.start();
         FILES.start();
-        host.start({ setTheme: THEME.set, desktop: DESKTOP.control, openWindow: WINDOWS.openWeb });
+        host.start({
+            setTheme: THEME.set,
+            desktop: DESKTOP.control,
+            openWindow: WINDOWS.openWeb,
+            untaken: SEATS.untaken,
+        });
     });
 }
 

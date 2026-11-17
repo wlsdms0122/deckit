@@ -1,4 +1,4 @@
-case = 27
+case = 28
 name = "an-ask-that-waits-is-a-row-with-deny-and-allow"
 note = "The host ships the status bar and the seats mod by their ids, on the base shell, 1280 by 800, under a bar 32 high. With asking true, ada sits at s1 as mod-a, granted deckit.seats, allows her ask. bob attaches and waits. ada presses the item and reads the view: the row of bob's ask, with Deny and Allow, above the rows of the seats."
 
@@ -45,12 +45,6 @@ party = "q"
 principal = "bob"
 key = "second"
 waits = true
-
-[[step]]
-input = "ask"
-party = "p"
-method = "seat/read"
-params = { of = "desktop" }
 
 [[step]]
 input = "ask"
