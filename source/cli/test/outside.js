@@ -11,9 +11,9 @@
 // desktop beside the local seat, `windowsNow()` and `desktopLaid()` reading what the local seat sees of them, and
 // `idleTime` the seconds a seat is idle after, as the app was started with. With `reads`, the second user reads the
 // desktop it sits at too (reading.js). With `bar`, the status bar as the walk through the desktop left it, `{ barPage,
-// capsuleNow, joins, frame, overlay }`, `joins()` the page of the mod that joins it, `frame()` the page of the bar's
-// own mod and `overlay()` that page's overlay, a user scrolls the bar in a narrow room and reads it, and the local seat
-// and that user fix an item of it and let it scroll again.
+// capsuleNow, countedWide, joins, frame, overlay }`, `joins()` the page of the mod that joins it, `frame()` the page of
+// the bar's own mod and `overlay()` that page's overlay, a user scrolls the bar in a narrow room and reads it, and the
+// local seat and that user fix an item of it and let it scroll again.
 const fs = require('fs');
 const path = require('path');
 const { execFileSync, spawn } = require('child_process');
@@ -914,27 +914,28 @@ async function run({
         await pointer('pointerleave');
     }
 
-    // The status bar in a narrow room: the joining mod sets an item 57 wide and opens a band of its own that leaves
-    // the status bar room for its clock and 30 more. The capsule is as wide as that room, the clock where it was from
-    // the right end, and the item under what is left, from its left end. A seat's turn of the wheel over the item
+    // The status bar in a narrow room: the joining mod sets an item with a count and opens a band of its own that
+    // leaves the status bar room for its clock and 30 more. The capsule is as wide as that room, the clock where it was
+    // from the right end, and the item under what is left, from its left end. A seat's turn of the wheel over the item
     // scrolls it sideways, by a sideways turn and by a vertical one, the clock staying, and the seat reads the bar as a
-    // panel window: a toolbar, a button an item. The clock's label changes width as the time does, so what is held of
-    // a reading is said from that reading: how wide the capsule is in its room and how far its strip scrolls by the
-    // items it has then (`widthIn`, `mostOf`), and how far it is scrolled by where the item stands (`scrollOf`).
+    // panel window: a toolbar, a button an item. The clock's label changes width as the time does, so what is held of a
+    // reading is said from that reading: how wide the capsule is in its room and how far its strip scrolls by the items
+    // it has then (`widthIn`, `mostOf`), and how far it is scrolled by where the item stands (`scrollOf`).
     async function barChecks({ seatA }) {
-        const { capsuleNow, joins } = bar;
+        const { capsuleNow, joins, countedWide } = bar;
         const mod = await joins();
         const send = (name, detail) =>
             mod?.evaluate(`document.dispatchEvent(new CustomEvent('${name}', { detail: ${JSON.stringify(detail)} }))`);
         const [CONTROLS, MARGIN, GAP, SHOWN] = [92, 8, 8, 30];
         await send('test-item', { name: 'Star', icon: 'star', command: 'show', count: 120 });
+        const star = await until(() => countedWide('99+'), 6000);
         const wide = await until(async () => {
             const now = await capsuleNow();
-            return now.joined?.width === 57 && now.bar?.width === now.clock.x + now.clock.width + 2 && now;
+            return now.joined?.width === star && now.bar?.width === now.clock.x + now.clock.width + 2 && now;
         }, 6000);
         if (!wide) return check('outside: the status bar holds the item of the mod that joins it', false, '');
         const stage = (await desktopLaid())?.rect.width;
-        const room = wide.bar.width - (57 - SHOWN);
+        const room = wide.bar.width - (star - SHOWN);
         const band = stage - CONTROLS - 2 * MARGIN - GAP - room;
         await send('test-band', band);
         const narrow =
@@ -971,7 +972,7 @@ async function run({
                 narrow.bar.x + narrow.bar.width === wide.bar.x + wide.bar.width &&
                 fromRight(narrow) === 2 &&
                 narrow.joined.x === restOf(narrow) &&
-                narrow.joined.width === 57,
+                narrow.joined.width === star,
             JSON.stringify({ wide, room, narrow })
         );
         const over = `${Math.round(narrow.bar.x + 12)},${Math.round(narrow.bar.y + 14)}`;
@@ -1026,7 +1027,7 @@ async function run({
                 /button "Star, 99\+"/.test(asWindow),
             asWindow
         );
-        await fixChecks({ seatA, send, room, band, over, turn, widthIn });
+        await fixChecks({ seatA, send, room, band, over, turn, widthIn, star });
         await send('test-band', null);
         await send('test-item', null);
         const alone = await until(async () => {
@@ -1045,7 +1046,7 @@ async function run({
     // the clock, where no turn of the wheel moves it. The frame's mod run again has it fixed still. Don't Keep in Bar
     // lets it scroll again. A seat does the same at the surface: button 2 on the item as it reads it, then the entry
     // as it reads it in the frame's overlay, and the one bar every screen shows has it fixed, and scrolling again.
-    async function fixChecks({ seatA, send, room, band, over, turn, widthIn }) {
+    async function fixChecks({ seatA, send, room, band, over, turn, widthIn, star }) {
         const { capsuleNow, barPage, frame, overlay } = bar;
         const ENTRY = `.deckit-menu[data-state="open"] [role="menuitem"]`;
         const stands = async (wanted, time = 5000) =>
@@ -1057,7 +1058,7 @@ async function run({
         // clock, ends the capsule: whatever else the bar holds.
         const fixedWhole = ({ bar: laid, joined, clock, fixed }) =>
             joined?.region === 'fixed' &&
-            joined.width === 57 &&
+            joined.width === star &&
             joined.x + joined.width + 4 === fixed?.x &&
             clock.x + clock.width + 2 === laid?.width;
         const scrolls = ({ bar: laid, joined }) => joined?.region === 'scrolled' && laid?.width === room;
