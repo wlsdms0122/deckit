@@ -274,6 +274,30 @@ async function draw(app, look, shots, origin) {
 
     await sleep(9000);
     const desktop = await until(() => page('deckit://desktop'));
+    // The menu of the Dock's first item, which the desktop's page draws in itself, opened by a context press on the
+    // item: its rect in the page once it shows, or null after a few seconds. `dockMenuAway` puts it away by its key.
+    const dockMenu = async () => {
+        await desktop.evaluate(`(() => {
+            const item = document.querySelector('.deckit-dock-item');
+            const { x, y } = item.getBoundingClientRect();
+            item.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x + 8, clientY: y + 8 }));
+        })()`);
+        return until(
+            () =>
+                desktop.evaluate(`(() => {
+                    const menu = document.querySelector('.deckit-dock-menu:not([hidden])');
+                    if (!menu) return null;
+                    const { x, y, width, height } = menu.getBoundingClientRect();
+                    return width && height ? { x, y, width, height } : null;
+                })()`),
+            3000
+        );
+    };
+    const dockMenuAway = () =>
+        desktop.evaluate(
+            `document.querySelector('.deckit-dock-menu').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`
+        );
+
     // The stand-in drawn once, in the desktop's page, and laid under each shot at the screen's size.
     const screen = (await until(desktopLaid)).rect;
     const backdrop = await desktop.evaluate(`(${wallpaper})(${screen.width}, ${screen.height}, ${BLUR})`);
@@ -476,7 +500,7 @@ async function draw(app, look, shots, origin) {
         throw new Error("no seat's window lies under another for the local seat with an edge of that one on it");
     });
     // The two seats' cursors over what lies over the desktop's page: one on the status bar's panel window in the
-    // host's bar, the other on the menu of a Dock item, which the desktop's page presents over itself.
+    // host's bar, the other on the menu of a Dock item, which the desktop's page draws in itself.
     await surface('seats-over', async (name) => {
         const [first, second] = users;
         if (!second) throw new Error('no two seats are at the desktop');
@@ -485,28 +509,13 @@ async function draw(app, look, shots, origin) {
             ({ opener, name: each }) => opener.startsWith('deckit://status-bar.mod') && /^deckit-window-/.test(each)
         );
         if (!panel) throw new Error('no panel window of the status bar is laid');
-        await desktop.evaluate(`(() => {
-            const item = document.querySelector('.deckit-dock-item');
-            const { x, y } = item.getBoundingClientRect();
-            item.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x + 8, clientY: y + 8 }));
-        })()`);
-        const overlay = await overlayOf(desktop);
-        const menu = await until(
-            () =>
-                overlay?.evaluate(`(() => {
-                    const menu = document.querySelector('.deckit-menu[data-state="open"]');
-                    if (!menu) return null;
-                    const { x, y, width, height } = menu.getBoundingClientRect();
-                    return { x, y, width, height };
-                })()`),
-            3000
-        );
+        const menu = await dockMenu();
         if (!menu) throw new Error("the Dock's menu did not open");
         await first.point('move', middle(menu));
         await second.point('move', middle(panel.rect));
         await sleep(600);
         await desktopShot(name, { under });
-        await escape(overlay);
+        await dockMenuAway();
         await sleep(300);
     });
     for (const user of users) await user.tile('ArrowDown').catch(() => {});
@@ -622,16 +631,10 @@ async function draw(app, look, shots, origin) {
     await sleep(400);
     await surface('dock', backed);
     await surface('dock-menu', async (name) => {
-        await desktop.evaluate(`(() => {
-            const item = document.querySelector('.deckit-dock-item');
-            const { x, y } = item.getBoundingClientRect();
-            item.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x + 8, clientY: y + 8 }));
-        })()`);
-        const overlay = await overlayOf(desktop);
-        await until(() => overlay?.evaluate(`!!document.querySelector('.deckit-menu[data-state="open"]')`), 3000);
+        if (!(await dockMenu())) throw new Error("the Dock's menu did not open");
         await sleep(300);
         await backed(name);
-        await escape(overlay);
+        await dockMenuAway();
     });
     await dock('pointerleave');
 
