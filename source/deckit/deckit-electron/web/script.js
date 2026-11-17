@@ -23,9 +23,11 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
     // wait for its click, answered as it is clicked, and whether it was clicked before its word came;
     // `news` the words `{ frame, id, origin }` of each document that waits to hear its site may have notifications;
     // `own` what the main frame is asked, `{ frame, awaiting, queue, sent, counts, sequence }`, `frame` the one whose
-    // word waits for it, `awaiting` true while its document acts on what it was told, and each count by its number
+    // word waits for it, `awaiting` true while its document acts on what it was told, and each count by its number;
+    // `untaken` the number of each telling its documents were told and have not taken
     const pages = new Map();
     let shownSequence = 0;
+    let toldSequence = 0;
 
     // MARK: - Initializer
     // MARK: - Public
@@ -51,6 +53,7 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
             muted: false,
             notifications: new Map(),
             news: [],
+            untaken: new Set(),
             own: freshOwn(),
             channel,
             install: () => page.run(scripts()),
@@ -85,6 +88,7 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
             entry.audible = false;
             entry.notifications.clear();
             entry.news = [];
+            entry.untaken.clear();
             for (const resolve of entry.own.counts.values()) resolve(0);
             entry.own = freshOwn();
         });
@@ -160,16 +164,24 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
         const shown = entry.notifications.get(notification);
         if (!shown.clicked || !shown.frame) return;
         entry.notifications.delete(notification);
-        shown.frame.answer(JSON.stringify({ id: shown.id, answer: true }));
+        shown.frame.answer(tell(entry, shown.id, true));
     }
 
     // Each document that waits for the news and whose site may now have notifications hears it.
     function tellNews(entry) {
         entry.news = entry.news.filter(({ frame, id, origin }) => {
             if (!permits(entry.session, origin, 'notifications')) return true;
-            frame.answer(JSON.stringify({ id, answer: 'granted' }));
+            frame.answer(tell(entry, id, 'granted'));
             return false;
         });
+    }
+
+    // The reply to the word `id` that tells its document `answer` of deckit's own accord, untaken until deckit's world
+    // in that document says it handed it on (`taken`).
+    function tell(entry, id, answer) {
+        const told = ++toldSequence;
+        entry.untaken.add(told);
+        return JSON.stringify({ id, answer, told });
     }
 
     // `frame` is the frame that said it (deckit-web WebPage `message`): what it asks is answered by `frame.answer`,
@@ -212,6 +224,8 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
             Object.assign(shown, { frame, id });
             tellClick(entry, notification);
             return true;
+        } else if (message.op === 'taken') {
+            entry.untaken.delete(Number(message.told));
         } else if (message.op === 'news') {
             entry.news.push({ frame, id, origin });
             tellNews(entry);
@@ -480,17 +494,22 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
     // Runs in deckit's world, in every frame, as source, with only its arguments: what the page's world says under
     // `channel` goes on to deckit, from the frame it is said in, and what deckit answers, the post's reply, back to
     // the page's world under `${channel}:answer`. Each event it takes it cancels, so the page's world knows it was taken;
-    // as it starts it says `${channel}:relay`, for what was said before.
+    // as it starts it says `${channel}:relay`, for what was said before. An answer that is a telling it says `taken` of
+    // once the page's world has handled it.
     function inRelay(channel) {
         if (window.__deckitRelay) return;
         Object.defineProperty(window, '__deckitRelay', { value: true });
-        const back = (answer) =>
-            typeof answer === 'string' &&
+        const post = (msg) => window.webkit.messageHandlers.deckit.postMessage(msg);
+        const back = (answer) => {
+            if (typeof answer !== 'string') return;
             document.dispatchEvent(new CustomEvent(`${channel}:answer`, { detail: answer }));
+            const { told } = JSON.parse(answer);
+            if (told) post(JSON.stringify({ op: 'taken', told })).catch(() => {});
+        };
         document.addEventListener(channel, (event) => {
             if (typeof event.detail !== 'string') return;
             event.preventDefault();
-            window.webkit.messageHandlers.deckit.postMessage(event.detail).then(back, () => {});
+            post(event.detail).then(back, () => {});
         });
         document.dispatchEvent(new CustomEvent(`${channel}:relay`));
     }
@@ -588,5 +607,14 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
         Object.defineProperty(window, '__deckit', { value: true });
     }
 
-    return { permissionsChanged, attach, clickNotification, setMuted, count, unselect, stateOf };
+    // How many tellings the documents of every page were told and have not taken: a click on a notification and the
+    // news that a site may have notifications, which deckit tells a document of its own accord. A document gone takes
+    // none.
+    function untaken() {
+        let count = 0;
+        for (const entry of pages.values()) count += entry.untaken.size;
+        return count;
+    }
+
+    return { permissionsChanged, attach, clickNotification, setMuted, count, unselect, stateOf, untaken };
 }

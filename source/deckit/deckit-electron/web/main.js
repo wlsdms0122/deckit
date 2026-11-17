@@ -430,6 +430,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
         close,
         stateOf,
         clickNotification: (page, notification) => SCRIPT.clickNotification(page, notification),
+        untaken: () => SCRIPT.untaken(),
         sessionOf,
         permissionsChanged: () => SCRIPT.permissionsChanged(),
         fetch,

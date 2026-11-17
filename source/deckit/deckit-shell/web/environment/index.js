@@ -39,6 +39,9 @@ const WEB = Object.freeze({
         // `url`, and `back` goes to what the page showed, where it showed anything, and takes the failure away
         stateOf: 'function',
         clickNotification: 'function', // clickNotification(page, notification): one it showed, clicked
+        // untaken() -> how many tellings the web pages' documents were told of the environment's own accord, a click on
+        // a notification or the news that a site may have notifications, and have not yet taken
+        untaken: 'function',
         sessionOf: 'function', // sessionOf(page) -> the session a web page is in, `{ mod, name }`, or null
         // permissionsChanged(): what the web engine lets sites have changed, so what a page read of it is read again
         permissionsChanged: 'function',
