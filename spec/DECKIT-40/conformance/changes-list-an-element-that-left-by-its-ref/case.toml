@@ -1,4 +1,4 @@
-case = 26
+case = 29
 name = "changes-list-an-element-that-left-by-its-ref"
 note = "mod-a opens the window 1 at 283, 107, 720 by 480, with no title. Its content holds, each in a box of its own: the heading Notes, the button Bold, not pressed, the field Name with the value say \"a\", b, the empty field Find, the checkbox Done, the list Days of Mon, Tue and Wed, and the region Log, 60 high, that scrolls three paragraphs 40 high each. The desktop is the base shell, 1280 by 800, and ada sits at s1. It reads the window at the mark 7. Then mod-a sends its event drop, and at it the page takes the heading out. It asks what changed since 7: the heading is told gone by its ref."
 
@@ -39,6 +39,7 @@ input = "ask"
 party = "p"
 method = "seat/read"
 params = { of = "changes", since = 7 }
+part = "text"
 
 [step.expect]
-answers = { text = "changes 7 to 8\n- 1.1", mark = 8 }
+answers = "changes 7 to \u001A\n- 1.1"

@@ -1,4 +1,4 @@
-case = 26
+case = 29
 name = "changes-after-an-item-came-to-the-dock-list-it-new"
 note = "Each mod opens the windows the case says. The desktop is the base shell, 1280 by 800, and ada sits at s1. mod-a opens main, the window 1, with a region of the interface case/view over its box at 100, 100, 200 by 150; mod-b is a view of that interface. The person quits mod-b and takes its item out of the Dock, and ada reads the desktop at the mark 10. mod-a places mod-b in its region, which launches it, ada reads w1, which gives the window's content the number 1, and asks what changed since 10: the item of mod-b, new, and the document the child is, new in w1, given the number 2."
 
@@ -55,6 +55,7 @@ input = "ask"
 party = "p"
 method = "seat/read"
 params = { of = "changes", since = 10 }
+part = "text"
 
 [step.expect]
-answers = { text = "changes 10 to 14\n+ item \"mod-b\" [running] dock.mod-b\n+ document 2 child \"mod-b\" 200x150 in w1", mark = 14 }
+answers = "changes 10 to \u001A\n+ item \"mod-b\" [running] dock.mod-b\n+ document 2 child \"mod-b\" 200x150 in w1"

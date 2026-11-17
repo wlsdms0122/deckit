@@ -1,4 +1,4 @@
-case = 26
+case = 29
 name = "the-local-seat-that-pressed-a-window-holds-its-key"
 note = "Each mod opens the windows the case says. The desktop is the base shell, 1280 by 800, and ada sits at s1. mod-a opens main, the window 1. The person presses main: the desktop is read, and the line of the local seat ends in key w1, and the window line holds key and local."
 
@@ -29,6 +29,7 @@ input = "ask"
 party = "p"
 method = "seat/read"
 params = { of = "desktop" }
+part = "text"
 
 [step.expect]
-answers = { text = "desktop 1280x800 mark 9\nseat local \"Deckit conformance\" blue key w1\nseat s1 \"Ada Lovelace\" green (you)\ndock (1 items)\n  item \"mod-a\" [running] dock.mod-a\nwindow w1 \"mod-a\" mod-a at 283,107 720x480 [key local]", mark = 9 }
+answers = "desktop 1280x800 mark \u001A\nseat local \"Deckit conformance\" blue key w1\nseat s1 \"Ada Lovelace\" green (you)\ndock (1 items)\n  item \"mod-a\" [running] dock.mod-a\nwindow w1 \"mod-a\" mod-a at 283,107 720x480 [key local]"
