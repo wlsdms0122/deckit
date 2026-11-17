@@ -358,6 +358,139 @@ async function run({ check, main, open }) {
         JSON.stringify(bare)
     );
 
+    // A place is where an element stands: one sliding in reads where it comes to rest, and slides on from where it was.
+    await editor.evaluate(`(() => {
+        const slide = Object.assign(document.createElement('div'), { id: 'deckit-read-slide', textContent: 'Slide' });
+        slide.setAttribute('role', 'note');
+        slide.style.cssText = 'position:fixed;left:24px;top:360px;width:220px;height:24px;z-index:99999';
+        document.body.append(slide);
+        const moving = slide.animate([{ transform: 'translateX(40px)' }, { transform: 'none' }], { duration: 60000 });
+        moving.onfinish = () => (slide.dataset.finished = 'true');
+        return true;
+    })()`);
+    const sliding = (await read('outline', editor.id)).lines?.find((line) => line.role === 'note');
+    const rest = await read('node', editor.id, sliding?.ref);
+    await sleep(50);
+    const drawn = await editor.evaluate(`(() => {
+        const slide = document.querySelector('#deckit-read-slide');
+        const [moving] = slide.getAnimations();
+        const answer = { x: slide.getBoundingClientRect().x, state: moving?.playState, time: moving?.currentTime,
+            finished: slide.dataset.finished ?? null };
+        moving?.cancel();
+        slide.remove();
+        return answer;
+    })()`);
+    check(
+        'read: an element sliding in reads where it comes to rest, and slides on from where it is drawn',
+        rest.rect?.x === 24 &&
+            drawn.x > 50 &&
+            drawn.state === 'running' &&
+            drawn.time > 0 &&
+            drawn.time < 30000 &&
+            drawn.finished === null,
+        `${JSON.stringify(rest.rect)} ${JSON.stringify(drawn)}`
+    );
+
+    // One that grows in by a transition about a corner, as a menu enters, reads where it comes to rest, and grows on
+    // as it was, its transition neither finished nor ended by the reading.
+    await editor.evaluate(`(() => {
+        const grow = Object.assign(document.createElement('div'), { id: 'deckit-read-grow', textContent: 'Grow' });
+        grow.setAttribute('role', 'note');
+        grow.style.cssText = 'position:fixed;left:24px;top:400px;width:200px;height:40px;z-index:99999;' +
+            'transform-origin:100% 0;scale:0.5;transition:scale 60s linear';
+        document.body.append(grow);
+        getComputedStyle(grow).scale;
+        grow.style.scale = '1';
+        grow.addEventListener('transitionend', () => (grow.dataset.ended = 'true'));
+        grow.getAnimations()[0]?.finished.then(() => (grow.dataset.finished = 'true'));
+        return true;
+    })()`);
+    const growing = (await read('outline', editor.id)).lines?.find((line) => line.role === 'note');
+    const grown = await read('node', editor.id, growing?.ref);
+    await sleep(50);
+    const growth = await editor.evaluate(`(() => {
+        const grow = document.querySelector('#deckit-read-grow');
+        const [growing] = grow.getAnimations();
+        const { x, width } = grow.getBoundingClientRect();
+        const answer = { x, width, kind: growing?.constructor.name, state: growing?.playState,
+            time: growing?.currentTime, ended: grow.dataset.ended ?? null, finished: grow.dataset.finished ?? null };
+        growing?.cancel();
+        grow.remove();
+        return answer;
+    })()`);
+    check(
+        'read: an element growing in by a transition about a corner reads where it comes to rest, and grows on',
+        JSON.stringify(grown.rect) === JSON.stringify({ x: 24, y: 400, width: 200, height: 40 }) &&
+            growth.kind === 'CSSTransition' &&
+            growth.state === 'running' &&
+            growth.width < 150 &&
+            growth.x > 74 &&
+            growth.ended === null &&
+            growth.finished === null,
+        `${JSON.stringify(grown.rect)} ${JSON.stringify(growth)}`
+    );
+
+    // What is inside an element sliding in reads where it comes to rest with it.
+    await editor.evaluate(`(() => {
+        const carrier = Object.assign(document.createElement('div'), { id: 'deckit-read-carrier' });
+        carrier.style.cssText = 'position:fixed;left:24px;top:460px;width:220px;height:40px;z-index:99999';
+        const inside = Object.assign(document.createElement('div'), { textContent: 'Inside' });
+        inside.setAttribute('role', 'note');
+        inside.style.cssText = 'position:absolute;left:10px;top:5px;width:100px;height:20px';
+        carrier.append(inside);
+        document.body.append(carrier);
+        carrier.animate([{ transform: 'translateX(40px)' }, { transform: 'none' }], { duration: 60000 });
+        return true;
+    })()`);
+    const carried = (await read('outline', editor.id)).lines?.find((line) => line.role === 'note');
+    const held = await read('node', editor.id, carried?.ref);
+    const borne = await editor.evaluate(`(() => {
+        const carrier = document.querySelector('#deckit-read-carrier');
+        const x = carrier.firstChild.getBoundingClientRect().x;
+        carrier.getAnimations().forEach((each) => each.cancel());
+        carrier.remove();
+        return x;
+    })()`);
+    check(
+        'read: what is inside an element sliding in reads where it comes to rest with it',
+        JSON.stringify(held.rect) === JSON.stringify({ x: 34, y: 465, width: 100, height: 20 }) && borne > 50,
+        `${JSON.stringify(held.rect)} drawn at ${borne}`
+    );
+
+    // A card made by another document, set sliding in before it is placed, as a toast comes in, reads where it comes
+    // to rest: made in the reader's world, as there it keeps the prototypes of the document that made it.
+    await editor.evaluate(
+        `(() => {
+        const maker = Object.assign(document.createElement('iframe'), { id: 'deckit-read-maker' });
+        maker.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;border:0';
+        document.body.append(maker);
+        const card = Object.assign(maker.contentDocument.createElement('div'), { id: 'deckit-read-card' });
+        card.textContent = 'Card';
+        card.setAttribute('role', 'alert');
+        card.style.cssText = 'position:fixed;left:24px;top:360px;width:200px;height:40px;box-sizing:border-box;' +
+            'padding:4px;z-index:99999';
+        card.animate([{ transform: 'translate(16px) scale(1)' }, { transform: 'none' }], { duration: 60000 });
+        document.body.append(card);
+        return true;
+    })()`,
+        'deckit'
+    );
+    const coming = (await read('outline', editor.id)).lines?.find((line) => line.role === 'alert');
+    const come = await read('node', editor.id, coming?.ref);
+    const drawnAt = await editor.evaluate(`(() => {
+        const card = document.querySelector('#deckit-read-card');
+        const x = card.getBoundingClientRect().x;
+        card.getAnimations().forEach((each) => each.cancel());
+        card.remove();
+        document.querySelector('#deckit-read-maker').remove();
+        return x;
+    })()`);
+    check(
+        'read: a card made by another document, sliding in as it is placed, reads where it comes to rest',
+        JSON.stringify(come.rect) === JSON.stringify({ x: 24, y: 360, width: 200, height: 40 }) && drawnAt > 30,
+        `${JSON.stringify(come.rect)} drawn at ${drawnAt}`
+    );
+
     // An element's place, once it is in view.
     const far = named((await read('outline', editor.id, { all: true })).lines, 'Far');
     const hidden = named((await read('outline', editor.id)).lines, 'Far');

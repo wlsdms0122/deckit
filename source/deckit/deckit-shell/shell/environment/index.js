@@ -77,6 +77,9 @@ const SHELL = Object.freeze({
         machine: 'function',
     },
     // How a page reads to one who cannot see it, from what its document drew, its elements' roles, names and states.
+    // A rect, and what is in view, is where an element stands, measured, the reading writing nothing into the page: a
+    // motion of how it or an element above it is drawn is read at its end, one of what lays it out as laid now, and
+    // one that never ends as drawn.
     // A document has a number, another for each document a page shows, and an element a ref, `<document>.<n>`, the
     // same while the element is in its document. What is asked of an element or a document that is gone is refused
     // with an error whose `code` is `GONE`
