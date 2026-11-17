@@ -101,6 +101,7 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
         const shown = entry?.notifications.get(Number(notification));
         if (!shown) return;
         shown.clicked = true;
+        shown.told ??= untold(entry);
         tellClick(entry, Number(notification));
     }
 
@@ -164,24 +165,25 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
         const shown = entry.notifications.get(notification);
         if (!shown.clicked || !shown.frame) return;
         entry.notifications.delete(notification);
-        shown.frame.answer(tell(entry, shown.id, true));
+        shown.frame.answer(JSON.stringify({ id: shown.id, answer: true, told: shown.told }));
     }
 
     // Each document that waits for the news and whose site may now have notifications hears it.
     function tellNews(entry) {
         entry.news = entry.news.filter(({ frame, id, origin }) => {
             if (!permits(entry.session, origin, 'notifications')) return true;
-            frame.answer(tell(entry, id, 'granted'));
+            frame.answer(JSON.stringify({ id, answer: 'granted', told: untold(entry) }));
             return false;
         });
     }
 
-    // The reply to the word `id` that tells its document `answer` of deckit's own accord, untaken until deckit's world
-    // in that document says it handed it on (`taken`).
-    function tell(entry, id, answer) {
+    // The number of a telling deckit tells a document of the page of its own accord, from the moment it is due, a
+    // click before its word comes among it: untaken until deckit's world in that document says it handed it on
+    // (`taken`).
+    function untold(entry) {
         const told = ++toldSequence;
         entry.untaken.add(told);
-        return JSON.stringify({ id, answer, told });
+        return told;
     }
 
     // `frame` is the frame that said it (deckit-web WebPage `message`): what it asks is answered by `frame.answer`,

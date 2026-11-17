@@ -1,6 +1,7 @@
 // What the web engine's script (deckit-electron web/script.js) tells a document of its own accord, a click on a
-// notification it showed and the news that its site may have notifications, is untaken until deckit's world in that
-// document says `taken` of it, and none is untaken once the document is gone, by a new one or with its page.
+// notification it showed and the news that its site may have notifications, is untaken from the moment it is due, a
+// click before its word among it, until deckit's world in that document says `taken` of it, and none is untaken once
+// the document is gone, by a new one or with its page.
 // Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -47,12 +48,22 @@ async function main() {
     said({ op: 'taken', told: click.told });
     check('a click is taken once its document says so', SCRIPT.untaken() === 0);
 
+    said({ op: 'show', id: 6, title: 't', body: '', silent: false });
+    const early = answers.at(-1).answer;
+    SCRIPT.clickNotification(page, early);
+    check('a click before its word is untaken', SCRIPT.untaken() === 1);
+    said({ op: 'click', id: 7, notification: early });
+    const told = answers.at(-1);
+    check('a click before its word is told as the word comes', told.id === 7 && told.told > click.told);
+    said({ op: 'taken', told: told.told });
+    check('a click before its word is taken once its document says so', SCRIPT.untaken() === 0);
+
     said({ op: 'news', id: 3 });
     check('news that waits is told nothing', SCRIPT.untaken() === 0);
     allowed = true;
     SCRIPT.permissionsChanged();
     const news = answers.at(-1);
-    check('the news is told its word', news.id === 3 && news.answer === 'granted' && news.told > click.told);
+    check('the news is told its word', news.id === 3 && news.answer === 'granted' && news.told > told.told);
     check('the news told is untaken', SCRIPT.untaken() === 1);
     page.emit('committed');
     check('a new document leaves none untaken', SCRIPT.untaken() === 0);
