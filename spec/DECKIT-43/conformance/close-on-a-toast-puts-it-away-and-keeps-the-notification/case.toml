@@ -1,6 +1,6 @@
-case = 27
+case = 29
 name = "close-on-a-toast-puts-it-away-and-keeps-the-notification"
-note = "The host ships the owner of deckit/notifications and of deckit/commands, and the status bar by its id, on the base shell, 1280 by 800, under a bar 32 high. ada sits at s1. mod-a posts to deckit/notifications what its event post tells it and takes its own away as its event clear tells it, runs in the background, and runs its commands ping and snooze by opening https://said.test/mod-a/ran/<command> outside the app. mod-a posts Standup, with the action Snooze. ada presses Close on its toast: the toast goes for every seat, and the count stays."
+note = "The host ships the owner of deckit/notifications and of deckit/commands, and the status bar by its id, on the base shell, 1280 by 800, under a bar 32 high. ada sits at s1. mod-a posts to deckit/notifications what its event post tells it and takes its own away as its event clear tells it, runs in the background, and runs its commands ping and snooze by opening https://said.test/mod-a/ran/<command> outside the app. mod-a posts Standup, with the action Snooze. ada presses Close on its toast: s1 reads its desktop, the toast gone, and the count stays."
 
 [host]
 base = "shell"
@@ -52,13 +52,11 @@ look = "opened"
 answers = []
 
 [[step]]
-look = "windows"
-seat = "local"
-[step.expect]
-answers = [{ mod = "status-bar", name = "bar", level = "panel", frame = { x = 1225, y = 2, width = 47, height = 28 }, key = false, minimized = false }]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "desktop" }
+part = "text"
 
-[[step]]
-look = "windows"
-seat = "s1"
 [step.expect]
-answers = [{ mod = "status-bar", name = "bar", level = "panel", frame = { x = 1225, y = 2, width = 47, height = 28 }, key = false, minimized = false }]
+answers = "desktop 1280x800 mark \u001A\nseat local \"Deckit conformance\" blue\nseat s1 \"Ada Lovelace\" green at 1246,70 (you)\ndock (1 items)\n  item \"mod-a\" [running] dock.mod-a\npanel w1 \"Status Bar\" status-bar top at \u001A,2 \u001Ax28\npanel w2 \"Notifications\" notifications at 912,40 360x92"

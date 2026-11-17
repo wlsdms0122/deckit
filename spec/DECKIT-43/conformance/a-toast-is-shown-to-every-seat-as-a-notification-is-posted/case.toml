@@ -1,6 +1,6 @@
-case = 27
+case = 29
 name = "a-toast-is-shown-to-every-seat-as-a-notification-is-posted"
-note = "The host ships the owner of deckit/notifications and of deckit/commands, and the status bar by its id, on the base shell, 1280 by 800, under a bar 32 high. ada sits at s1. mod-a posts to deckit/notifications what its event post tells it and takes its own away as its event clear tells it, runs in the background, and runs its commands ping and snooze by opening https://said.test/mod-a/ran/<command> outside the app. mod-a posts Standup, with the action Snooze: the toast stands at the top right on the screen of s1 and of the local seat, and s1 reads it, an alert named Standup."
+note = "The host ships the owner of deckit/notifications and of deckit/commands, and the status bar by its id, on the base shell, 1280 by 800, under a bar 32 high. ada sits at s1. mod-a posts to deckit/notifications what its event post tells it and takes its own away as its event clear tells it, runs in the background, and runs its commands ping and snooze by opening https://said.test/mod-a/ran/<command> outside the app. mod-a posts Standup, with the action Snooze: s1 reads its desktop, the toast standing at the top right of its screen, and reads the toast, an alert named Standup."
 
 [host]
 base = "shell"
@@ -28,16 +28,14 @@ member = "events.emit"
 args = ["post", { title = "Standup", command = "ping", actions = [{ title = "Snooze", command = "snooze" }] }]
 
 [[step]]
-look = "windows"
-seat = "s1"
-[step.expect]
-answers = [{ mod = "status-bar", name = "bar", level = "panel", frame = { x = 1225, y = 2, width = 47, height = 28 }, key = false, minimized = false }, { mod = "notifications", name = "toasts", level = "panel", frame = { x = 912, y = 40, width = 360, height = 92 }, key = false, minimized = false }]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "desktop" }
+part = "text"
 
-[[step]]
-look = "windows"
-seat = "local"
 [step.expect]
-answers = [{ mod = "status-bar", name = "bar", level = "panel", frame = { x = 1225, y = 2, width = 47, height = 28 }, key = false, minimized = false }, { mod = "notifications", name = "toasts", level = "panel", frame = { x = 912, y = 40, width = 360, height = 92 }, key = false, minimized = false }]
+answers = "desktop 1280x800 mark \u001A\nseat local \"Deckit conformance\" blue\nseat s1 \"Ada Lovelace\" green (you)\ndock (1 items)\n  item \"mod-a\" [running] dock.mod-a\npanel w1 \"Status Bar\" status-bar top at \u001A,2 \u001Ax28\npanel w2 \"Notifications\" notifications at 912,40 360x92"
 
 [[step]]
 input = "ask"
