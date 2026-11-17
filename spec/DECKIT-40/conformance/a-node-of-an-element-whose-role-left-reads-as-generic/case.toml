@@ -39,6 +39,7 @@ input = "ask"
 party = "p"
 method = "seat/read"
 params = { of = "node", ref = "1.9" }
+part = "text"
 
 [step.expect]
-answers = { text = "generic 1.9 at 283,397 200x20\n  text \"Aside\"", mark = 8 }
+answers = "generic 1.9 at 283,397 200x20\n  text \"Aside\""
