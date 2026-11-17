@@ -1,4 +1,4 @@
-case = 13
+case = 28
 name = "a-click-once-the-page-loaded-another-document-does-nothing"
 note = "click() once the document that made the notification is gone does nothing, in the document the page shows now among it. site-a, let have notifications, makes a notification at each load, the page is loaded again, and the host's layer calls click of the first notification told."
 
@@ -94,50 +94,8 @@ answers = "load 2 show"
 [[step]]
 input = "call"
 mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
 member = "click"
 delegated = 1
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
 
 [[step]]
 input = "call"

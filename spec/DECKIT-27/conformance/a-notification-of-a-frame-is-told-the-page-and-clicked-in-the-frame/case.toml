@@ -1,4 +1,4 @@
-case = 13
+case = 28
 name = "a-notification-of-a-frame-is-told-the-page-and-clicked-in-the-frame"
 note = "A frame's notification is told the delegate of the page the frame is in, and its click fires in the frame's document. site-a, let have notifications, makes a frame, which makes a notification, and the host's layer calls click."
 
@@ -97,27 +97,6 @@ input = "call"
 mod = "mod-a"
 member = "click"
 delegated = 1
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
 
 [[step]]
 input = "call"

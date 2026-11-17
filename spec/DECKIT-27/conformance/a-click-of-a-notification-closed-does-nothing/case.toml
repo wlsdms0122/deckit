@@ -1,4 +1,4 @@
-case = 13
+case = 28
 name = "a-click-of-a-notification-closed-does-nothing"
 note = "click() of a notification closed does nothing. site-a, let have notifications, closes its notification as it is shown, and the host's layer then calls click."
 
@@ -67,50 +67,8 @@ answers = "Start close show"
 [[step]]
 input = "call"
 mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
 member = "click"
 delegated = 1
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
 
 [[step]]
 input = "call"

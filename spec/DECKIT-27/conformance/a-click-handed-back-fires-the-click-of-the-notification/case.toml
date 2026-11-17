@@ -1,4 +1,4 @@
-case = 13
+case = 28
 name = "a-click-handed-back-fires-the-click-of-the-notification"
 note = "click() hands a click back: the notification's click event fires in the document that made it. site-a, let have notifications, makes a notification as it loads, and the host's layer calls click of what didReceiveNotification was told."
 
@@ -67,50 +67,8 @@ answers = "granted show"
 [[step]]
 input = "call"
 mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
 member = "click"
 delegated = 1
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
 
 [[step]]
 input = "call"

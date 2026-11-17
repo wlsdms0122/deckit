@@ -1,4 +1,4 @@
-case = 13
+case = 28
 name = "a-click-handed-back-twice-fires-once"
 note = "A click fires once: click() again does nothing. site-a, let have notifications, makes a notification, and the host's layer calls click twice."
 
@@ -67,27 +67,6 @@ answers = "granted show"
 [[step]]
 input = "call"
 mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
 member = "click"
 delegated = 1
 
@@ -96,27 +75,6 @@ input = "call"
 mod = "mod-a"
 member = "click"
 delegated = 1
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "state"
-of = 4
-part = "loading"
 
 [[step]]
 input = "call"
