@@ -1136,10 +1136,10 @@ export function createDesktop({
 
     // What stands on the screen of `seat`, `[{ id, frame, radius }]` from the back, as the stage's levels lie
     // (model/levels.js): its windows in its order; what the desktop's page draws over them, the band of the host's bar
-    // and the Dock, out or in as the screen of the seat `docked` has it, with the menu of an item open for that seat;
-    // the panel windows at an edge; then the views there as they lie. What a page presents over itself is in none.
+    // and the Dock, out or in as the screen of the seat `docked` has it; the panel windows at an edge; then the views
+    // there as they lie. What a page presents over itself, and the menu of a Dock's item, is in none: a cursor is
+    // drawn over a menu.
     function stackOf(seat, docked = seat) {
-        const menu = menuOf(docked);
         const frames = panelFrames(seat);
         const views = frames.filter(({ window }) => ANCHORED.isView(window));
         const panes = [...frames.filter(({ window }) => !ANCHORED.isView(window)), ...stackedFor(seat, views)];
@@ -1147,7 +1147,6 @@ export function createDesktop({
             ...MANAGER.viewOf(seat).map(({ id, frame }) => ({ id, frame, radius: LAYOUT.RADIUS })),
             { id: 'band', frame: { x: 0, y: 0, width: stage.size().width, height: strip.height }, radius: 0 },
             { id: 'dock', ...DOCK_MODEL.coverOf(area(), hands.get(docked)?.dock ?? false, DOCK.items()) },
-            ...(menu ? [{ id: 'dock-menu', frame: menu.frame, radius: menu.radius }] : []),
             ...panes.map(({ window, frame }) => ({ id: window.id, frame, radius: radiusOf(window, frame) })),
         ];
     }
