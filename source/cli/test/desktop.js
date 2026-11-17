@@ -3408,6 +3408,30 @@ async function marksChecks({ MARKS, LAYOUT, DOCK, createDesktop }, check) {
             ),
         stage
     );
+    // The local seat opens the menu of an item; the other seat points at its middle, then again once it is shut.
+    desk.dock.items = [{ id: 'a', pinned: true, running: true }];
+    const dockPress = (item) =>
+        ['down', 'up'].forEach((type) =>
+            desk.fromPage('pointer', { part: 'dock', item, type, x: 0, y: 0, button: item ? 2 : 0 })
+        );
+    dockPress('a');
+    const menu = desk.page().dock.menu;
+    const middle = menu && { x: menu.frame.x + menu.frame.width / 2, y: menu.frame.y + menu.frame.height / 2 };
+    desk.enter(other, pointer('move', middle ?? { x: 0, y: 0 }));
+    const overMenu = [desk.told().at(-1), of('s1')];
+    dockPress('');
+    desk.enter(other, pointer('move', { x: (middle?.x ?? 0) + 1, y: middle?.y ?? 0 }));
+    const menuShut = [desk.told().at(-1), of('s1')];
+    check(
+        "a seat's cursor over the menu of an item open for the seat the page shows is drawn over that menu, cut by " +
+            'what covers it with the menu shut and nothing more',
+        menu !== null &&
+            desk.page().dock.menu === null &&
+            overMenu.every((told) => told.under !== null && covering(told, middle).length === 0) &&
+            JSON.stringify(overMenu.map((told) => covering(told, middle))) ===
+                JSON.stringify(menuShut.map((told) => covering(told, middle))),
+        { menu, overMenu, menuShut }
+    );
     const card = DOCK.cardOf(rect(0, 28, 800, 600), []);
     const [out, drawnIn] = [
         DOCK.coverOf(rect(0, 28, 800, 600), true, []),
