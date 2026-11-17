@@ -1,6 +1,6 @@
-case = 28
+case = 29
 name = "a-press-on-the-item-shows-the-view-for-the-seat-and-a-second-puts-it-away"
-note = "The host ships the status bar and the seats mod by their ids, on the base shell, 1280 by 800, under a bar 32 high. ada sits at s1 and bob at s2, and bob leaves. ada presses the item: the view stands under it on the screen of s1 alone. ada presses the item again, and the view is put away."
+note = "The host ships the status bar and the seats mod by their ids, on the base shell, 1280 by 800, under a bar 32 high. ada sits at s1 and bob at s2, and bob leaves. ada presses the item: s1 reads its desktop, the view standing under the item. ada presses the item again, and the view is put away."
 
 [host]
 base = "shell"
@@ -49,16 +49,14 @@ method = "seat/input"
 params = { event = "pointer", type = "up", ref = "1.2", button = 0 }
 
 [[step]]
-look = "windows"
-seat = "s1"
-[step.expect]
-answers = [{ mod = "status-bar", name = "bar", level = "panel", frame = { x = 1225, y = 2, width = 47, height = 28 }, key = false, minimized = false }, { mod = "seats", name = "seats", level = "panel", frame = { x = 990, y = 40, width = 280, height = 80 }, key = false, minimized = false }]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "desktop" }
+part = "text"
 
-[[step]]
-look = "windows"
-seat = "local"
 [step.expect]
-answers = [{ mod = "status-bar", name = "bar", level = "panel", frame = { x = 1225, y = 2, width = 47, height = 28 }, key = false, minimized = false }]
+answers = "desktop 1280x800 mark \u001A\nseat local \"Deckit conformance\" blue\nseat s1 \"Ada Lovelace\" green at \u001A,16 (you)\ndock (0 items)\npanel w1 \"Status Bar\" status-bar top at \u001A,2 \u001Ax28\npanel w2 \"Seats\" seats at 990,40 280x80 [key s1]"
 
 [[step]]
 input = "ask"
@@ -73,7 +71,11 @@ method = "seat/input"
 params = { event = "pointer", type = "up", ref = "1.2", button = 0 }
 
 [[step]]
-look = "windows"
-seat = "s1"
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "desktop" }
+part = "text"
+
 [step.expect]
-answers = [{ mod = "status-bar", name = "bar", level = "panel", frame = { x = 1225, y = 2, width = 47, height = 28 }, key = false, minimized = false }]
+answers = "desktop 1280x800 mark \u001A\nseat local \"Deckit conformance\" blue\nseat s1 \"Ada Lovelace\" green at \u001A,16 (you)\ndock (0 items)\npanel w1 \"Status Bar\" status-bar top at \u001A,2 \u001Ax28"

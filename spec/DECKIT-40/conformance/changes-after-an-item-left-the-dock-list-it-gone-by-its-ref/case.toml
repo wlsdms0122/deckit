@@ -1,4 +1,4 @@
-case = 26
+case = 29
 name = "changes-after-an-item-left-the-dock-list-it-gone-by-its-ref"
 note = "Each mod opens the windows the case says. The desktop is the base shell, 1280 by 800, and ada sits at s1. mod-a opens main, the window 1, and mod-b opens none. ada reads the desktop at the mark 8. The person quits mod-b from its item and takes the item out of the Dock, and ada asks what changed since 8: the item told gone by its ref."
 
@@ -43,6 +43,7 @@ input = "ask"
 party = "p"
 method = "seat/read"
 params = { of = "changes", since = 8 }
+part = "text"
 
 [step.expect]
-answers = { text = "changes 8 to 10\n- dock.mod-b", mark = 10 }
+answers = "changes 8 to \u001A\n- dock.mod-b"

@@ -72,7 +72,7 @@ function bar(shell, held, { commands = () => null } = {}) {
     regions.scrolled.addEventListener('wheel', turned, { passive: false });
     content.addEventListener('contextmenu', asked);
     shell.ui.addStyle(STYLE);
-    const widths = {}; // label -> the width it was measured at
+    const widths = {}; // a label's or a count's text -> the width it was measured at
     let window = null; // the panel window, while it is open
     let told = { size: '', anchors: '' }; // the size and the anchors the shell was last told of it
     let scroll = 0; // how far the strip is scrolled (BAR.barOf)
@@ -108,7 +108,8 @@ function bar(shell, held, { commands = () => null } = {}) {
     // and the anchors only as they change.
     function lay() {
         const items = held.standing();
-        if (content.isConnected) for (const { label } of items) if (label && !(label in widths)) measured(label);
+        const texts = items.flatMap(({ label, count }) => [label, count === null ? '' : BAR.countText(count)]);
+        if (content.isConnected) for (const text of texts) if (text && !(text in widths)) measured(text);
         const given = { widths, fixed: held.fixed(), room: window?.room ?? null };
         let laid = BAR.barOf(items, { ...given, scroll });
         const inStrip = laid.items.filter(({ region }) => region === 'scrolled').map(({ id }) => id);
@@ -190,10 +191,10 @@ function bar(shell, held, { commands = () => null } = {}) {
         shell.ui.menu({ items: [{ label, run: () => held.fix(id, on) }], point });
     }
 
-    function measured(label) {
-        measure.textContent = label;
+    function measured(text) {
+        measure.textContent = text;
         const { width } = measure.getBoundingClientRect();
-        if (width) widths[label] = width;
+        if (width) widths[text] = width;
     }
 
     // The button of `item` where it is drawn, `at`: made as the item is first laid, and from then on written only where

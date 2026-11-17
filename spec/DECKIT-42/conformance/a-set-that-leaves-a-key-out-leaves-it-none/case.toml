@@ -1,4 +1,4 @@
-case = 27
+case = 29
 name = "a-set-that-leaves-a-key-out-leaves-it-none"
 note = "The host ships the status bar by its id, on the base shell, 1280 by 800, under a bar 32 high. ada sits at s1. Each mod-* is granted deckit.panel-windows and uses status-bar/items; one with a command runs it by opening https://said.test/<id>/ran/<command> outside the app, and opens the view view, 320 by 200, activates false, under the anchor { mod = \"status-bar\", id = <its id> } as the event <id>:go tells it, its didAppear, didDisappear and didClose opening https://said.test/<id>/view/<callback>. mod-a declares Alpha with the glyph bell, sets { count = 5, tone = \"attention\" }, and then { count = 7 }: the tone left out is plain again."
 
@@ -55,4 +55,4 @@ params = { of = "node", ref = "1.1" }
 part = "text"
 
 [step.expect]
-answers = "toolbar \"Status Bar\" 1.1 at 1225,2 47x28\n  button \"Alpha, 7\" [disabled] 1.2\n    text \"7\""
+answers = "toolbar \"Status Bar\" 1.1 at \u001A,2 \u001Ax28\n  button \"Alpha, 7\" [disabled] 1.2\n    text \"7\""

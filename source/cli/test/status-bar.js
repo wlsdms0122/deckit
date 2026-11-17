@@ -17,7 +17,7 @@ const Clock = require(path.join(MODS, 'clock', 'src', 'main.js'));
 
 const INTERFACE = 'status-bar/items';
 const GLYPHS = ['star', 'bell'];
-// A letter of a label as the stand-in document measures it.
+// A character of a label or of a count as the stand-in document measures it.
 const LETTER = 6;
 
 // An element as the frame uses one: what it was given, its children, and its listeners by type.
@@ -264,10 +264,11 @@ async function main() {
         item('c', { icon: 'bell', count: 250 }),
         item('d', { label: 'abcd' }),
         item('e', { icon: 'bell', label: 'x'.repeat(24) }),
-    ].map((each) => BAR.widthOf(each, { ['x'.repeat(24)]: 900 }));
+        item('f', { label: 'x'.repeat(24), count: 250 }),
+    ].map((each) => BAR.widthOf(each, { ['x'.repeat(24)]: 900, '99+': 25 }));
     check(
-        'a glyph is 32 wide, a count adds its characters, a label its width, measured or not, 160 at most',
-        widths.join() === '32,43,57,44,196',
+        "a glyph is 32 wide, a count adds its text's width and a label its own, measured or not, a label 160 at most",
+        widths.join() === '32,43,61,44,196,205',
         widths
     );
 
@@ -541,6 +542,8 @@ async function modChecks(check) {
     world.handle('star', 'Star', 1).dependencies.onConnect(INTERFACE, (connected) => (item = connected));
     await world.settle();
     const alone = band.size[0];
+    // The star as it stands with its count, `99+` as wide as the frame's document draws it.
+    const STAR = 2 * BAR.ITEM.padding + BAR.ITEM.glyph + BAR.ITEM.gap + '99+'.length * LETTER;
     await item.set({ name: 'Star', icon: 'star', command: 'show' });
     const came = { width: band.size[0], ids: buttons().map((button) => button.dataset.item), anchors: band.anchors };
     check(
@@ -643,8 +646,8 @@ async function modChecks(check) {
             JSON.stringify(turned.clock) === JSON.stringify(narrow.clock) &&
             turned.star.width === 34 &&
             turned.more === 'left' &&
-            turned.strip === 'translateX(-59px)' &&
-            band.size[0] === alone + 57 + BAR.CAPSULE.gap,
+            turned.strip === `translateX(-${STAR + BAR.CAPSULE.gap + 32 - 34}px)` &&
+            band.size[0] === alone + STAR + BAR.CAPSULE.gap,
         { narrow, turned, now: band.size }
     );
     world.kept.fixed = ['star'];
@@ -693,7 +696,7 @@ async function modChecks(check) {
             fixed.strip === '' &&
             fixed.fixed === 'star,clock' &&
             fixed.kept.join() === 'clock,notifications,star' &&
-            fixed.width === alone + 57 + BAR.CAPSULE.gap &&
+            fixed.width === alone + STAR + BAR.CAPSULE.gap &&
             fixed.right,
         { nowhere, loose, fixed }
     );

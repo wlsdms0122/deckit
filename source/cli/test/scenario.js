@@ -202,6 +202,8 @@ async function atRest(probe, ms = 3000) {
 // Notifications item and the clock as one, `{ x, width }`, the rect its band is laid at on the stage, what its toolbar is called, and the clock's item
 // and the joining mod's, `{ id, name, region, x, y, width, height }` each as its button is drawn in the capsule,
 // `region` the one it stands in, `fixed` or `scrolled`, or null, and every item so, in the order they are drawn.
+// `countedWide(text)` is how wide an item of a glyph and the count `text` is laid: its text as wide as the capsule's
+// document draws it.
 function statusBar({ pages, desktopLaid }) {
     const barPage = async () => {
         for (const each of await pages('about:blank'))
@@ -234,7 +236,21 @@ function statusBar({ pages, desktopLaid }) {
             items: drawn?.items ?? [],
         };
     };
-    return { barPage, capsuleNow };
+    const countedWide = async (text) => {
+        const drawn = await (
+            await barPage()
+        )?.evaluate(`(() => {
+            const span = document.createElement('span');
+            span.className = 'status-bar-measure';
+            span.textContent = ${JSON.stringify(text)};
+            document.querySelector('.status-bar').append(span);
+            const { width } = span.getBoundingClientRect();
+            span.remove();
+            return width;
+        })()`);
+        return drawn ? 2 * 8 + 16 + 4 + Math.ceil(drawn) : null;
+    };
+    return { barPage, capsuleNow, countedWide };
 }
 
 // The desktop and the shipped apps, as a person walks through them from the app's start. `logged()` is the app's log so
@@ -333,7 +349,7 @@ async function walk({
     );
     // The status bar: a capsule 28 high in the host's bar, 8 in from its right end and centred on it, one button an
     // item in its document, 24 high, the clock's the rightmost, its label wider than a glyph's item.
-    const { barPage, capsuleNow } = statusBar({ pages, desktopLaid });
+    const { barPage, capsuleNow, countedWide } = statusBar({ pages, desktopLaid });
     const screenWidth = (await desktopLaid())?.rect.width;
     const capsule =
         (await until(async () => {
@@ -2953,12 +2969,13 @@ async function walk({
             const now = await capsuleNow();
             return now.joined?.name === 'Star, 99+, attention' && now;
         }, 4000);
+        const star = await countedWide('99+');
         check(
             'an item set anew is named by its name, its count and its attention, and laid as wide as it draws',
             itemCounted &&
-                itemCounted.joined.width === 57 &&
-                besideClock(itemCounted)?.room === besideClock(unjoined)?.room + 61,
-            JSON.stringify({ itemCounted, now: await capsuleNow() })
+                itemCounted.joined.width === star &&
+                besideClock(itemCounted)?.room === besideClock(unjoined)?.room + star + 4,
+            JSON.stringify({ itemCounted, star, now: await capsuleNow() })
         );
         await setItem({ name: 'Star', label: 'x'.repeat(25) });
         const refusedItem = await until(async () => await mark(joinsPage, 'set'), 4000);
