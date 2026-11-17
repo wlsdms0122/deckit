@@ -1,7 +1,7 @@
 // What the web engine's script (deckit-electron web/script.js) tells a document of its own accord, a click on a
 // notification it showed and the news that its site may have notifications, is untaken from the moment it is due, a
 // click before its word among it, until deckit's world in that document says `taken` of it, and none is untaken once
-// the document is gone, by a new one or with its page.
+// the document is gone, by a new one, with its page, or as a frame's document says it goes.
 // Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -57,6 +57,28 @@ async function main() {
     check('a click before its word is told as the word comes', told.id === 7 && told.told > click.told);
     said({ op: 'taken', told: told.told });
     check('a click before its word is taken once its document says so', SCRIPT.untaken() === 0);
+
+    // A frame's document goes, by another or as the frame is removed, and says so; the main frame's stays.
+    const sub = { origin: ORIGIN, main: false, answer: (body) => answers.push(body && JSON.parse(body)) };
+    const inFrame = (message) => heard(JSON.stringify({ ...message, document: 'framed' }), sub);
+    inFrame({ op: 'show', id: 8, title: 't', body: '', silent: false });
+    const framed = answers.at(-1).answer;
+    inFrame({ op: 'click', id: 9, notification: framed });
+    said({ op: 'show', id: 10, title: 't', body: '', silent: false });
+    const kept = answers.at(-1).answer;
+    SCRIPT.clickNotification(page, kept);
+    SCRIPT.clickNotification(page, framed);
+    check("a click told in a frame is untaken with the main frame's", SCRIPT.untaken() === 2);
+    inFrame({ op: 'gone' });
+    check('a document of a frame that goes takes its own', SCRIPT.untaken() === 1);
+    said({ op: 'click', id: 11, notification: kept });
+    said({ op: 'taken', told: answers.at(-1).told });
+    check("the main frame's is taken as it says so", SCRIPT.untaken() === 0);
+    inFrame({ op: 'show', id: 12, title: 't', body: '', silent: false });
+    const lost = answers.at(-1).answer;
+    inFrame({ op: 'gone' });
+    SCRIPT.clickNotification(page, lost);
+    check('a notification of a document gone is clicked to none', SCRIPT.untaken() === 0);
 
     said({ op: 'news', id: 3 });
     check('news that waits is told nothing', SCRIPT.untaken() === 0);
