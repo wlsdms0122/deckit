@@ -1,0 +1,51 @@
+case = 27
+name = "a-set-gives-a-declared-item-its-tone"
+note = "The host ships the status bar by its id, on the base shell, 1280 by 800, under a bar 32 high. ada sits at s1. Each mod-* is granted deckit.panel-windows and uses status-bar/items; one with a command runs it by opening https://said.test/<id>/ran/<command> outside the app, and opens the view view, 320 by 200, activates false, under the anchor { mod = \"status-bar\", id = <its id> } as the event <id>:go tells it, its didAppear, didDisappear and didClose opening https://said.test/<id>/view/<callback>. mod-a declares Alpha with the glyph bell and sets { tone = \"attention\" }. The button is named Alpha, attention, and laid 32 wide, as the glyph alone: the tone adds no width; the capsule 36."
+
+[host]
+base = "shell"
+api = "1.0.0"
+mods = ["status-bar"]
+ship = ["mod-a"]
+bar = 32
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "dependencies.onConnect"
+args = ["status-bar/items"]
+listener = true
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "set"
+handed = true
+args = [{ tone = "attention" }]
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w1" }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "node", ref = "1.1" }
+part = "text"
+
+[step.expect]
+answers = "toolbar \"Status Bar\" 1.1 at 1236,2 36x28\n  button \"Alpha, attention\" [disabled] 1.2"
