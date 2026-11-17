@@ -23,5 +23,5 @@ export const follow = CHANNEL.pageToMain(
     { seat: 'string?' },
     { reply: true, guard: SEATS_PERMISSION.SEATS }
 );
-// What `read` answers changed.
-export const changed = CHANNEL.mainToPage('deckit-shell:seats-changed');
+// What `read` answers changed: answered once the page's every listener heard it.
+export const changed = CHANNEL.mainToPage('deckit-shell:seats-changed', { reply: true });

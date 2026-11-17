@@ -2869,7 +2869,8 @@ async function memberChecks({ ROSTER, createSeats, createDesktop }, check) {
     const desk = desktopOver(createDesktop, {});
     desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
     desk.desktop.control.show();
-    createSeats({ deckit: desk.deckit, DESKTOP: desk.desktop }).start();
+    const SEATS = createSeats({ deckit: desk.deckit, DESKTOP: desk.desktop });
+    SEATS.start();
     const page = { name: 'page-seats', mod: 'seats' };
     const asked = (channel, payload = {}) => desk.handlers[`deckit-shell:seats-${channel}`](payload, page);
     const changes = () => desk.sent.filter(({ channel }) => channel === 'deckit-shell:seats-changed');
@@ -2889,6 +2890,17 @@ async function memberChecks({ ROSTER, createSeats, createDesktop }, check) {
             changes().length === 2 &&
             changes().every((told) => told.page === page && JSON.stringify(told.payload) === '{}'),
         [sat, changes()]
+    );
+    const untold = SEATS.untaken();
+    changes()[0].taken();
+    await new Promise((resolve) => setTimeout(resolve));
+    const one = SEATS.untaken();
+    changes()[1].gone(new Error('the page is gone'));
+    await new Promise((resolve) => setTimeout(resolve));
+    check(
+        "a change told a mod's page is untaken until the page answers it heard it, and a page gone takes none",
+        untold === 2 && one === 1 && SEATS.untaken() === 0,
+        [untold, one, SEATS.untaken()]
     );
     const asking = (id) => {
         const control = new AbortController();
@@ -4133,6 +4145,9 @@ function desktopOver(
                 handle: (handler) => (handlers[declared.channel] = handler),
                 on: (handler) => (handlers[declared.channel] = handler),
                 send: (page, payload) => sent.push({ channel: declared.channel, page, payload }),
+                // Asked of a page: answered, or refused as the page goes, by `taken` or `gone` of what is sent.
+                invoke: (page, payload) =>
+                    new Promise((taken, gone) => sent.push({ channel: declared.channel, page, payload, taken, gone })),
             }),
         },
         log: { warn() {}, error() {} },
