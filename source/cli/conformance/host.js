@@ -624,12 +624,14 @@ function runningOf(mod) {
     return running ? { page: running.page } : { none: `no run of ${mod} is running` };
 }
 
-// Resolves once each telling the web engine told a web page's document of its own accord is taken, a click on a
-// notification or the news that a site may have notifications, and then once each running mod's page is quiet, as
-// after a press: what the document asked as it took it is told by then. Answers whether one was untaken.
+// Resolves once each telling told a page of its own accord is taken, by the web engine to a web page's document, a
+// click on a notification or the news that a site may have notifications, or by the shell to a mod's page, a change
+// of the seats, and then once each running mod's page is quiet, as after a press: what the page asked as it took it is
+// told by then. Answers whether one was untaken.
 async function tellingsTaken() {
-    if (!environment?.web.untaken() || !deckit) return false;
-    while (environment.web.untaken()) await new Promise((resolve) => setTimeout(resolve, 10));
+    const untaken = () => (environment?.web.untaken() ?? 0) + (controls?.untaken() ?? 0);
+    if (!untaken() || !deckit) return false;
+    while (untaken()) await new Promise((resolve) => setTimeout(resolve, 10));
     for (const { run, page } of deckit.mods.runs())
         if (run.state === 'running') await quiet.invoke(page, {}).catch(() => {});
     return true;
