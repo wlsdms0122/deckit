@@ -1,7 +1,8 @@
 // What reads a document as a person does, run in deckit's world of every page as each of its documents starts: its
 // roles, names, states, text and places, from the elements and their ARIA attributes as the page drew them. It numbers
-// each element it answers once, the number kept while the element lives, and keeps the last of its counts each number
-// changed at. `install` is run as written, so it reaches nothing outside itself.
+// each element it answers once, the number kept while the element lives, keeps the last of its counts each number
+// changed at, and, as each count is sealed, which elements its reading has. `install` is run as written, so it reaches
+// nothing outside itself.
 function install() {
     if (globalThis.deckitReader) return;
     const FRAME = 16; // ms
@@ -13,8 +14,9 @@ function install() {
     let count = 0; // goes up as what changed is sealed
     const changed = new Map(); // number -> the last count it changed at, 0 the document itself
     const open = new Set(); // the numbers changed since the last count, 0 the document itself
-    // element -> the count it was added or had an attribute change at: what may have come into sight under it then
-    const cameAt = new WeakMap();
+    // element -> the counts its line came into the document's reading and left it at, in turn, each as it was sealed
+    const sight = new WeakMap();
+    let inSight = new Set(); // the elements whose lines the reading had as the last count was sealed
     let timer = null;
 
     const INPUT = {
@@ -85,12 +87,12 @@ function install() {
 
     const numberOf = (el) => {
         let number = numbers.get(el);
-        if (number) return { number, fresh: false };
+        if (number) return number;
         number = next++;
         numbers.set(el, number);
         elements.set(number, new WeakRef(el));
         dropped.register(el, number);
-        return { number, fresh: true };
+        return number;
     };
     const elementOf = (number) => {
         const el = elements.get(number)?.deref();
@@ -164,14 +166,14 @@ function install() {
         }
         return out;
     };
-    // An element's own line, `level` deep: `{ depth, role, name, length, states, number, fresh, element }`.
+    // An element's own line, `level` deep: `{ depth, role, name, length, states, number, element }`.
     const lineOf = (el, role, level, { text }) => {
         const [name, length] = cut(nameOf(el, role), text);
         const line = {
             depth: level,
             role,
             states: statesOf(el, role, Math.min(text, 40)),
-            ...numberOf(el),
+            number: numberOf(el),
             element: el,
         };
         if (name) line.name = name;
@@ -212,8 +214,9 @@ function install() {
     });
 
     // The lines under `root`, itself included, each element with a role a line, in the document's order. With
-    // `detail`, text outside any role is a line of role `text`, `{ depth, role, name, length, element }`.
-    function read(root, { all = false, depth = 30, items = 30, text = 80, roles = null, detail = false } = {}) {
+    // `detail`, text outside any role is a line of role `text`, `{ depth, role, name, length, element }`. An element
+    // `keep` does not take is a line of its role and element alone, unnumbered.
+    function read(root, { all = false, depth = 30, items = 30, text = 80, roles = null, detail = false, keep } = {}) {
         const out = [];
         const walk = (el, level, clip, counter) => {
             if (el.getAttribute('aria-hidden') === 'true' || el.nodeName === 'SCRIPT' || el.nodeName === 'STYLE')
@@ -241,7 +244,7 @@ function install() {
                     if (counter.listed > items) return;
                 }
                 if (level > depth) return;
-                line = lineOf(el, role, level, { text });
+                line = !keep || keep(el) ? lineOf(el, role, level, { text }) : { depth: level, role, element: el };
                 out.push(line);
                 if (level === depth) {
                     const under = el.querySelectorAll('*').length;
@@ -286,7 +289,7 @@ function install() {
     }
 
     // A line as it is answered, without what only the reader holds.
-    const plain = ({ fresh: _fresh, element: _element, ...line }) => line;
+    const plain = ({ element: _element, ...line }) => line;
 
     // How a field of one line draws its text: `at(offset)`, the x in the page of the place before the character at
     // `offset` of its value, measured from the text before it, and `y`, `height`, `left`, `right` of the box the text
@@ -414,7 +417,19 @@ function install() {
         if (numbers.has(node)) open.add(numbers.get(node));
         for (const el of node.querySelectorAll('*')) if (numbers.has(el)) open.add(numbers.get(el));
     };
-    // What changed since the last count becomes the next count's, and deckit is told the count.
+    // Which elements the reading has at this count, each that came into it or left it kept as doing so at it.
+    const note = () => {
+        const root = document.documentElement;
+        const now = new Set(root ? read(root, { keep: () => false }).map((line) => line.element) : []);
+        const flip = (el) => (sight.get(el) ?? sight.set(el, []).get(el)).push(count);
+        for (const el of now) if (!inSight.has(el)) flip(el);
+        for (const el of inSight) if (!now.has(el)) flip(el);
+        inSight = now;
+    };
+    // Whether an element's line was in the reading as the count `at` was sealed.
+    const seenAt = (el, at) => (sight.get(el) ?? []).filter((each) => each <= at).length % 2 === 1;
+    // What changed since the last count becomes the next count's, what the reading has then is kept, and deckit is
+    // told the count.
     function seal() {
         clearTimeout(timer);
         timer = null;
@@ -422,6 +437,7 @@ function install() {
         count += 1;
         for (const number of open) changed.set(number, count);
         open.clear();
+        note();
         try {
             const word = JSON.stringify({ reader: { key, count } });
             webkit.messageHandlers.deckit.postMessage(word)?.catch?.(() => {});
@@ -429,11 +445,10 @@ function install() {
             // No one hears this document.
         }
     }
+    note();
     new MutationObserver((records) => {
         for (const record of records) {
             mark(record.target);
-            if (record.type === 'attributes') cameAt.set(record.target, count + 1);
-            for (const node of record.addedNodes) if (node.nodeType === 1) cameAt.set(node, count + 1);
             for (const node of record.removedNodes) markRemoved(node);
         }
     }).observe(document, { subtree: true, childList: true, attributes: true, characterData: true });
@@ -485,46 +500,34 @@ function install() {
             return answer;
         },
         // What reads otherwise since `since`, a count of this document's: `{ key, from, count, entries }`, each entry a
-        // line as it reads now, `kind` `~`, a line not answered before that came into sight since, `+`, or
-        // `{ kind: '-', number }`, an element gone.
+        // line as it reads now, `kind` `~`, a line the reading did not have at `since`, `+`, whatever brought it into
+        // sight, or `{ kind: '-', number }`, an element gone.
         changes(asked, since) {
             if (asked !== key) return refuse('GONE');
             seal();
             if (!Number.isInteger(since) || since < 0 || since > count) return refuse('STALE');
             const numbers = [...changed].flatMap(([number, at]) => (at > since ? [number] : []));
             const entries = [];
-            const told = new Set();
-            // A line not answered before is told as added only where it may not have been in sight at `since`: it or
-            // an element above it was added or changed an attribute after it.
-            const came = (line) => {
-                for (let at = line.element; at; at = at.parentElement) if ((cameAt.get(at) ?? 0) > since) return true;
-                return false;
-            };
-            const tell = (kind, line) => {
-                if (told.has(line.number)) return;
-                told.add(line.number);
-                entries.push({ kind, ...plain(line) });
-            };
+            const came = (el) => !seenAt(el, since);
+            const root = document.documentElement;
+            const added = root ? read(root, { keep: came }).filter((line) => came(line.element)) : [];
+            const adding = new Set(added.map((line) => line.element));
             for (const number of numbers.sort((a, b) => a - b)) {
-                if (!number) {
-                    for (const line of read(document.documentElement)) if (line.fresh && came(line)) tell('+', line);
-                    continue;
-                }
-                const el = elementOf(number);
+                const el = number && elementOf(number);
+                if (!number || adding.has(el)) continue;
                 if (!el) {
                     entries.push({ kind: '-', number });
                     continue;
                 }
-                const lines = read(el);
-                if (lines[0]?.number === number) tell('~', lines.shift());
+                const [line] = read(el, { keep: (each) => each === el });
+                if (line?.element === el) entries.push({ kind: '~', ...plain(line) });
                 else {
-                    const line = lineOf(el, roleOf(el) ?? 'generic', 0, { text: 80 });
-                    line.states.push('not in view');
-                    tell('~', line);
-                    continue;
+                    const away = lineOf(el, roleOf(el) ?? 'generic', 0, { text: 80 });
+                    away.states.push('not in view');
+                    entries.push({ kind: '~', ...plain(away) });
                 }
-                for (const line of lines) if (line.fresh && came(line)) tell('+', line);
             }
+            for (const line of added) entries.push({ kind: '+', ...plain(line) });
             return { key, from: since, count, entries };
         },
         // An element's rect in the page, once it is scrolled into view.
