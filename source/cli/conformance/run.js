@@ -7,6 +7,7 @@ const net = require('net');
 const path = require('path');
 const { spawn } = require('child_process');
 const TOML = require('./toml.js');
+const { same } = require('./match.js');
 const KEYS = require('../outside/keys.js');
 const PARTY = require('../outside/client.js');
 
@@ -655,26 +656,6 @@ function matches(expect, came) {
     if (!expect) return !came.refuses && !came.none;
     if ('answers' in expect) return 'answers' in came && same(expect.answers, came.answers);
     return came.refuses === expect.refuses && came.kind === expect.kind;
-}
-
-// Values matched strictly; a key answered with null is a key not answered.
-function same(expected, actual) {
-    if (Array.isArray(expected))
-        return (
-            Array.isArray(actual) &&
-            actual.length === expected.length &&
-            expected.every((one, at) => same(one, actual[at]))
-        );
-    if (TOML.isTable(expected)) {
-        if (!TOML.isTable(actual)) return false;
-        const answered = Object.keys(actual).filter((key) => actual[key] !== null);
-        const keys = Object.keys(expected);
-        return (
-            answered.length === keys.length &&
-            keys.every((key) => answered.includes(key) && same(expected[key], actual[key]))
-        );
-    }
-    return expected === actual;
 }
 
 function describe(came) {
