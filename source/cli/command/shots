@@ -214,6 +214,7 @@ async function draw(app, look, shots, origin) {
         dockNow,
         show,
         desktopShot,
+        stagePicture,
         allowed,
         answerOf,
         answer,
@@ -235,25 +236,30 @@ async function draw(app, look, shots, origin) {
         }
         if (!fs.existsSync(path.join(shots, name + '.png'))) missed.push(name);
     };
-    // Mod `id`'s front window alone over the desktop's backdrop: its frame, its content and the pages laid in it, and
-    // with `overlay` what its page presents over it.
+    // Mod `id`'s front window alone over the desktop's backdrop, as the stage takes its picture: its frame, its content
+    // and the pages and materials laid in it, and with `overlay` what its page presents over it and its material.
     const windowShot = async (name, id, { overlay = false } = {}) => {
-        const laid = (await desktopLaid())?.pages || [];
+        const stage = await desktopLaid();
+        const laid = (stage?.layers || []).filter(({ hidden }) => !hidden);
         const window = (await windowsNow()).filter(({ mod }) => mod === id).at(-1);
         if (!window) return;
         const from = laid.findIndex(({ name: each }) => each === `frame-${window.id}`);
         const to = laid.findIndex(({ name: each }) => each === `buttons-${window.id}`);
-        if (from < 0 || to < 0) return;
+        const backdrop = laid.find(({ name: each }) => each === 'backdrop');
+        const session = backdrop && (await pageById(backdrop.id));
+        if (from < 0 || to < 0 || !session) return;
         const opener = laid.find(({ id: each }) => each === window.content)?.opener;
-        const drawn = laid.slice(from, to + 1);
-        if (overlay) drawn.push(...laid.filter((each) => each.name === 'deckit-overlay' && each.opener === opener));
-        drawn.unshift(...laid.filter(({ name: each }) => each === 'backdrop'));
-        const layers = [];
-        for (const { id: each, rect, clips, hidden } of drawn) {
-            const session = !hidden && (await pageById(each));
-            if (session) layers.push({ session, x: rect.x, y: rect.y, clips });
-        }
-        await compose(name, layers, { crop: laid[from].rect, under });
+        const drawn = [backdrop, ...laid.slice(from, to + 1)];
+        if (overlay)
+            laid.forEach((each, at) => {
+                if (each.name !== 'deckit-overlay' || each.opener !== opener) return;
+                if (laid[at - 1]?.material) drawn.push(laid[at - 1]);
+                drawn.push(each);
+            });
+        const scale = await session.evaluate('devicePixelRatio');
+        const rect = { x: 0, y: 0, width: stage.rect.width, height: stage.rect.height };
+        const data = await stagePicture(drawn, rect, scale);
+        if (typeof data === 'string') await compose(name, [{ session, data }], { crop: laid[from].rect, under });
     };
     // The switcher's floating window, centred across the desktop a fifth of the way down as it floats there, with a
     // margin of what is behind it.

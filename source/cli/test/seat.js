@@ -204,20 +204,20 @@ function seat({ main, pageById, compose, desktop }) {
                 )
             )}, ${JSON.stringify({ rect, scale })})`
         );
-    // The desktop as a person sees it, its pages laid one over another from the backdrop up, with `compose`'s options:
-    // those that take the pointer somewhere, and the cursors' surface, which takes it nowhere.
+    // The desktop as a person sees it, as the stage takes its picture, from the backdrop up, with `compose`'s options:
+    // the pages that take the pointer somewhere, the cursors' surface, which takes it nowhere, and the materials.
     const desktopShot = async (name, options) => {
-        const laid = ((await desktopLaid())?.pages || []).filter(
-            ({ name: each, input }) => each === 'cursors' || !Array.isArray(input) || input.length
+        const stage = await desktopLaid();
+        const laid = (stage?.layers || []).filter(
+            ({ material, name: each, input }) => material || each === 'cursors' || !Array.isArray(input) || input.length
         );
         const from = laid.findIndex(({ name: each }) => each === 'backdrop');
-        if (from < 0) return;
-        const layers = [];
-        for (const { id, rect, clips } of laid.slice(from)) {
-            const session = await pageById(id);
-            if (session) layers.push({ session, x: rect.x, y: rect.y, clips });
-        }
-        await compose(name, layers, options);
+        const session = from < 0 ? null : await pageById(laid[from].id);
+        if (!session) return;
+        const scale = await session.evaluate('devicePixelRatio');
+        const rect = { x: 0, y: 0, width: stage.rect.width, height: stage.rect.height };
+        const data = await stagePicture(laid.slice(from), rect, scale);
+        if (typeof data === 'string') await compose(name, [{ session, data }], options);
     };
     // The windows of the mod `mod` the host window lays over the desktop's page, the local seat's screen, as
     // `desktopLaid` has each: one on another seat's screen alone lies under the backdrop and is left out.
