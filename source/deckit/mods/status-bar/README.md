@@ -47,7 +47,7 @@ The capsule has two regions. The fixed region, at its right end, holds the fixed
 
 The person names what is fixed. A context press on an item opens a menu of one entry under the capsule: Keep in Bar on an item that is not fixed, Don't Keep in Bar on one that is. Keep in Bar puts the item's mod id last in the list, so the item stands leftmost in the fixed region; Don't Keep in Bar takes it out of the list, and the item scrolls with the others again, where it came among them. The list is kept whole from the first time it changes. An id in the list whose mod gives no item keeps its place and shows nothing, and the item stands there again as its mod gives it.
 
-An item is 24px tall: a 16px glyph, the label as wide as it draws, 160px at most, and the count, written `99+` beyond 99, 4px apart with 8px on each side. An item that holds no glyph, no label and no count is not laid.
+An item is 24px tall: a 16px glyph, the label as wide as it draws, 160px at most, and the count as wide as it draws, written `99+` beyond 99, 4px apart with 8px on each side. An item that holds no glyph, no label and no count is not laid.
 
 The capsule is as wide as its items, up to the room the shell tells it has in the bar (`room`, MOD.md). In a room that does not hold them all the fixed region stays whole and the others scroll sideways in what is left: a turn of the wheel over them scrolls them, by its sideways part or by the vertical one where that is the larger, an item that comes is scrolled into view, and what goes on past an end of the region fades there.
 

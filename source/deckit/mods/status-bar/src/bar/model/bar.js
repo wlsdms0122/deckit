@@ -1,7 +1,8 @@
 // MARK: - Property
 // The status bar as plain data: the items mods give it, the order they came in, which of them are fixed and how the
 // person fixes one, and where each is laid in the capsule's two regions, the fixed one at its right end and the one
-// that scrolls sideways left of it. Sizes are constants here and a label's width is handed in, so every rect is known without asking a page.
+// that scrolls sideways left of it. Sizes are constants here and the drawn width of a label and of a count is handed
+// in, so every rect is known without asking a page.
 // The capsule: its height, the inset around its regions, and the room between items and between the regions.
 const CAPSULE = Object.freeze({ height: 28, inset: 2, gap: 4 });
 // The items that are fixed until the person names others: the ids of their mods, the first rightmost.
@@ -9,11 +10,11 @@ const FIXED = Object.freeze(['clock', 'notifications']);
 // What the one entry of an item's menu says: on an item that is not fixed, and on one that is.
 const KEEP = Object.freeze({ on: 'Keep in Bar', off: "Don't Keep in Bar" });
 // An item: its height, the glyph it shows, the padding at each side and the room between its parts. A label holds
-// `letters` characters at most and is laid as wide as it was measured, `widest` at most, `letter` a character until
-// it is measured.
+// `letters` characters at most and is laid `widest` at most. A label and a count are laid as wide as they were
+// measured, `letter` a character until they are.
 const ITEM = Object.freeze({ height: 24, glyph: 16, padding: 8, gap: 4, letters: 24, widest: 160, letter: 7 });
-// A count: the most it writes as it is, and the width it adds, `digit` a character.
-const COUNT = Object.freeze({ most: 99, digit: 7 });
+// A count: the most it writes as it is.
+const COUNT = Object.freeze({ most: 99 });
 // What an item is named by, a glyph and a command are: letters, digits, "_" and "-".
 const WORD = /^[A-Za-z0-9_-]{1,64}$/;
 const NAMED = 64;
@@ -93,13 +94,14 @@ function shows({ icon, label, count }) {
     return !!icon || !!label || count !== null;
 }
 
-// How wide an item is laid: a glyph alone is 32; a count adds its characters, a label its width in `widths`, a
-// label's text to its measured width, ITEM.widest at most.
+// How wide an item is laid: a glyph alone is 32; a label adds its width, ITEM.widest at most, and a count the width
+// of its text, each as `widths`, a text to its measured width, holds it.
 function widthOf({ icon, label, count }, widths = {}) {
+    const drawn = (text) => Math.ceil(widths[text] ?? text.length * ITEM.letter);
     const parts = [
         ...(icon ? [ITEM.glyph] : []),
-        ...(label ? [Math.min(Math.ceil(widths[label] ?? label.length * ITEM.letter), ITEM.widest)] : []),
-        ...(count === null ? [] : [countText(count).length * COUNT.digit]),
+        ...(label ? [Math.min(drawn(label), ITEM.widest)] : []),
+        ...(count === null ? [] : [drawn(countText(count))]),
     ];
     return 2 * ITEM.padding + parts.reduce((sum, each) => sum + each, 0) + (parts.length - 1) * ITEM.gap;
 }
