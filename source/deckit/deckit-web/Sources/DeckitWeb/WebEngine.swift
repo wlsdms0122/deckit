@@ -59,7 +59,8 @@ import CNodeAPI
 //   the page a press at a point of the window's content, from its top left, reaches as the window hit tests it, or
 //   null where it reaches none.
 // - Pictures (Capture): `capture(layers, { rect, scale }) -> Promise of a PNG in base64`, `rect` of a stage as
-//   `layers`, those `layStage` takes, would have it, made from what each page draws, `scale` pixels a point, 1 without.
+//   `layers`, those `layStage` takes, would have it, made from what each page draws, a material drawn as on a screen,
+//   blurring what is under it within its frame, `scale` pixels a point, 1 without.
 // A store is a UUID, as WebKit names a data store; none keeps nothing.
 @MainActor
 final class WebEngine {

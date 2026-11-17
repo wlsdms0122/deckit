@@ -142,7 +142,8 @@ const SHELL_PAGE = Object.freeze({
 // the stage reaches were `laid` what is on it, with the point from that page's top left, read from the list alone, so
 // for an order that is not shown too; `capture(laid, { rect, scale }) -> Promise of a PNG`, `rect` of the stage, all of
 // it without, as it would be seen were `laid` what is on it, made from what each page draws, a page under another
-// whole, a material and a hidden page leaving nothing, `scale` pixels a point; `close()`, the stage ended, its pages
+// whole, a material drawn as on a screen, what is under it in the picture blurred within its rect, rounded by its
+// radius, a hidden page leaving nothing, `scale` pixels a point; `close()`, the stage ended, its pages
 // taken off and it out of its window. Where a page laid on it, or a surface it opened, marks itself with `--app-region:
 // drag`, a press drags the window it is in and a double click does what the person set a title bar's to do, unless what
 // draws in that document took its drags (SHELL_PAGE.drags); `--app-region: no-drag` marks what inside it takes presses

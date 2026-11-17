@@ -6,14 +6,22 @@
 //
 
 import AppKit
+import CoreImage
 import WebKit
 
 // A picture of pages as layers have them, bottom to top, made from what each page draws and from no window: so the
 // order may be one that is not shown, and a page under another is drawn whole. A page is cut to its clips and drawn
-// at its opacity and scale; a hidden page, a page that draws nothing and a material leave nothing in the picture.
+// at its opacity and scale; a material is drawn as on a screen, what the picture has under it so far blurred within
+// its rect, rounded at its corners; a hidden page and a page that draws nothing leave nothing in the picture.
 @MainActor
 enum Capture {
     // MARK: - Property
+    // How far a material blurs what is under it, in points: the deviation of the gaussian blur the host's materials
+    // show to the eye, behind the window and within it alike.
+    static let blur: CGFloat = 30
+
+    private static let images = CIContext(options: [.cacheIntermediates: false])
+
     // What is gathered while the pages draw.
     private final class Pending {
         var drawn: [Int: CGImage] = [:] // a layer's index -> what its page drew
@@ -79,6 +87,10 @@ enum Capture {
         context.scaleBy(x: scale, y: -scale)
         context.translateBy(x: -rect.minX, y: -rect.minY)
         for (index, layer) in layers.enumerated() {
+            if case let .material(_, rect: laid, cornerRadius: cornerRadius) = layer {
+                blur(context, under: laid, cornerRadius: cornerRadius, of: rect, scale: scale)
+                continue
+            }
             guard let image = drawn[index],
                   case let .page(_, frame: frame?, clips: clips, input: _, opacity: opacity, scale: scaled) = layer
             else {
@@ -109,5 +121,30 @@ enum Capture {
         }
 
         return .success(png)
+    }
+
+    // What `context`, the picture of `rect` at `scale`, has drawn so far drawn again blurred, within `laid` rounded by
+    // `cornerRadius`; its edges are blurred as though what is at them went on past them.
+    private static func blur(
+        _ context: CGContext,
+        under laid: CGRect,
+        cornerRadius: CGFloat,
+        of rect: CGRect,
+        scale: CGFloat
+    ) {
+        guard laid.intersects(rect), let drawn = context.makeImage() else { return }
+        let source = CIImage(cgImage: drawn)
+        let blurred = source.clampedToExtent().applyingGaussianBlur(sigma: Double(blur * scale))
+        guard let image = images.createCGImage(blurred, from: source.extent) else { return }
+
+        context.saveGState()
+        let radius = max(0, min(cornerRadius, laid.width / 2, laid.height / 2))
+        context.addPath(CGPath(roundedRect: laid, cornerWidth: radius, cornerHeight: radius, transform: nil))
+        context.clip()
+        context.setBlendMode(.copy)
+        context.translateBy(x: rect.minX, y: rect.maxY)
+        context.scaleBy(x: 1, y: -1)
+        context.draw(image, in: CGRect(origin: .zero, size: rect.size))
+        context.restoreGState()
     }
 }

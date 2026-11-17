@@ -274,6 +274,7 @@ async function walk({
     desktop,
 }) {
     const { laidNow, desktopLaid, pageAt, windowsNow, keyMod, windowOf, dockNow, dockClick, show, desktopShot } = local;
+    const { stagePicture } = local;
     const asksAttention = async (id) => !!(await dockNow()).find((item) => item.id === id)?.attention;
     // What the strip over the desktop holds: nothing but the host's controls.
     const stripText = () => desktop.evaluate(`document.querySelector('.deckit-desktop-strip')?.textContent ?? null`);
@@ -1013,6 +1014,29 @@ async function walk({
         const laidUnder = await until(menuMaterials, 2000);
         const menuTinted = await settingsOverlay?.evaluate(
             `document.querySelector('.deckit-menu[data-state="open"]')?.hasAttribute('data-material')`
+        );
+        // A picture draws the material as the screen does: what is under the menu there blurred, not sharp, and the
+        // same picture again without the material is the sharp one it was.
+        const glassLaid = (await desktopLaid())?.layers ?? [];
+        const glass = glassLaid.findLast(({ material, radius }) => material && radius === 10);
+        const sharp = glassLaid.filter(({ material }) => !material);
+        const pictured = glass && [
+            await stagePicture(sharp, glass.rect),
+            await stagePicture(glassLaid, glass.rect),
+            await stagePicture(sharp, glass.rect),
+        ];
+        check(
+            'a picture draws a material laid as the screen does, not the sharp pixels under it',
+            !!pictured &&
+                pictured.every((png) => typeof png === 'string') &&
+                pictured[0] === pictured[2] &&
+                pictured[1] !== pictured[0],
+            JSON.stringify({
+                glass,
+                materials: glassLaid.filter(({ material }) => material),
+                pictured: pictured && pictured.map((png) => (typeof png === 'string' ? png.length : png)),
+                same: pictured && [pictured[0] === pictured[2], pictured[1] === pictured[0]],
+            })
         );
         await settingsOverlay?.key('ArrowDown', 'ArrowDown', 0, 40);
         await settingsOverlay?.key('Enter', 'Enter', 0, 13);
