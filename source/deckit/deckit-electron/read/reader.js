@@ -1,8 +1,8 @@
 // What reads a document as a person does, run in deckit's world of every page as each of its documents starts: its
-// roles, names, states, text and places, from the elements and their ARIA attributes as the page drew them. It numbers
-// each element it answers once, the number kept while the element lives, keeps the last of its counts each number
-// changed at, and, as each count is sealed, which elements its reading has. `install` is run as written, so it reaches
-// nothing outside itself.
+// roles, names, states, text and places, from the elements and their ARIA attributes as the page drew them, each
+// place where its element stands once what moves has come to rest. It numbers each element it answers once, the
+// number kept while the element lives, keeps the last of its counts each number changed at, and, as each count is
+// sealed, which elements its reading has. `install` is run as written, so it reaches nothing outside itself.
 function install() {
     if (globalThis.deckitReader) return;
     const FRAME = 16; // ms
@@ -18,6 +18,7 @@ function install() {
     const sight = new WeakMap();
     let inSight = new Set(); // the elements whose lines the reading had as the last count was sealed
     let timer = null;
+    let resting = false; // while a reading reads what moves at rest
 
     const INPUT = {
         checkbox: 'checkbox',
@@ -403,6 +404,27 @@ function install() {
         return { line: at + 1, column: before.toString().length, length: selection.toString().length };
     }
 
+    // `reading` run with each finite motion of the document under way drawn at its end, and the motions put back where
+    // they were before anything else runs: a reading tells where a thing stands, not where it is drawn this frame. A
+    // motion that never ends is read where it is drawn.
+    function atRest(reading) {
+        if (resting) return reading();
+        const moving = document.getAnimations().flatMap((animation) => {
+            const was = animation.currentTime;
+            const { endTime } = animation.effect?.getComputedTiming() ?? {};
+            if (animation.playState !== 'running' || was === null || !Number.isFinite(endTime)) return [];
+            return [{ animation, was, end: animation.playbackRate < 0 ? 0 : endTime }];
+        });
+        resting = true;
+        try {
+            for (const { animation, end } of moving) animation.currentTime = end;
+            return reading();
+        } finally {
+            for (const { animation, was } of moving) animation.currentTime = was;
+            resting = false;
+        }
+    }
+
     // MARK: - What changed
     const mark = (node) => {
         let number = 0;
@@ -420,7 +442,7 @@ function install() {
     // Which elements the reading has at this count, each that came into it or left it kept as doing so at it.
     const note = () => {
         const root = document.documentElement;
-        const now = new Set(root ? read(root, { keep: () => false }).map((line) => line.element) : []);
+        const now = new Set(root ? atRest(() => read(root, { keep: () => false })).map((line) => line.element) : []);
         const flip = (el) => (sight.get(el) ?? sight.set(el, []).get(el)).push(count);
         for (const el of now) if (!inSight.has(el)) flip(el);
         for (const el of inSight) if (!now.has(el)) flip(el);
@@ -465,79 +487,90 @@ function install() {
         // The document's outline: `{ key, count, width, height, lines }`.
         outline(knobs = {}) {
             const root = document.documentElement;
-            const lines = root ? read(root, knobs).map(plain) : [];
+            const lines = root ? atRest(() => read(root, knobs)).map(plain) : [];
             return { key, count, width: innerWidth, height: innerHeight, lines };
         },
         // What is under one element: its own line, its place, how far it is scrolled, its lines, text too, the first
         // `lines` of them where that is given, `more` counting the rest, what is selected in it, its caret and the
         // rects what is selected is drawn at.
-        node(asked, number, { lines: most = Infinity, ...knobs } = {}) {
+        node(asked, number, knobs = {}) {
             const el = found(asked, number);
-            if (!el) return refuse('GONE');
-            const role = roleOf(el) ?? 'generic';
-            const all = read(el, { text: 200, ...knobs, detail: true });
-            const own = all[0]?.number === number ? all.shift() : lineOf(el, role, 0, { text: knobs.text ?? 200 });
-            const answer = { key, count, line: plain(own), rect: rectOf(el.getBoundingClientRect()) };
-            if (scrolls(el))
-                answer.scroll = {
-                    top: el.scrollTop,
-                    height: el.scrollHeight,
-                    left: el.scrollLeft,
-                    width: el.scrollWidth,
-                };
-            let texts = 0;
-            const listed = all.filter((line) => line.role !== 'text' || ++texts <= most);
-            answer.lines = listed.map(plain);
-            if (all.length > listed.length) answer.more = all.length - listed.length;
-            if (FIELD.has(role)) {
-                const selection = selectionOf(el, all);
-                if (selection) answer.selection = selection;
-                const caret = caretOf(el);
-                if (caret) answer.caret = caret;
-                const selected = selectedOf(el);
-                if (selected.length) answer.selected = selected;
-            }
-            return answer;
+            return el ? atRest(() => nodeOf(el, number, knobs)) : refuse('GONE');
         },
         // What reads otherwise since `since`, a count of this document's: `{ key, from, count, entries }`, each entry a
         // line as it reads now, `kind` `~`, a line the reading did not have at `since`, `+`, whatever brought it into
         // sight, or `{ kind: '-', number }`, an element gone.
         changes(asked, since) {
             if (asked !== key) return refuse('GONE');
-            seal();
-            if (!Number.isInteger(since) || since < 0 || since > count) return refuse('STALE');
-            const numbers = [...changed].flatMap(([number, at]) => (at > since ? [number] : []));
-            const entries = [];
-            const came = (el) => !seenAt(el, since);
-            const root = document.documentElement;
-            const added = root ? read(root, { keep: came }).filter((line) => came(line.element)) : [];
-            const adding = new Set(added.map((line) => line.element));
-            for (const number of numbers.sort((a, b) => a - b)) {
-                const el = number && elementOf(number);
-                if (!number || adding.has(el)) continue;
-                if (!el) {
-                    entries.push({ kind: '-', number });
-                    continue;
-                }
-                const [line] = read(el, { keep: (each) => each === el });
-                if (line?.element === el) entries.push({ kind: '~', ...plain(line) });
-                else {
-                    const away = lineOf(el, roleOf(el) ?? 'generic', 0, { text: 80 });
-                    away.states.push('not in view');
-                    entries.push({ kind: '~', ...plain(away) });
-                }
-            }
-            for (const line of added) entries.push({ kind: '+', ...plain(line) });
-            return { key, from: since, count, entries };
+            return atRest(() => changesSince(since));
         },
         // An element's rect in the page, once it is scrolled into view.
         place(asked, number) {
             const el = found(asked, number);
             if (!el) return refuse('GONE');
-            el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
-            return { key, count, rect: rectOf(el.getBoundingClientRect()) };
+            return atRest(() => {
+                el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+                return { key, count, rect: rectOf(el.getBoundingClientRect()) };
+            });
         },
     });
+
+    // What is under one element, as `node` answers it.
+    function nodeOf(el, number, { lines: most = Infinity, ...knobs }) {
+        const role = roleOf(el) ?? 'generic';
+        const all = read(el, { text: 200, ...knobs, detail: true });
+        const own = all[0]?.number === number ? all.shift() : lineOf(el, role, 0, { text: knobs.text ?? 200 });
+        const answer = { key, count, line: plain(own), rect: rectOf(el.getBoundingClientRect()) };
+        if (scrolls(el))
+            answer.scroll = {
+                top: el.scrollTop,
+                height: el.scrollHeight,
+                left: el.scrollLeft,
+                width: el.scrollWidth,
+            };
+        let texts = 0;
+        const listed = all.filter((line) => line.role !== 'text' || ++texts <= most);
+        answer.lines = listed.map(plain);
+        if (all.length > listed.length) answer.more = all.length - listed.length;
+        if (FIELD.has(role)) {
+            const selection = selectionOf(el, all);
+            if (selection) answer.selection = selection;
+            const caret = caretOf(el);
+            if (caret) answer.caret = caret;
+            const selected = selectedOf(el);
+            if (selected.length) answer.selected = selected;
+        }
+        return answer;
+    }
+
+    // What reads otherwise since `since`, as `changes` answers it.
+    function changesSince(since) {
+        seal();
+        if (!Number.isInteger(since) || since < 0 || since > count) return refuse('STALE');
+        const numbers = [...changed].flatMap(([number, at]) => (at > since ? [number] : []));
+        const entries = [];
+        const came = (el) => !seenAt(el, since);
+        const root = document.documentElement;
+        const added = root ? read(root, { keep: came }).filter((line) => came(line.element)) : [];
+        const adding = new Set(added.map((line) => line.element));
+        for (const number of numbers.sort((a, b) => a - b)) {
+            const el = number && elementOf(number);
+            if (!number || adding.has(el)) continue;
+            if (!el) {
+                entries.push({ kind: '-', number });
+                continue;
+            }
+            const [line] = read(el, { keep: (each) => each === el });
+            if (line?.element === el) entries.push({ kind: '~', ...plain(line) });
+            else {
+                const away = lineOf(el, roleOf(el) ?? 'generic', 0, { text: 80 });
+                away.states.push('not in view');
+                entries.push({ kind: '~', ...plain(away) });
+            }
+        }
+        for (const line of added) entries.push({ kind: '+', ...plain(line) });
+        return { key, from: since, count, entries };
+    }
 }
 
 // The reader, as a script a document runs.

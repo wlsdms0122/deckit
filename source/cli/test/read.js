@@ -358,6 +358,39 @@ async function run({ check, main, open }) {
         JSON.stringify(bare)
     );
 
+    // A place is where an element stands: one sliding in reads where it comes to rest, and slides on from where it was.
+    await editor.evaluate(`(() => {
+        const slide = Object.assign(document.createElement('div'), { id: 'deckit-read-slide', textContent: 'Slide' });
+        slide.setAttribute('role', 'note');
+        slide.style.cssText = 'position:fixed;left:24px;top:360px;width:220px;height:24px;z-index:99999';
+        document.body.append(slide);
+        const moving = slide.animate([{ transform: 'translateX(40px)' }, { transform: 'none' }], { duration: 60000 });
+        moving.onfinish = () => (slide.dataset.finished = 'true');
+        return true;
+    })()`);
+    const sliding = (await read('outline', editor.id)).lines?.find((line) => line.role === 'note');
+    const rest = await read('node', editor.id, sliding?.ref);
+    await sleep(50);
+    const drawn = await editor.evaluate(`(() => {
+        const slide = document.querySelector('#deckit-read-slide');
+        const [moving] = slide.getAnimations();
+        const answer = { x: slide.getBoundingClientRect().x, state: moving?.playState, time: moving?.currentTime,
+            finished: slide.dataset.finished ?? null };
+        moving?.cancel();
+        slide.remove();
+        return answer;
+    })()`);
+    check(
+        'read: an element sliding in reads where it comes to rest, and slides on from where it is drawn',
+        rest.rect?.x === 24 &&
+            drawn.x > 50 &&
+            drawn.state === 'running' &&
+            drawn.time > 0 &&
+            drawn.time < 30000 &&
+            drawn.finished === null,
+        `${JSON.stringify(rest.rect)} ${JSON.stringify(drawn)}`
+    );
+
     // An element's place, once it is in view.
     const far = named((await read('outline', editor.id, { all: true })).lines, 'Far');
     const hidden = named((await read('outline', editor.id)).lines, 'Far');
