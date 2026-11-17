@@ -409,6 +409,8 @@ function install() {
     // MARK: - Where a thing stands
     // What says how an element is drawn, in the order the engine composes them about its transform origin.
     const DRAWN = ['translate', 'rotate', 'scale', 'transform'];
+    // An element of HTML told by its namespace: one made by another document keeps that document's prototypes.
+    const HTML = 'http://www.w3.org/1999/xhtml';
 
     // `reading` run knowing which elements a motion of how they are drawn moves, each rect read where it stands once
     // those motions end: a reading tells where a thing stands, not where it is drawn this frame, and writes nothing
@@ -529,7 +531,7 @@ function install() {
         const ends = moves.ends.get(el);
         const sum = (...parts) => parts.reduce((total, part) => total + parseFloat(style[part]), 0);
         const box =
-            el instanceof HTMLElement && style.width.endsWith('px') && style.height.endsWith('px')
+            el.namespaceURI === HTML && style.width.endsWith('px') && style.height.endsWith('px')
                 ? style.boxSizing === 'border-box'
                     ? { width: sum('width'), height: sum('height') }
                     : {

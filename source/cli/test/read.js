@@ -457,6 +457,40 @@ async function run({ check, main, open }) {
         `${JSON.stringify(held.rect)} drawn at ${borne}`
     );
 
+    // A card made by another document, set sliding in before it is placed, as a toast comes in, reads where it comes
+    // to rest: made in the reader's world, as there it keeps the prototypes of the document that made it.
+    await editor.evaluate(
+        `(() => {
+        const maker = Object.assign(document.createElement('iframe'), { id: 'deckit-read-maker' });
+        maker.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;border:0';
+        document.body.append(maker);
+        const card = Object.assign(maker.contentDocument.createElement('div'), { id: 'deckit-read-card' });
+        card.textContent = 'Card';
+        card.setAttribute('role', 'alert');
+        card.style.cssText = 'position:fixed;left:24px;top:360px;width:200px;height:40px;box-sizing:border-box;' +
+            'padding:4px;z-index:99999';
+        card.animate([{ transform: 'translate(16px) scale(1)' }, { transform: 'none' }], { duration: 60000 });
+        document.body.append(card);
+        return true;
+    })()`,
+        'deckit'
+    );
+    const coming = (await read('outline', editor.id)).lines?.find((line) => line.role === 'alert');
+    const come = await read('node', editor.id, coming?.ref);
+    const drawnAt = await editor.evaluate(`(() => {
+        const card = document.querySelector('#deckit-read-card');
+        const x = card.getBoundingClientRect().x;
+        card.getAnimations().forEach((each) => each.cancel());
+        card.remove();
+        document.querySelector('#deckit-read-maker').remove();
+        return x;
+    })()`);
+    check(
+        'read: a card made by another document, sliding in as it is placed, reads where it comes to rest',
+        JSON.stringify(come.rect) === JSON.stringify({ x: 24, y: 360, width: 200, height: 40 }) && drawnAt > 30,
+        `${JSON.stringify(come.rect)} drawn at ${drawnAt}`
+    );
+
     // An element's place, once it is in view.
     const far = named((await read('outline', editor.id, { all: true })).lines, 'Far');
     const hidden = named((await read('outline', editor.id)).lines, 'Far');
