@@ -1,6 +1,6 @@
 // What reads a document as a person does, run in deckit's world of every page as each of its documents starts: its
 // roles, names, states, text and places, from the elements and their ARIA attributes as the page drew them, each
-// place where its element stands once what moves has come to rest. It numbers each element it answers once, the
+// place where its element stands, measured, whatever moves. It numbers each element it answers once, the
 // number kept while the element lives, keeps the last of its counts each number changed at, and, as each count is
 // sealed, which elements its reading has. `install` is run as written, so it reaches nothing outside itself.
 function install() {
@@ -18,7 +18,7 @@ function install() {
     const sight = new WeakMap();
     let inSight = new Set(); // the elements whose lines the reading had as the last count was sealed
     let timer = null;
-    let resting = false; // while a reading reads what moves at rest
+    let moves = null; // while a reading runs, how each element a motion draws elsewhere stands at rest
 
     const INPUT = {
         checkbox: 'checkbox',
@@ -203,8 +203,7 @@ function install() {
     // What an element's ancestors that scroll leave of the page to see it in.
     const clipAround = (el) => {
         let clip = view();
-        for (let at = el.parentElement; at; at = at.parentElement)
-            if (scrolls(at)) clip = clipOf(at, at.getBoundingClientRect(), clip);
+        for (let at = el.parentElement; at; at = at.parentElement) if (scrolls(at)) clip = clipOf(at, placed(at), clip);
         return clip;
     };
     const rectOf = (rect) => ({
@@ -226,7 +225,7 @@ function install() {
             const item = role && ITEM.has(role) && counter;
             if (!all) {
                 if (!shown(el)) return;
-                const rect = el.getBoundingClientRect();
+                const rect = placed(el);
                 const drawn = rect.width > 0 || rect.height > 0;
                 if (drawn && !within(rect, clip)) {
                     if (item) counter.items++;
@@ -301,7 +300,7 @@ function install() {
         pen.font = style.font;
         pen.letterSpacing = style.letterSpacing;
         const drawn = el.type === 'password' ? '\u2022'.repeat(el.value.length) : el.value;
-        const rect = el.getBoundingClientRect();
+        const rect = placed(el);
         const left = rect.x + parseFloat(style.borderLeftWidth) + parseFloat(style.paddingLeft);
         const top = parseFloat(style.borderTopWidth) + parseFloat(style.paddingTop);
         const bottom = parseFloat(style.borderBottomWidth) + parseFloat(style.paddingBottom);
@@ -328,10 +327,13 @@ function install() {
         if (!selection.rangeCount || !el.contains(selection.focusNode)) return null;
         const range = document.createRange();
         range.setStart(selection.focusNode, selection.focusOffset);
-        const drawn = range.getClientRects()[0];
-        if (drawn) return rectOf({ x: drawn.x, y: drawn.y, width: 1, height: drawn.height });
         const holder = selection.focusNode.nodeType === 1 ? selection.focusNode : selection.focusNode.parentElement;
-        const rect = holder?.getBoundingClientRect();
+        const drawn = range.getClientRects()[0];
+        if (drawn) {
+            const { x, y, height } = restOf(holder, drawn);
+            return rectOf({ x, y, width: 1, height });
+        }
+        const rect = holder && placed(holder);
         return rect ? rectOf({ x: rect.x, y: rect.y, width: 1, height: rect.height }) : null;
     }
 
@@ -340,7 +342,7 @@ function install() {
     // line, and read from the selection's text in editable content.
     function selectedOf(el) {
         if (!focusIn(el)) return [];
-        const box = el.getBoundingClientRect();
+        const box = placed(el);
         if (typeof el.selectionEnd === 'number' && el.nodeName === 'INPUT') {
             if (el.selectionStart === el.selectionEnd) return [];
             const { at, y, height, left, right } = drawnIn(el);
@@ -360,7 +362,7 @@ function install() {
             const part = document.createRange();
             part.setStart(text, text === whole.startContainer ? whole.startOffset : 0);
             part.setEnd(text, text === whole.endContainer ? whole.endOffset : text.length);
-            for (const drawn of part.getClientRects()) {
+            for (const drawn of [...part.getClientRects()].map((each) => restOf(text.parentElement, each))) {
                 const cut = {
                     left: Math.max(drawn.left, box.left),
                     right: Math.min(drawn.right, box.right),
@@ -404,26 +406,186 @@ function install() {
         return { line: at + 1, column: before.toString().length, length: selection.toString().length };
     }
 
-    // `reading` run with each finite motion of the document under way drawn at its end, and the motions put back where
-    // they were before anything else runs: a reading tells where a thing stands, not where it is drawn this frame. A
-    // motion that never ends is read where it is drawn.
-    function atRest(reading) {
-        if (resting) return reading();
-        const moving = document.getAnimations().flatMap((animation) => {
-            const was = animation.currentTime;
-            const { endTime } = animation.effect?.getComputedTiming() ?? {};
-            if (animation.playState !== 'running' || was === null || !Number.isFinite(endTime)) return [];
-            return [{ animation, was, end: animation.playbackRate < 0 ? 0 : endTime }];
-        });
-        resting = true;
+    // MARK: - Where a thing stands
+    // What says how an element is drawn, in the order the engine composes them about its transform origin.
+    const DRAWN = ['translate', 'rotate', 'scale', 'transform'];
+
+    // `reading` run knowing which elements a motion of how they are drawn moves, each rect read where it stands once
+    // those motions end: a reading tells where a thing stands, not where it is drawn this frame, and writes nothing
+    // into what it reads. A motion of what lays an element out is read as laid now; one that never ends, as drawn.
+    function standing(reading) {
+        if (moves) return reading();
+        moves = movesOf();
         try {
-            for (const { animation, end } of moving) animation.currentTime = end;
             return reading();
         } finally {
-            for (const { animation, was } of moving) animation.currentTime = was;
-            resting = false;
+            moves = null;
         }
     }
+
+    // `{ ends, above, rests }`: for each element a motion under way draws, the value each property of `DRAWN` it moves
+    // ends at, null where it is read as drawn; and, filled as a reading asks, each element's movers from itself up and
+    // each mover's rest.
+    function movesOf() {
+        const ends = new Map();
+        for (const animation of document.getAnimations()) {
+            const { effect } = animation;
+            const target = effect?.target;
+            if (!target || effect.pseudoElement || animation.playState !== 'running') continue;
+            const frames = effect.getKeyframes();
+            const moved = DRAWN.filter((property) => frames.some((frame) => property in frame));
+            if (!moved.length) continue;
+            const end = endOf(animation);
+            const own = ends.get(target) ?? ends.set(target, {}).get(target);
+            for (const property of moved)
+                if (own[property] !== null)
+                    own[property] = end === null ? null : valueAt(frames, property, end, target);
+        }
+        return { ends, above: new Map(), rests: new Map() };
+    }
+
+    // The directed progress, 0 or 1, an animation's effect ends at by its timing and the way it plays; null where it
+    // never ends or ends between its first keyframe and its last.
+    function endOf(animation) {
+        const { iterations, iterationStart, direction } = animation.effect.getTiming();
+        if (!Number.isFinite(iterations)) return null;
+        const back = animation.playbackRate < 0;
+        const through = back ? iterationStart : iterationStart + iterations;
+        const index = back || through === 0 ? Math.floor(through) : Math.ceil(through) - 1;
+        const odd = index % 2 === 1;
+        const turned =
+            direction === 'reverse' ||
+            (direction === 'alternate' && odd) ||
+            (direction === 'alternate-reverse' && !odd);
+        const progress = turned ? 1 - (through - index) : through - index;
+        return progress === 0 || progress === 1 ? progress : null;
+    }
+
+    // A property's value at the keyframe `progress` falls on; an implicit one is the element's own declared value,
+    // and null, read as drawn, where it declares none.
+    function valueAt(frames, property, progress, el) {
+        const at = frames.filter((frame) => frame.computedOffset === progress && property in frame);
+        const frame = progress === 1 ? at.at(-1) : at[0];
+        return frame ? frame[property] : el.style?.getPropertyValue(property) || null;
+    }
+
+    // A value of a property of `DRAWN` as a transform function, a percentage of a translation taken of `box`.
+    function functionOf(property, value, box) {
+        const parts = value.trim().split(/\s+/);
+        const of = (part, at) =>
+            part.endsWith('%') ? `${(parseFloat(part) / 100) * [box.width, box.height][at]}px` : part;
+        if (property === 'translate') {
+            const [x, y = '0px', z = '0px'] = parts.map(of);
+            return `translate3d(${x}, ${y}, ${z})`;
+        }
+        if (property === 'scale') {
+            const [x, y = x, z = '1'] = parts.map((part) => (part.endsWith('%') ? `${parseFloat(part) / 100}` : part));
+            return `scale3d(${x}, ${y}, ${z})`;
+        }
+        if (property === 'rotate') {
+            if (parts.length === 1) return `rotate(${value})`;
+            if (parts.length === 4) return `rotate3d(${parts.join(', ')})`;
+            return `rotate3d(${{ x: '1, 0, 0', y: '0, 1, 0', z: '0, 0, 1' }[parts[0]]}, ${parts[1]})`;
+        }
+        return value;
+    }
+
+    // How an element of `box` is drawn in its own box's space, each property of `DRAWN` its `valueOf`, composed about
+    // `origin`; null where a value is not one a matrix is made of here.
+    function matrixOf(valueOf, origin, box) {
+        try {
+            let matrix = new DOMMatrix().translate(...origin);
+            for (const property of DRAWN) {
+                const value = valueOf(property);
+                if (value && value !== 'none')
+                    matrix = matrix.multiply(new DOMMatrix(functionOf(property, value, box)));
+            }
+            return matrix.translate(-origin[0], -origin[1], -origin[2]);
+        } catch {
+            return null;
+        }
+    }
+
+    const bounds = (points) => {
+        const xs = points.map((point) => point.x / point.w);
+        const ys = points.map((point) => point.y / point.w);
+        const [left, top] = [Math.min(...xs), Math.min(...ys)];
+        return new DOMRect(left, top, Math.max(...xs) - left, Math.max(...ys) - top);
+    };
+    const cornersOf = ({ x = 0, y = 0, width, height }, matrix) =>
+        [
+            [x, y],
+            [x + width, y],
+            [x, y + height],
+            [x + width, y + height],
+        ].map(([left, top]) => new DOMPoint(left, top).matrixTransform(matrix));
+
+    // A mover's rest: `own`, its rect at rest, and `matrix`, what takes a point drawn under it to where it stands
+    // once its motion ends, null where that is not known; null where its rest is not measured.
+    function restingOf(el) {
+        if (moves.rests.has(el)) return moves.rests.get(el);
+        let rest = null;
+        const style = getComputedStyle(el);
+        const ends = moves.ends.get(el);
+        const sum = (...parts) => parts.reduce((total, part) => total + parseFloat(style[part]), 0);
+        const box =
+            el instanceof HTMLElement && style.width.endsWith('px') && style.height.endsWith('px')
+                ? style.boxSizing === 'border-box'
+                    ? { width: sum('width'), height: sum('height') }
+                    : {
+                          width: sum('width', 'paddingLeft', 'paddingRight', 'borderLeftWidth', 'borderRightWidth'),
+                          height: sum('height', 'paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth'),
+                      }
+                : null;
+        const origin = style.transformOrigin.split(' ').map(parseFloat);
+        while (origin.length < 3) origin.push(0);
+        const drawn = box && matrixOf((property) => style[property], origin, box);
+        const still = box && matrixOf((property) => ends[property] ?? style[property], origin, box);
+        if (drawn && still) {
+            const from = bounds(cornersOf(box, drawn));
+            const now = el.getBoundingClientRect();
+            const [across, down] = [
+                from.width ? now.width / from.width : 1,
+                from.height ? now.height / from.height : 1,
+            ];
+            const page = new DOMMatrix()
+                .translate(now.x - across * from.x, now.y - down * from.y)
+                .scale(across, down, 1);
+            const matrix = page.multiply(still).multiply(drawn.inverse()).multiply(page.inverse());
+            rest = {
+                own: bounds(cornersOf(box, page.multiply(still))),
+                matrix: [matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f].every(Number.isFinite)
+                    ? matrix
+                    : null,
+            };
+        }
+        moves.rests.set(el, rest);
+        return rest;
+    }
+
+    // The elements from `el` up, in the flat tree, a motion of how they are drawn moves, innermost first.
+    const moversOf = (el) => {
+        if (!el) return [];
+        if (moves.above.has(el)) return moves.above.get(el);
+        const up = moversOf(el.assignedSlot ?? el.parentElement ?? el.parentNode?.host);
+        const all = moves.ends.has(el) ? [el, ...up] : up;
+        moves.above.set(el, all);
+        return all;
+    };
+
+    // A rect drawn of `el` or of what it holds, where it stands: taken, by each mover from `el` up, innermost first,
+    // to where that mover's motion ends.
+    function restOf(el, rect) {
+        if (!moves?.ends.size) return rect;
+        for (const mover of moversOf(el)) {
+            const rest = restingOf(mover);
+            if (!rest) continue;
+            if (mover === el) rect = rest.own;
+            else if (rest.matrix) rect = bounds(cornersOf(rect, rest.matrix));
+        }
+        return rect;
+    }
+    const placed = (el) => restOf(el, el.getBoundingClientRect());
 
     // MARK: - What changed
     const mark = (node) => {
@@ -442,7 +604,7 @@ function install() {
     // Which elements the reading has at this count, each that came into it or left it kept as doing so at it.
     const note = () => {
         const root = document.documentElement;
-        const now = new Set(root ? atRest(() => read(root, { keep: () => false })).map((line) => line.element) : []);
+        const now = new Set(root ? standing(() => read(root, { keep: () => false })).map((line) => line.element) : []);
         const flip = (el) => (sight.get(el) ?? sight.set(el, []).get(el)).push(count);
         for (const el of now) if (!inSight.has(el)) flip(el);
         for (const el of inSight) if (!now.has(el)) flip(el);
@@ -487,7 +649,7 @@ function install() {
         // The document's outline: `{ key, count, width, height, lines }`.
         outline(knobs = {}) {
             const root = document.documentElement;
-            const lines = root ? atRest(() => read(root, knobs)).map(plain) : [];
+            const lines = root ? standing(() => read(root, knobs)).map(plain) : [];
             return { key, count, width: innerWidth, height: innerHeight, lines };
         },
         // What is under one element: its own line, its place, how far it is scrolled, its lines, text too, the first
@@ -495,22 +657,22 @@ function install() {
         // rects what is selected is drawn at.
         node(asked, number, knobs = {}) {
             const el = found(asked, number);
-            return el ? atRest(() => nodeOf(el, number, knobs)) : refuse('GONE');
+            return el ? standing(() => nodeOf(el, number, knobs)) : refuse('GONE');
         },
         // What reads otherwise since `since`, a count of this document's: `{ key, from, count, entries }`, each entry a
         // line as it reads now, `kind` `~`, a line the reading did not have at `since`, `+`, whatever brought it into
         // sight, or `{ kind: '-', number }`, an element gone.
         changes(asked, since) {
             if (asked !== key) return refuse('GONE');
-            return atRest(() => changesSince(since));
+            return standing(() => changesSince(since));
         },
         // An element's rect in the page, once it is scrolled into view.
         place(asked, number) {
             const el = found(asked, number);
             if (!el) return refuse('GONE');
-            return atRest(() => {
+            return standing(() => {
                 el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
-                return { key, count, rect: rectOf(el.getBoundingClientRect()) };
+                return { key, count, rect: rectOf(placed(el)) };
             });
         },
     });
@@ -520,7 +682,7 @@ function install() {
         const role = roleOf(el) ?? 'generic';
         const all = read(el, { text: 200, ...knobs, detail: true });
         const own = all[0]?.number === number ? all.shift() : lineOf(el, role, 0, { text: knobs.text ?? 200 });
-        const answer = { key, count, line: plain(own), rect: rectOf(el.getBoundingClientRect()) };
+        const answer = { key, count, line: plain(own), rect: rectOf(placed(el)) };
         if (scrolls(el))
             answer.scroll = {
                 top: el.scrollTop,

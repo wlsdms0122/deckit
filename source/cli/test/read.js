@@ -391,6 +391,72 @@ async function run({ check, main, open }) {
         `${JSON.stringify(rest.rect)} ${JSON.stringify(drawn)}`
     );
 
+    // One that grows in by a transition about a corner, as a menu enters, reads where it comes to rest, and grows on
+    // as it was, its transition neither finished nor ended by the reading.
+    await editor.evaluate(`(() => {
+        const grow = Object.assign(document.createElement('div'), { id: 'deckit-read-grow', textContent: 'Grow' });
+        grow.setAttribute('role', 'note');
+        grow.style.cssText = 'position:fixed;left:24px;top:400px;width:200px;height:40px;z-index:99999;' +
+            'transform-origin:100% 0;scale:0.5;transition:scale 60s linear';
+        document.body.append(grow);
+        getComputedStyle(grow).scale;
+        grow.style.scale = '1';
+        grow.addEventListener('transitionend', () => (grow.dataset.ended = 'true'));
+        grow.getAnimations()[0]?.finished.then(() => (grow.dataset.finished = 'true'));
+        return true;
+    })()`);
+    const growing = (await read('outline', editor.id)).lines?.find((line) => line.role === 'note');
+    const grown = await read('node', editor.id, growing?.ref);
+    await sleep(50);
+    const growth = await editor.evaluate(`(() => {
+        const grow = document.querySelector('#deckit-read-grow');
+        const [growing] = grow.getAnimations();
+        const { x, width } = grow.getBoundingClientRect();
+        const answer = { x, width, kind: growing?.constructor.name, state: growing?.playState,
+            time: growing?.currentTime, ended: grow.dataset.ended ?? null, finished: grow.dataset.finished ?? null };
+        growing?.cancel();
+        grow.remove();
+        return answer;
+    })()`);
+    check(
+        'read: an element growing in by a transition about a corner reads where it comes to rest, and grows on',
+        JSON.stringify(grown.rect) === JSON.stringify({ x: 24, y: 400, width: 200, height: 40 }) &&
+            growth.kind === 'CSSTransition' &&
+            growth.state === 'running' &&
+            growth.width < 150 &&
+            growth.x > 74 &&
+            growth.ended === null &&
+            growth.finished === null,
+        `${JSON.stringify(grown.rect)} ${JSON.stringify(growth)}`
+    );
+
+    // What is inside an element sliding in reads where it comes to rest with it.
+    await editor.evaluate(`(() => {
+        const carrier = Object.assign(document.createElement('div'), { id: 'deckit-read-carrier' });
+        carrier.style.cssText = 'position:fixed;left:24px;top:460px;width:220px;height:40px;z-index:99999';
+        const inside = Object.assign(document.createElement('div'), { textContent: 'Inside' });
+        inside.setAttribute('role', 'note');
+        inside.style.cssText = 'position:absolute;left:10px;top:5px;width:100px;height:20px';
+        carrier.append(inside);
+        document.body.append(carrier);
+        carrier.animate([{ transform: 'translateX(40px)' }, { transform: 'none' }], { duration: 60000 });
+        return true;
+    })()`);
+    const carried = (await read('outline', editor.id)).lines?.find((line) => line.role === 'note');
+    const held = await read('node', editor.id, carried?.ref);
+    const borne = await editor.evaluate(`(() => {
+        const carrier = document.querySelector('#deckit-read-carrier');
+        const x = carrier.firstChild.getBoundingClientRect().x;
+        carrier.getAnimations().forEach((each) => each.cancel());
+        carrier.remove();
+        return x;
+    })()`);
+    check(
+        'read: what is inside an element sliding in reads where it comes to rest with it',
+        JSON.stringify(held.rect) === JSON.stringify({ x: 34, y: 465, width: 100, height: 20 }) && borne > 50,
+        `${JSON.stringify(held.rect)} drawn at ${borne}`
+    );
+
     // An element's place, once it is in view.
     const far = named((await read('outline', editor.id, { all: true })).lines, 'Far');
     const hidden = named((await read('outline', editor.id)).lines, 'Far');
