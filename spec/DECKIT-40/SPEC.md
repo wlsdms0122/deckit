@@ -241,7 +241,7 @@ A seat that watches `changes`, as [users and seats](../DECKIT-38/SPEC.md) fixes 
 | `rect` | table `{ x, y, width, height }`, numbers: of that rect of the desktop |
 | `scale` | a number above 0 and at most 4: the pixels a point of the desktop is drawn with; 1 where it is left out |
 
-With none of `window`, `ref` and `rect` it is of the whole desktop. It answers `{ png, width, height, at }`: `png` a string, the picture as a PNG in base64; `width` and `height` its size in pixels; `at` table `{ x, y }`, the desktop's point its top left is at.
+With none of `window`, `ref` and `rect` it is of the whole desktop. It is drawn as the screen shows it: each material the shell draws, as [windows](../DECKIT-31/SPEC.md) has one under a panel window, is in it at its shape, what lies under it there shown through it blurred. It answers `{ png, width, height, at }`: `png` a string, the picture as a PNG in base64; `width` and `height` its size in pixels; `at` table `{ x, y }`, the desktop's point its top left is at.
 
 It is refused at `call` with kind `INVALID_ARGUMENT` where more than one of `window`, `ref` and `rect` is written, where `scale` is not above 0 or is above 4, or where a member of `rect` is no finite number or its `width` or `height` is not above 0; with kind `REFUSED` where `ref` names an element of a `web` document; and as *The request* refuses a `window` and a `ref`.
 
