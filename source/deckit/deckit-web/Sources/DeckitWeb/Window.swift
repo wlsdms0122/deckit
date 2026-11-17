@@ -303,18 +303,28 @@ extension Window: NSWindowDelegate {
 }
 
 // Windows that hand the keyboard to a web page only as it may take it (WebPageView): asked before what has it now gives
-// it up, so a page that may not leaves it where it is.
+// it up, so a page that may not leaves it where it is. Each stands at the frame it is put at, on a screen or off every
+// one: where it goes is JavaScript's to say, so the system does not pull it onto a screen as it is shown.
 private final class KeyedWindow: NSWindow {
     override func makeFirstResponder(_ responder: NSResponder?) -> Bool {
         WebPageView.mayTake(responder) && super.makeFirstResponder(responder)
     }
+
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+        frameRect
+    }
 }
 
 // A panel answers Escape itself, which a page in it that left the key would count as handled, and the key would
-// never be told as unhandled (InputMonitor): it passes the command on, and does nothing with it.
+// never be told as unhandled (InputMonitor): it passes the command on, and does nothing with it. It stands where it
+// is put, as a KeyedWindow does.
 private final class KeyedPanel: NSPanel {
     override func makeFirstResponder(_ responder: NSResponder?) -> Bool {
         WebPageView.mayTake(responder) && super.makeFirstResponder(responder)
+    }
+
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+        frameRect
     }
 
     override func cancelOperation(_ sender: Any?) {
