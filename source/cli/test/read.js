@@ -491,6 +491,40 @@ async function run({ check, main, open }) {
         `${JSON.stringify(come.rect)} drawn at ${drawnAt}`
     );
 
+    // A box made by another document, scrolled, which changes nothing in the tree, is a change.
+    await editor.evaluate(
+        `(() => {
+        const maker = Object.assign(document.createElement('iframe'), { id: 'deckit-read-maker' });
+        maker.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;border:0';
+        document.body.append(maker);
+        const box = Object.assign(maker.contentDocument.createElement('div'), { id: 'deckit-read-made' });
+        box.setAttribute('role', 'region');
+        box.setAttribute('aria-label', 'Made');
+        box.style.cssText = 'position:fixed;left:24px;top:360px;width:200px;height:40px;overflow:auto;z-index:99999';
+        box.append(Object.assign(maker.contentDocument.createElement('div'), { textContent: 'Inside' }));
+        box.firstChild.style.height = '400px';
+        document.body.append(box);
+        return true;
+    })()`,
+        'deckit'
+    );
+    await sleep(100);
+    const unscrolled = await read('outline', editor.id);
+    const made = named(unscrolled.lines, 'Made');
+    await editor.evaluate(`(() => { document.querySelector('#deckit-read-made').scrollTop = 120; return true; })()`);
+    await sleep(100);
+    const boxScrolled = await read('changes', editor.id, { document: unscrolled.document, count: unscrolled.count });
+    await editor.evaluate(`(() => {
+        document.querySelector('#deckit-read-made').remove();
+        document.querySelector('#deckit-read-maker').remove();
+        return true;
+    })()`);
+    check(
+        'read: a box made by another document, scrolled, is a change',
+        !!made && boxScrolled.entries?.some((entry) => entry.kind === '~' && entry.ref === made.ref),
+        `${JSON.stringify(made)} ${JSON.stringify(boxScrolled)}`
+    );
+
     // An element's place, once it is in view.
     const far = named((await read('outline', editor.id, { all: true })).lines, 'Far');
     const hidden = named((await read('outline', editor.id)).lines, 'Far');
