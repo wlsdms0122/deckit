@@ -33,6 +33,24 @@ final class WebPage: NSObject {
     private static let webSchemes: Set<String> = ["http", "https", "about", "data", "blob", "file", "javascript"]
     // WebKit's code for a load its navigation's policy turned into something else, a download.
     private static let interruptedByPolicy = (domain: "WebKitErrorDomain", code: 102)
+    // WebKit opens a menu of its own on a press whose `contextmenu` the page did not prevent, which only the machine's
+    // screen would show. Every frame prevents it before any listener hears it, so no press opens one; the event tells
+    // each world only what that world's listeners did to it, and goes on to them as before.
+    private static let menuless = """
+        (() => {
+            const prevent = Event.prototype.preventDefault;
+            addEventListener('contextmenu', (event) => {
+                if (!event.isTrusted) return;
+                let prevented = false;
+                Object.defineProperties(event, {
+                    preventDefault: { value() { prevented ||= event.cancelable; } },
+                    defaultPrevented: { get: () => prevented },
+                    returnValue: { get: () => !prevented, set(value) { if (!value) event.preventDefault(); } }
+                });
+                prevent.call(event);
+            }, true);
+        })();
+        """
 
     let id: Int
     let view: WebPageView
@@ -366,6 +384,14 @@ final class WebPage: NSObject {
     }
 
     private static func add(_ scripts: [UserScript], to controller: WKUserContentController) {
+        for world in [WKContentWorld.page, deckitWorld] {
+            controller.addUserScript(WKUserScript(
+                source: menuless,
+                injectionTime: .atDocumentStart,
+                forMainFrameOnly: false,
+                in: world
+            ))
+        }
         for script in scripts {
             controller.addUserScript(WKUserScript(
                 source: script.source,
@@ -544,19 +570,6 @@ extension WebPage: WKNavigationDelegate {
 
 extension WebPage: WKUIDelegate {
     // MARK: - Lifecycle
-    // The menu WebKit opens of a press the page left to it: its own for the machine's press, and none for a press put
-    // in for a seat, which is no press at the machine. WebKit asks its delegate by this name before it opens one.
-    @objc(_webView:getContextMenuFromProposedMenu:forElement:userInfo:completionHandler:)
-    func webView(
-        _ webView: WKWebView,
-        contextMenuFrom proposed: NSMenu,
-        forElement element: Any,
-        userInfo: Any?,
-        completionHandler: @escaping (NSMenu?) -> Void
-    ) {
-        completionHandler(view.isPressedBySeat ? nil : proposed)
-    }
-
     // A window the page asks for is JavaScript's to give, as a page of the module's with WebKit's configuration for
     // it, which keeps its opener.
     func webView(
