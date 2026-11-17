@@ -28,6 +28,7 @@ function viewOf(line) {
         responder,
         radius,
         scaled: / scaled/.test(match[6]),
+        material: / material \d+/.test(match[6]),
         page,
         input,
     };
@@ -73,7 +74,7 @@ function seat({ main, pageById, compose, desktop }) {
                 first ??= view;
                 const depth = (line.length - line.trimStart().length) / 2;
                 if (view.type === 'StageView') {
-                    stages.push({ shown: !view.hidden, rect: view.rect, pages: [], depth });
+                    stages.push({ shown: !view.hidden, rect: view.rect, pages: [], layers: [], depth });
                     origins[depth] = { x: 0, y: 0 };
                     continue;
                 }
@@ -86,9 +87,11 @@ function seat({ main, pageById, compose, desktop }) {
                 cuts[depth] =
                     view.radius && at ? [...around, { rect: { ...view.rect, ...at }, radius: view.radius }] : around;
                 scaled[depth] = view.scaled || (inStage && !!scaled[depth - 1]);
+                if (view.material && at && !view.hidden)
+                    stage.layers.push({ material: true, rect: { ...view.rect, ...at }, radius: view.radius });
                 if (!view.page || !inStage) continue;
                 const [name, opener, keyed] = found.named[view.page] || ['', '', false];
-                stage.pages.push({
+                stage.layers.push({
                     id: view.page,
                     url: found.urls[view.page] || '',
                     name,
@@ -101,12 +104,14 @@ function seat({ main, pageById, compose, desktop }) {
                     input: view.input,
                     scaled: scaled[depth],
                 });
+                stage.pages.push(stage.layers.at(-1));
             }
             return { id, width: first?.rect.width, height: first?.rect.height, stages };
         });
     };
-    // The host window's desktop: its stage, `{ window, shown, rect, pages, width, height }`, `window` the host window's
-    // id, its pages bottom to top, or null.
+    // The host window's desktop: its stage, `{ window, shown, rect, pages, layers, width, height }`, `window` the host
+    // window's id, its pages bottom to top, and `layers` them with the materials laid among them, each `{ material,
+    // rect, radius }`, or null.
     const desktopLaid = async () => {
         for (const window of await laidNow())
             for (const stage of window.stages)
@@ -183,20 +188,36 @@ function seat({ main, pageById, compose, desktop }) {
         await until(() => mods?.evaluate(`!!${item}`), 4000);
         await mods?.evaluate(`${item}.click()`);
     };
-    // The desktop as a person sees it, its pages laid one over another from the backdrop up, with `compose`'s options:
-    // those that take the pointer somewhere, and the cursors' surface, which takes it nowhere.
+    // A picture of the stage as `layers`, `desktopLaid`'s, have it, `rect` of it at `scale` pixels a point, taken as
+    // the stage takes one (Capture): a PNG in base64.
+    const stagePicture = (layers, rect, scale = 1) =>
+        main(
+            `return webkit.capture(${JSON.stringify(
+                layers.map(({ material, id, rect: frame, clips = [], radius }) =>
+                    material
+                        ? { material: 'menu', frame, cornerRadius: radius }
+                        : {
+                              page: id,
+                              frame,
+                              clips: clips.map(({ rect: cut, radius: cornerRadius }) => ({ ...cut, cornerRadius })),
+                          }
+                )
+            )}, ${JSON.stringify({ rect, scale })})`
+        );
+    // The desktop as a person sees it, as the stage takes its picture, from the backdrop up, with `compose`'s options:
+    // the pages that take the pointer somewhere, the cursors' surface, which takes it nowhere, and the materials.
     const desktopShot = async (name, options) => {
-        const laid = ((await desktopLaid())?.pages || []).filter(
-            ({ name: each, input }) => each === 'cursors' || !Array.isArray(input) || input.length
+        const stage = await desktopLaid();
+        const laid = (stage?.layers || []).filter(
+            ({ material, name: each, input }) => material || each === 'cursors' || !Array.isArray(input) || input.length
         );
         const from = laid.findIndex(({ name: each }) => each === 'backdrop');
-        if (from < 0) return;
-        const layers = [];
-        for (const { id, rect, clips } of laid.slice(from)) {
-            const session = await pageById(id);
-            if (session) layers.push({ session, x: rect.x, y: rect.y, clips });
-        }
-        await compose(name, layers, options);
+        const session = from < 0 ? null : await pageById(laid[from].id);
+        if (!session) return;
+        const scale = await session.evaluate('devicePixelRatio');
+        const rect = { x: 0, y: 0, width: stage.rect.width, height: stage.rect.height };
+        const data = await stagePicture(laid.slice(from), rect, scale);
+        if (typeof data === 'string') await compose(name, [{ session, data }], options);
     };
     // The windows of the mod `mod` the host window lays over the desktop's page, the local seat's screen, as
     // `desktopLaid` has each: one on another seat's screen alone lies under the backdrop and is left out.
@@ -338,6 +359,7 @@ function seat({ main, pageById, compose, desktop }) {
         open,
         openFromMods,
         desktopShot,
+        stagePicture,
         asksNow,
         answerOf,
         pressAt,

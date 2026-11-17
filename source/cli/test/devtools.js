@@ -57,13 +57,13 @@ function connect({ port, shots, module }) {
     }
 
     // Pages laid one over another, as they are in a window, drawn into one image: `layers` from the bottom, each {
-    // session, x, y, clips }, its place in the window and the rounded rects `{ rect, radius }` it is cut to there. Each
-    // is taken clear where it draws nothing. `crop`, the rect of the window drawn, is the bottom layer's if not given;
+    // session, x, y, clips }, its place in the window and the rounded rects `{ rect, radius }` it is cut to there, and
+    // `data` what it draws, a PNG in base64, where it is given. Each is taken clear where it draws nothing. `crop`, the rect of the window drawn, is the bottom layer's if not given;
     // `under`, if given, is the source of an async function `(context, scale)` drawing first, in the window's pixels.
     async function compose(name, layers, { crop = null, under = null } = {}) {
         const images = [];
-        for (const { session, x = 0, y = 0, clips = [] } of layers)
-            images.push({ data: await session.capture(), x, y, clips });
+        for (const { session, data = null, x = 0, y = 0, clips = [] } of layers)
+            images.push({ data: data ?? (await session.capture()), x, y, clips });
         const [bottom] = layers;
         const png = await bottom.session.evaluate(`(async (images, crop) => {
             const drawn = await Promise.all(images.map(async ({ data, x, y, clips }) => {

@@ -89,7 +89,8 @@ export function createStages({ LOG, WEBKIT, idOf, webPagesIn }) {
         // `rect` of the stage, all of it where none is given, as it would be seen were `layers` what is laid, as `lay`
         // takes them: a Promise of a PNG, `scale` pixels a point, 1 where it is not given, made from what each page
         // draws and from no window, so for an order that is not the one shown too. A page is drawn where it is laid,
-        // cut and scaled as laid; a hidden page and a material leave nothing in it.
+        // cut and scaled as laid; a material is drawn as on a screen, what is under it in the picture blurred within
+        // its rect, rounded by its radius; a hidden page leaves nothing in it.
         function capture(layers, { rect = null, scale = 1 } = {}) {
             const of = layersOf(layers, () => {});
             return native
