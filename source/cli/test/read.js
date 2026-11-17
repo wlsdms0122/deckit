@@ -193,6 +193,38 @@ async function run({ check, main, open }) {
         JSON.stringify(came).slice(0, 400)
     );
 
+    // A line is told added as it comes into sight, whatever brought it: a style sheet's text, not an attribute; and
+    // a line in sight before is not, though an attribute above it changed.
+    await editor.evaluate(`(() => { const sheet = document.createElement('style'); sheet.id = 'deckit-read-sheet';
+        sheet.textContent = '#deckit-read-hid { display: none }';
+        const sight = document.createElement('div'); sight.id = 'deckit-read-sight';
+        sight.innerHTML = '<button id="deckit-read-hid">Hid one</button><button>Seen one</button>';
+        document.head.append(sheet); document.body.append(sight); return true; })()`);
+    await sleep(100);
+    const hid = await read('node', editor.id, probe?.ref);
+    await editor.evaluate(`(() => { document.querySelector('#deckit-read-sheet').textContent = ''; return true; })()`);
+    const shown = await read('changes', editor.id, { document: before.document, count: hid.count });
+    await editor.evaluate(`(() => { document.querySelector('#deckit-read-sight').append(
+        Object.assign(document.createElement('button'), { textContent: 'Seen two' })); return true; })()`);
+    await sleep(100);
+    const stay = await read('node', editor.id, probe?.ref);
+    await editor.evaluate(`(() => { document.body.classList.add('deckit-read-moved'); return true; })()`);
+    const moved = await read('changes', editor.id, { document: before.document, count: stay.count });
+    await editor.evaluate(`(() => { document.querySelector('#deckit-read-sheet').remove();
+        document.querySelector('#deckit-read-sight').remove(); document.body.classList.remove('deckit-read-moved');
+        return true; })()`);
+    const toldOf = (answer) => (answer.entries ?? []).map(({ kind, name }) => `${kind} ${name}`);
+    check(
+        'read: a line a style sheet brought into sight is told added',
+        toldOf(shown).includes('+ Hid one') && !toldOf(shown).includes('+ Seen one'),
+        JSON.stringify(shown).slice(0, 400)
+    );
+    check(
+        'read: a line in sight before is not told added as an attribute above it changes',
+        moved.count > stay.count && !toldOf(moved).some((each) => /Hid one|Seen (one|two)/.test(each)),
+        JSON.stringify(moved).slice(0, 400)
+    );
+
     // The caret in a field of one line and in editable content.
     const field = await read('node', editor.id, probe?.ref);
     const expected = await editor.evaluate(`(() => {

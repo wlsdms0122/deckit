@@ -50,8 +50,8 @@ export function createRead({ LOG }) {
 
     // What reads otherwise in one document since `since`, `{ document, count }` as an answer carried them: `{ document,
     // from, count, entries }`, each entry `{ kind: '~', ...line }`, a line as it reads now, `{ kind: '+', ...line }`,
-    // one not answered before, or `{ kind: '-', ref }`, an element gone. A line out of sight has the state `not in
-    // view`.
+    // one the reading did not have at `since`, or `{ kind: '-', ref }`, an element gone. A line out of sight has the
+    // state `not in view`.
     async function changes(page, since) {
         const held = documents.get(page);
         if (!held || held.number !== since?.document) throw refusal('GONE');
