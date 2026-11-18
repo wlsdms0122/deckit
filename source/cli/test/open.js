@@ -173,6 +173,7 @@ async function main() {
         MANIFEST_FIELD: {},
         SETUP: {},
         SEAT: {},
+        DIALOG: {},
     }).make({});
     const thrown = (opening) =>
         opening.then(
