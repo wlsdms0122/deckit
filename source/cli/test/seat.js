@@ -48,17 +48,21 @@ function seat({ main, pageById, compose, desktop }) {
     // opener, keyed, rect, clips, hidden, responder, input, scaled }] }] }`, a page's rect on its stage, through the
     // clips it is drawn in, those clips' `{ rect, radius }` on the stage, outermost first, its name, opener and `keyed`
     // those of a document a page opened beside itself (SURFACE), and `scaled` whether it or a clip it is in is drawn
-    // scaled.
+    // scaled. A page that waits on its dialog runs nothing: what it told last stands for it.
     const laidNow = async () => {
         const found = await main(`
             const urls = Object.fromEntries(webkit.pages().map((id) => [id, webkit.state(id).url]));
             const named = {};
+            const kept = (globalThis.deckitTestSurfaces ??= {});
             for (const [id, url] of Object.entries(urls)) {
                 if (url !== 'about:blank') continue;
                 try {
-                    const told = await webkit.evaluate(Number(id), ${JSON.stringify(SURFACE)}, 'page');
-                    named[id] = typeof told === 'string' ? JSON.parse(told) : null;
+                    const late = new Promise((resolve) => setTimeout(resolve, 1000));
+                    const asked = webkit.evaluate(Number(id), ${JSON.stringify(SURFACE)}, 'page');
+                    const told = await Promise.race([asked, late]);
+                    if (typeof told === 'string') kept[id] = JSON.parse(told);
                 } catch {}
+                named[id] = kept[id] ?? null;
             }
             return { windows: webkit.windows().map((id) => ({ id, tree: webkit.tree(id) })), urls, named };`);
         return (found?.windows || []).map(({ id, tree }) => {
