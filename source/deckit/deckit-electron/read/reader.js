@@ -639,7 +639,7 @@ function install() {
         }
     }).observe(document, { subtree: true, childList: true, attributes: true, characterData: true });
     for (const type of ['focusin', 'focusout', 'input', 'change', 'scroll'])
-        document.addEventListener(type, (event) => event.target instanceof Node && mark(event.target), {
+        document.addEventListener(type, (event) => mark(event.target), {
             capture: true,
             passive: true,
         });
