@@ -25,7 +25,7 @@ Every rule of [windows](../DECKIT-31/SPEC.md), [activation](../DECKIT-32/SPEC.md
 
 | kept for each seat | kept once, for every seat |
 |---|---|
-| the desktop's order | which windows are open, and each one's frame, zoom and tile |
+| the desktop's order | which windows are open, and each one's frame, zoom and tile, and the dialog a page asks in one |
 | the key window, and with it the active mod | the Dock's items and which are kept |
 | which windows it minimized | each mod's run |
 | which mods may activate, which are held back and which ask for attention | |
