@@ -1,0 +1,34 @@
+case = 26
+name = "a-move-with-no-button-held-is-heard-where-it-reaches"
+note = "mod-a opens main, the window 1 at 283, 107, 720 by 480, filled by a text field, and opens https://said.test/main/<event> outside the app as its content hears mouseover, mouseenter and mouseleave, and https://said.test/main/mousemove/<buttons> for a mousemove. ada sits at s1 and moves its pointer to 600, 300, in main, with no button held: the move answers over the window 1 at its point, and main's content hears the pointer come over it, enter it and move, as it hears the machine's own pointer moving."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "move", x = 600, y = 300 }
+
+[step.expect]
+answers = { over = 1, at = { x = 600, y = 300 } }
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/main/mouseover", activates = true }, { url = "https://said.test/main/mouseenter", activates = true }, { url = "https://said.test/main/mousemove/0", activates = true }]

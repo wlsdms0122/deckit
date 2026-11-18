@@ -1,0 +1,34 @@
+case = 26
+name = "an-up-with-no-down-before-reaches-nothing"
+note = "Each mod's code opens the windows the case says, each filled by a text field, and opens https://said.test/<name>/<event>/<what> outside the app for what the window's content hears: mousedown and mouseup with <button>/<detail>/<modifiers>, mousemove with <buttons>, wheel with <deltaX>/<deltaY>, keydown and keyup with <code>/<key>/<modifiers>/<repeat>, compositionstart and compositionupdate with the text composed, compositionend with <the text>/<the field's value>, and inserted with the text of each input event of the type insertText. The desktop is the base shell's, 1280 by 800. ada sits at s1. It sends an up at 600, 300, in main, with no down before it: it answers at its point and no over, and main's content hears nothing."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 600, y = 300, button = 0, count = 1 }
+
+[step.expect]
+answers = { at = { x = 600, y = 300 } }
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = []

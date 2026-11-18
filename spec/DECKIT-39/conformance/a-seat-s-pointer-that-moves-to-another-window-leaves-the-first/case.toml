@@ -1,0 +1,49 @@
+case = 26
+name = "a-seat-s-pointer-that-moves-to-another-window-leaves-the-first"
+note = "mod-a opens main, the window 1 at 283, 107, and then second, the window 2 at 307, 131, each 720 by 480 and filled by a text field, and opens https://said.test/<name>/<event> outside the app as a window's content hears mouseover or mouseleave. ada sits at s1 and moves its pointer with no button held to 290, 300, where main alone lies, then to 600, 300, in second: main's content hears the pointer come over it and then leave it, and second's hears it come over it."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "move", x = 290, y = 300 }
+
+[step.expect]
+answers = { over = 1, at = { x = 290, y = 300 } }
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/main/mouseover", activates = true }]
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "move", x = 600, y = 300 }
+
+[step.expect]
+answers = { over = 2, at = { x = 600, y = 300 } }
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/main/mouseover", activates = true }, { url = "https://said.test/main/mouseleave", activates = true }, { url = "https://said.test/second/mouseover", activates = true }]
