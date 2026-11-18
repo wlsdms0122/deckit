@@ -56,6 +56,8 @@ Inputs are counted in the order they reach the shell.
 
 The **holder** of a window is the seat whose key window it is. A window has one holder at most: its content is one page under every seat that looks at it, and it is told `didBecomeKey` and `didResignKey` of its holder alone.
 
+The content of a window has the **focus** while the window has a holder, and the content of a view while a seat holds its keyboard, as [views](../DECKIT-41/SPEC.md) fix it: its document answers `hasFocus()` true, it hears `focus` as the window or view takes a holder, and it hears `blur` as it is held by none. Nothing else moves the focus: neither which app has the machine's keyboard nor another seat's key window.
+
 No press on a window's content, of whatever button and with whatever keys held, opens a menu that is not the content's own: the content hears `contextmenu` as it hears any event of the press, and a menu it draws is its content, which every seat that looks at it sees.
 
 A window that would become a seat's key window while another seat holds it is **held**:
@@ -203,6 +205,7 @@ It guards every member of `shell.seats`.
 - Every rule of the desktop written again for a seat in its own DECKIT. Four DECKITs would say each thing twice; one rule reads them for each seat, as [a party from outside](../DECKIT-37/SPEC.md) reads a run for its principal.
 - A seat named in what a mod is handed, so a mod acts for the seat that asked. A mod would tell seats apart, and with them who asks; the shell keeps for which seat a mod acts.
 - The ids of `shell.seats` being the seats' own ids. `local` would tell a mod which seat is the machine's; an id here is a count.
+- A content's focus that follows each seat's key window. A seat's key window is its own: a press of one seat elsewhere would blur the content another seat holds, and close there what closes as it blurs, as a menu.
 - A pointer over a page for each seat. A page would hear several pointers and tell them apart, and with them the seats; a page has one, which the last move of any seat places.
 - Following as a seat that watches another. The seat followed would have two users at one view; only the host app's window, which is no seat, shows another's desktop.
 

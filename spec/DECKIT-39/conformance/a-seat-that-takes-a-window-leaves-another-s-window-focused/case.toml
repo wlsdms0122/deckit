@@ -1,0 +1,40 @@
+case = 26
+name = "a-seat-that-takes-a-window-leaves-another-s-window-focused"
+note = "mod-a opens main, the window 1 at 283, 107, and then second, the window 2 at 307, 131, each 720 by 480, neither key as it opens, and filled by a text field it focuses as the window becomes key, and opens https://said.test/<name>/<event> outside the app as a field hears focus or blur. The person presses main, so the local seat holds it. ada sits at s1 and presses at 600, 300, where second is in front in its order: the press answers the window 2 key and held by s1, main's field hears focus and then second's, and main's hears no blur."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "window"
+mod = "mod-a"
+name = "main"
+action = "press"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
+
+[step.expect]
+answers = { over = 2, key = "key", holder = "s1", at = { x = 600, y = 300 } }
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/main/focus", activates = true }, { url = "https://said.test/second/focus", activates = true }]
