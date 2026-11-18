@@ -195,6 +195,8 @@ export function createDesktop({
             laidOfWindow,
             windowAt,
             typingIn,
+            dialogsIn: (id) => DIALOGS.inWindow(id),
+            waits: (page) => [...asking.values()].includes(page),
         },
     });
 

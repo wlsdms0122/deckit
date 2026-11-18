@@ -1,5 +1,6 @@
 import * as TEXT from './model/reading.js';
 import * as LAYOUT from './model/layout.js';
+import * as DIALOG from './model/dialog.js';
 import { noCount } from './model/routes.js';
 import * as DOCK_MODEL from '../dock/model/dock.js';
 import * as MODS from '../mods/index.js';
@@ -20,11 +21,13 @@ const FRAME = 16;
 // What a seat reads of the desktop: the desktop itself, the seats, the Dock and the windows in the seat's order, from
 // what the desktop keeps; a window, the parts the shell draws of it and each document it shows as the environment
 // reads it; what is under one ref; what changed since a mark; and a picture. Refs: a window is `w<id>`, its parts
-// `w<id>.close`, `.minimize`, `.zoom`, `.bar` and `.edge.<name>`, an item of the Dock `dock.<mod>`, and an element
-// `<document>.<n>`, the same for every seat: `n` as the environment numbers the element, and `<document>` a count the
-// shell gives a document as a seat is first told of it, in the order it is listed, whichever page answered first.
-// The mark is one count for the desktop: it goes up as a line of the desktop reads otherwise for some seat, a
-// pointer's place apart, and as a document tells that what it shows changed. `READ` reads a page (environment: SHELL
+// `w<id>.close`, `.minimize`, `.zoom`, `.bar`, `.edge.<name>` and its dialog's `.dialog.<part>`, an item of the Dock
+// `dock.<mod>`, and an element `<document>.<n>`, the same for every seat: `n` as the environment numbers the element,
+// and `<document>` a count the shell gives a document as a seat is first told of it, in the order it is listed,
+// whichever page answered first. A page that waits on its dialog runs nothing, so it is not read until it is
+// answered: its window reads the dialog's parts. The mark is one count for the desktop: it goes up as a line of the
+// desktop, or a part of a window's dialog, reads otherwise for some seat, a pointer's place apart, and as a document
+// tells that what it shows changed. `READ` reads a page (environment: SHELL
 // `read`), `OVERLAY` is the pages' overlays, `web` what the web engine answered, `deckit` what connect answered,
 // and `desk` is what the desktop keeps and answers of itself.
 export function createReading({ READ, OVERLAY, web, deckit, desk }) {
@@ -362,14 +365,17 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
             ...seats.map((each) => [each.id, seat(each)]),
             ...dock.map((item) => [item.ref, TEXT.itemLine(item)]),
             ...(menu?.entries ?? []).map((entry) => [entry.ref, TEXT.entryLine(entry)]),
-            ...[...windows, ...panels].map((window) => [window.id, TEXT.windowLine(window)]),
+            ...[...windows, ...panels].flatMap((window) => [
+                [window.id, TEXT.windowLine(window)],
+                ...dialogPartsOf(idOf(window.id)).map((part) => [part.ref, TEXT.elementLine(part)]),
+            ]),
         ]);
     }
 
     // The pages a window or a panel window shows, bottom to top: `{ page, part, name, rect, typing }`, `part` its
     // 'content', a 'child' a region of it shows, named by its mod, a 'web' page in one of them or an 'overlay' of one,
     // `rect` where it is on the desktop, which the shell is not told of a web page, and `typing` the seat whose keys
-    // go to it.
+    // go to it. A page that waits on its dialog is left out.
     function pagesOf(id) {
         const content = (desk.windows.get(id) ?? desk.panels.get(id))?.surface ?? null;
         const laid = desk
@@ -383,7 +389,9 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         const inside = [...webs]
             .filter((page) => laid.some((each) => each.page === web.pageFor(page)))
             .map((page) => ({ page, part: 'web', rect: null }));
-        return [...laid, ...inside].map((each) => ({ name: null, ...each, typing: desk.typingIn(each.page) }));
+        return [...laid, ...inside]
+            .filter(({ page }) => !desk.waits(page))
+            .map((each) => ({ name: null, ...each, typing: desk.typingIn(each.page) }));
     }
 
     // A line of a document with the seat whose keys go to it after `focused`.
@@ -424,10 +432,37 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
             ref: `w${id}.${name}`,
             rect: { x: frame.x + x, y: frame.y + y, width, height },
         }));
-        if (!(bar.height > 0)) return buttons;
         const rect = { x: frame.x, y: frame.y, width: frame.width, height: bar.height };
         const name = window.title ? { name: window.title } : {};
-        return [...buttons, { role: 'titlebar', ...name, states: [], ref: `w${id}.bar`, rect }];
+        const titled = bar.height > 0 ? [{ role: 'titlebar', ...name, states: [], ref: `w${id}.bar`, rect }] : [];
+        return [...buttons, ...titled, ...dialogPartsOf(id)];
+    }
+
+    // The parts of the dialog up last in the normal window `id`: who asks and the message as text, a prompt's field
+    // with its text, and the buttons left to right, each `w<id>.dialog.<part>`, `rect` on the desktop.
+    function dialogPartsOf(id) {
+        const dialog = desk.windows.has(id) && desk.dialogsIn(id).at(-1);
+        if (!dialog) return [];
+        const frame = desk.MANAGER.frameOf(id);
+        const { from, message, field, buttons } = DIALOG.partsOf(dialog);
+        const part = (role, name, states, rect, at) => {
+            const on = { x: frame.x + rect.x, y: frame.y + rect.y, width: rect.width, height: rect.height };
+            return { role, ...(name === null ? {} : { name }), states, ref: `w${id}.dialog.${at}`, rect: on };
+        };
+        return [
+            part('text', String(dialog.from), [], from, 'from'),
+            part('text', String(dialog.message), [], message, 'message'),
+            ...(field ? [part('textbox', null, [valueOf(dialog.value)], field, 'field')] : []),
+            ...buttons.map(({ name, label, rect }) => part('button', label, [], rect, name)),
+        ];
+    }
+
+    // A field's value as the environment reads one: its white space runs made one space and its ends trimmed, cut to
+    // 40 characters, with how many it holds where it is cut.
+    function valueOf(text) {
+        const whole = String(text).replace(/\s+/g, ' ').trim();
+        if (whole.length <= 40) return `value ${JSON.stringify(whole)}`;
+        return `value ${JSON.stringify(`${whole.slice(0, 40)}…`)} (${whole.length})`;
     }
 
     // A part the shell draws, by its ref, with `rect` on the desktop, the window it is of, and for an item of the Dock
@@ -449,7 +484,8 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
             const line = { role: 'item', name: item.name, states, ref };
             return { line, rect: DOCK_MODEL.tileOf(desk.area(), items, mod), window: null, by };
         }
-        const [, window, name, edge] = /^w(\d+)\.(close|minimize|zoom|bar|edge\.([a-z-]+))$/.exec(ref) ?? [];
+        const [, window, name, edge] =
+            /^w(\d+)\.(close|minimize|zoom|bar|dialog\.[a-z]+|edge\.([a-z-]+))$/.exec(ref) ?? [];
         const id = Number(window);
         if (window === undefined || !desk.windows.has(id)) return null;
         const { rect: listed = null, ...line } = partsOf(id).find((part) => part.ref === ref) ?? {};
@@ -469,6 +505,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         const kept = documents.get(document);
         const window = kept && desk.windowAt(kept.page);
         if (!window) throw refusal('GONE', 'nothing read here has that ref');
+        if (desk.waits(kept.page)) throw refusal('REFUSED', 'its page waits on its dialog, which is answered first');
         const { rect, typing } = pagesOf(window.id).find(({ page }) => page === kept.page) ?? {};
         const inPage = `${document}.${element}`;
         return { page: kept.page, ref: inPage, window: window.id, rect: rect ?? null, typing: typing ?? null };

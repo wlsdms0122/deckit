@@ -72,7 +72,9 @@ async function run({
     const principal = 'outside-party';
     const key = makeKey();
     const command = path.join(__dirname, '..', 'deckit');
-    const cli = (...args) => execFileSync(command, [...args, '--home', home], { encoding: 'utf8', stdio: 'pipe' });
+    // Each run of the command is cut at a time limit, so one that waits on what never comes fails its check.
+    const cli = (...args) =>
+        execFileSync(command, [...args, '--home', home], { encoding: 'utf8', stdio: 'pipe', timeout: 30000 });
     const deckit = (...args) => cli('key', ...args);
     // A user made with a key pair of its own, the private half in a file beside the app's folder.
     const userWithKey = (id, name) => {
