@@ -92,6 +92,7 @@ Every list answers the same keys and presses. `ui.tree` gives most of them; give
 - Nothing of a view's page is drawn over a web page it shows: what is drawn over it goes on a layer (`ui.layer`), as the Browser's find bar does, and what is presented is on one already.
 - Ask before what is hard to undo: a folder going to the Trash with more in it, what is deleted for good. Closing a tab or leaving a form does not ask.
 - What is presented opens from a press or a key, never on its own.
+- A mod asks a seat from its window's content, never from its own page: the mod's page is shown in no window, so its `alert`, `confirm` and `prompt` are answered at once and ask nothing.
 
 ## The switcher
 
