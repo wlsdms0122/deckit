@@ -86,6 +86,13 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
         return layouts.get(page.id)?.over ?? null;
     }
 
+    // Where the element of web page `page` shows it, `{ over, frame }`: the page it is in and its rect there; null for one
+    // shown in no element, not visible, or in a surface no longer open.
+    function placeOf(page) {
+        const { frame, visible, over } = layouts.get(page.id) ?? {};
+        return visible && frame && over ? { over, frame } : null;
+    }
+
     // Whether `page` has the keyboard, or a web page it shows, or one laid over it, its element in that page.
     function holdsKeyboard(page) {
         const over = [...layouts].flatMap(([id, layout]) => (layout.over === page ? [pageOf(id)] : []));
@@ -212,6 +219,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
             if (!visible && page.isFocused()) holding(sender, id).focus();
             if (was && was !== over) STAGES.relayOf(was);
             if (over) STAGES.relayOf(over);
+            client.placed(sender, id, placeOf(page));
         });
         MESSAGES.on(CHANNEL.webFocus, (sender, { id }) => ownPage(sender, id)?.focus());
         MESSAGES.on(CHANNEL.webUnfocus, (sender, { id }) => holding(sender, id).focus());
@@ -421,6 +429,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
         pageOf,
         holderOf,
         containerOf,
+        placeOf,
         holdsKeyboard,
         openWindow,
         load,

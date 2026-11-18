@@ -187,6 +187,7 @@ function createEnvironment({ core, preload, openWindow }) {
             embed: WEB.embed,
             pageOf: WEB.pageOf,
             holderOf: WEB.holderOf,
+            placeOf: WEB.placeOf,
             holdsKeyboard: WEB.holdsKeyboard,
             openWindow: WEB.openWindow,
             load: WEB.load,

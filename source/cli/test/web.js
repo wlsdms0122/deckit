@@ -172,6 +172,24 @@ async function main() {
         ''
     );
     web.holderOf = holderOf;
+    // Where a web page shows, as the environment tells it, handed on.
+    const place = { over: filesPage, frame: { x: 4, y: 8, width: 100, height: 50 } };
+    web.placeOf = (page) => (page === tab ? place : null);
+    const placings = [];
+    const offPlaced = WEB.onPlaced((page, at) => placings.push([page, at]));
+    listened.placed(filesPage, 7, place);
+    listened.placed(filesPage, 99, null);
+    offPlaced();
+    listened.placed(filesPage, 7, null);
+    check(
+        'where a web page shows is answered and told as the environment tells it, a page that is gone told nothing',
+        WEB.placeOf(tab) === place &&
+            WEB.placeOf(other) === null &&
+            placings.length === 1 &&
+            placings[0][0] === tab &&
+            placings[0][1] === place,
+        placings
+    );
 
     // What loads, and where.
     const load = (page, to, options) => listened.loading(page, null, to, options);

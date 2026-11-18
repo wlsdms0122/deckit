@@ -33,6 +33,7 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
     const granted = new Set();
     const activated = new WeakMap(); // a web page -> when a key or the mouse was last pressed in it
     const adopting = new Set(); // what is told of each web page as it is adopted
+    const placing = new Set(); // what is told where a web page shows as it changes
     let sequence = 0;
     const DOWNLOAD = createDownload({ deckit, state: STATE, PROTOCOL, web: WEB, pages: PAGES });
 
@@ -49,6 +50,10 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
             changed: (embedder, id, state) => PROTOCOL.changed.send(embedder, { id, state }),
             found: (embedder, id, { matches, active, final }) =>
                 PROTOCOL.found.send(embedder, { id, matches, active, final }),
+            placed: (_embedder, id, place) => {
+                const page = WEB.pageOf(id);
+                if (page) for (const listener of [...placing]) listener(page, place);
+            },
             closed: (embedder, id) => {
                 windows.delete(id);
                 PROTOCOL.closed.send(embedder, { id });
@@ -87,6 +92,20 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
         const told = LISTENER.wrap(listener, 'a web page listener');
         adopting.add(told);
         return () => adopting.delete(told);
+    }
+
+    // Where an element shows the web page, `{ over, frame }`, `frame` its rect in the page `over` it is in, the mod's
+    // page or a surface it opened; or null while none shows it.
+    function placeOf(page) {
+        return WEB.placeOf(page);
+    }
+
+    // `listener(page, place)` is told where a web page shows each time it changes, `place` as `placeOf` answers it.
+    // Answers its off.
+    function onPlaced(listener) {
+        const told = LISTENER.wrap(listener, 'a web place listener');
+        placing.add(told);
+        return () => placing.delete(told);
     }
 
     // Whether the web engine keeps anything of the mod `modId`: a web session it used, a download, what it let a site
@@ -502,5 +521,5 @@ export function createWeb({ deckit, state: STATE, web: WEB, pages: PAGES, open: 
         for (const resolve of question.waiting) resolve(!!allowed);
     }
 
-    return { start, pageFor, holdsKeyboard, onPage, keeps: Object.freeze({ kept, erase }) };
+    return { start, pageFor, holdsKeyboard, placeOf, onPlaced, onPage, keeps: Object.freeze({ kept, erase }) };
 }
