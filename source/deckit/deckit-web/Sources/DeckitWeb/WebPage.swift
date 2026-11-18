@@ -64,6 +64,12 @@ final class WebPage: NSObject {
     private var requested: URL?
     // The dialogs the page waits on, each refused as the page closes, so no handler is left uncalled.
     private var dialogs: [PageDialog] = []
+    // A page that waits on its dialog runs nothing, so it draws nothing new: what it drew last that came back is kept,
+    // and a picture of it while it waits is that, as a page under a dialog shows frozen.
+    private var drawnLast: CGImage?
+    // Those a picture of the page is to be handed to, by take, each handed what the page drew last as a dialog goes up.
+    private var drawing: [Int: @MainActor (CGImage?, Error?) -> Void] = [:]
+    private var takes = 0
 
     // MARK: - Initializer
     // `configuration` is the page's, WebKit's own for a window a page opened, and `scripts` those every document of the
@@ -242,17 +248,29 @@ final class WebPage: NSObject {
         }
     }
 
-    // What the page draws now, as PNG, clear where it draws nothing.
+    // What the page draws now, as PNG, clear where it draws nothing; while it waits on a dialog, what it drew last.
     func snapshot(done: @escaping @MainActor (Result<Data, Error>) -> Void) {
+        picture { picture, error in
+            guard let picture,
+                let png = NSBitmapImageRep(cgImage: picture).representation(using: .png, properties: [:])
+            else {
+                return done(.failure(error ?? NodeError(message: "the page drew nothing to take")))
+            }
+            done(.success(png))
+        }
+    }
+
+    // What the page draws now; while it waits on a dialog, what it drew last, taking no new picture, or nothing.
+    func picture(done: @escaping @MainActor (CGImage?, Error?) -> Void) {
+        guard !dialogs.contains(where: { !$0.isAnswered }) else { return done(drawnLast, nil) }
+        takes += 1
+        let take = takes
+        drawing[take] = done
         view.takeSnapshot(with: nil) { image, error in
             MainActor.assumeIsolated {
-                guard let image,
-                    let picture = image.cgImage(forProposedRect: nil, context: nil, hints: nil),
-                    let png = NSBitmapImageRep(cgImage: picture).representation(using: .png, properties: [:])
-                else {
-                    return done(.failure(error ?? NodeError(message: "the page drew nothing to take")))
-                }
-                done(.success(png))
+                let picture = image?.cgImage(forProposedRect: nil, context: nil, hints: nil)
+                if let picture { self.drawnLast = picture }
+                self.drawing.removeValue(forKey: take)?(picture, error)
             }
         }
     }
@@ -271,6 +289,7 @@ final class WebPage: NSObject {
     func close() {
         for dialog in dialogs { dialog.refuse() }
         dialogs = []
+        handDrawnLast()
         for observation in observations { observation.invalidate() }
         observations = []
         view.stopLoading()
@@ -677,6 +696,7 @@ extension WebPage {
     private func ask(_ dialog: PageDialog) {
         dialogs.removeAll { $0.isAnswered }
         dialogs.append(dialog)
+        handDrawnLast()
         let reply = Reply { node, arguments in dialog.reply(node, arguments.first) }
         emitter.emit("dialog", [
             "kind": dialog.kind,
@@ -685,6 +705,13 @@ extension WebPage {
             "origin": dialog.origin,
             "reply": reply
         ])
+    }
+
+    // Every picture still being taken handed what the page drew last, as a page that waits or is closed draws no more.
+    private func handDrawnLast() {
+        let waiting = drawing.values
+        drawing = [:]
+        for done in waiting { done(drawnLast, nil) }
     }
 
     // What a site asks for, by the web platform's names, put to JavaScript as `permission`: given on true, else
