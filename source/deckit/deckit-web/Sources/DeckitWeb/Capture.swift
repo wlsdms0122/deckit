@@ -12,7 +12,8 @@ import WebKit
 // A picture of pages as layers have them, bottom to top, made from what each page draws and from no window: so the
 // order may be one that is not shown, and a page under another is drawn whole. A page is cut to its clips and drawn
 // at its opacity and scale; a material is drawn as on a screen, what the picture has under it so far blurred within
-// its rect, rounded at its corners; a hidden page and a page that draws nothing leave nothing in the picture.
+// its rect, rounded at its corners; a hidden page and a page that draws nothing leave nothing in the picture. A page
+// that waits on its dialog is drawn as it drew last (WebPage.picture), so no picture waits on it.
 @MainActor
 enum Capture {
     // MARK: - Property
@@ -50,12 +51,10 @@ enum Capture {
 
         pending.waiting = pages.count
         for (index, page) in pages {
-            page.view.takeSnapshot(with: nil) { image, _ in
-                MainActor.assumeIsolated {
-                    pending.drawn[index] = image?.cgImage(forProposedRect: nil, context: nil, hints: nil)
-                    pending.waiting -= 1
-                    if pending.waiting == 0 { done(compose(layers, pending.drawn, rect: rect, scale: scale)) }
-                }
+            page.picture { image, _ in
+                pending.drawn[index] = image
+                pending.waiting -= 1
+                if pending.waiting == 0 { done(compose(layers, pending.drawn, rect: rect, scale: scale)) }
             }
         }
     }

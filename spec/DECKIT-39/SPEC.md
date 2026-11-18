@@ -25,7 +25,7 @@ Every rule of [windows](../DECKIT-31/SPEC.md), [activation](../DECKIT-32/SPEC.md
 
 | kept for each seat | kept once, for every seat |
 |---|---|
-| the desktop's order | which windows are open, and each one's frame, zoom and tile |
+| the desktop's order | which windows are open, and each one's frame, zoom and tile, and the dialog a page asks in one |
 | the key window, and with it the active mod | the Dock's items and which are kept |
 | which windows it minimized | each mod's run |
 | which mods may activate, which are held back and which ask for attention | |
@@ -109,7 +109,7 @@ An event at a `ref` goes to the place the ref names. Where another window covers
 
 ### Where a seat's keys go
 
-A key or text event of a seat goes to the window that holds the seat's keyboard: its key window, or the view whose keyboard the seat holds, as [views](../DECKIT-41/SPEC.md) fix a view's keyboard. A panel window in the bar is never key and holds no seat's keyboard, so a seat's press there leaves its keys with the window that holds them. In that window the event goes to the page that took the seat's last press, a page laid over the content as the content itself, while that page is still laid there, and to the window's content otherwise. It is input of that seat to the window's mod.
+A key or text event of a seat goes to the window that holds the seat's keyboard: its key window, or the view whose keyboard the seat holds, as [views](../DECKIT-41/SPEC.md) fix a view's keyboard. A panel window in the bar is never key and holds no seat's keyboard, so a seat's press there leaves its keys with the window that holds them. In that window the event goes to the page that took the seat's last press, a page laid over the content as the content itself, while that page is still laid there, and to the window's content otherwise. A dialog a page asks, read as [a window](../DECKIT-40/SPEC.md) reads it, covers the page that waits on it and, where that page is the window's content, every page laid over that content: an event that would go to a page a dialog covers goes to the dialog asked last of those that cover it, Return pressing OK or Leave, Escape Cancel or Stay, and text and Backspace editing a prompt's field, and one that would go to a page no dialog covers goes there. It is input of that seat to the window's mod.
 
 A chord the event makes is read as [the shell's keys](../DECKIT-34/SPEC.md) read one, for that seat.
 

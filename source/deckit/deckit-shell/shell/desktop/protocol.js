@@ -8,14 +8,15 @@ export const setup = CHANNEL.pageToMain(
     {},
     { reply: true, sync: true, guard: CHANNEL.GUARD.ANY }
 );
-// `{ windows: [{ id, frame, key, holder, bar, title }], panels: [{ id, edge, frame, radius }], seats, following,
-// drop, strip, dock, down }`: the windows on the screen of the seat whose view the host window shows, the local
+// `{ windows: [{ id, frame, key, holder, bar, title, dialogs }], panels: [{ id, edge, frame, radius }], seats,
+// following, drop, strip, dock, down }`: the windows on the screen of the seat whose view the host window shows, the local
 // seat's or that of the seat it follows, `frame` on the stage, `key` whether it is that seat's key window, `holder`
 // the name of the colour of the seat that holds its keyboard (a seat colour of the kit's token), or null, `bar` its
 // title bar
 // (model/layout.js barOf), `title` what the title bar the shell draws over a titled window's content holds, or null for
-// a window whose content draws its own; `panels`, the panel windows that stand, at their edge, 'top' in the strip,
-// or with `edge` null as a view, as they lie from the bottom, the material
+// a window whose content draws its own, `dialogs` those its pages ask, `{ ask, kind, message, from, value, rect,
+// parts }` from the window's top left (model/dialog.js partsOf); `panels`, the panel windows that stand, at their
+// edge, 'top' in the strip, or with `edge` null as a view, as they lie from the bottom, the material
 // drawn under each at its frame, rounded by `radius`;
 // `seats`, `[{ id, name, colour, at, buttons, shown, under, named, typing }]`, every
 // seat at the desktop: its user's name, its colour's name, where its pointer is on the stage, or null before it was
@@ -67,6 +68,7 @@ export const pointer = CHANNEL.pageToMain(
         count: 'number?',
         grabX: 'number?',
         grabY: 'number?',
+        ask: 'number?',
     },
     { guard: CHANNEL.GUARD.ANY }
 );
@@ -88,3 +90,10 @@ export const motion = CHANNEL.pageToMain(
 );
 // The person asks for the app to restart, deckit's core having gone down.
 export const restart = CHANNEL.pageToMain('deckit-shell:desktop-restart', {}, { guard: CHANNEL.GUARD.ANY });
+// What the local seat does in the field of a prompt drawn in a window's dialog surface: `ask` the dialog, `text` the
+// field's text as it is typed, and `key` 'Enter' or 'Escape' pressed in it.
+export const dialog = CHANNEL.pageToMain(
+    'deckit-shell:desktop-dialog',
+    { ask: 'number', text: 'string?', key: 'string?' },
+    { guard: CHANNEL.GUARD.ANY }
+);

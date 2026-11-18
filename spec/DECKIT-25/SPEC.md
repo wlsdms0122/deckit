@@ -149,6 +149,8 @@ The **delegate** is the table a page's `delegate` holds, through which the web e
 | `didReceiveNotification` | [notifications of a site](../DECKIT-27/SPEC.md) | |
 | `shouldDownload` | [downloads](../DECKIT-28/SPEC.md) | |
 
+A page's dialog, its `alert`, `confirm`, `prompt` and the leave of its document, is no member of the delegate: the shell draws it in the window that shows the page, as [windows](../DECKIT-31/SPEC.md) fixes a page's dialogs.
+
 ### What a page opens outside the app
 
 What the web engine opens outside the app for a mod is opened as [opening outside the app](../DECKIT-8/SPEC.md) fixes `openExternal` of the mod, with its guard and its refusals, `activates` as handed:
@@ -165,7 +167,7 @@ A blank page is never opened outside the app.
 - An error thrown with a stage and a kind, `INVALID_ARGUMENT`, and a value read: [the handle](../DECKIT-7/SPEC.md).
 - What opens outside the app, its guard `system.file-handlers` and `UNSUPPORTED_URL`: [opening outside the app](../DECKIT-8/SPEC.md).
 - A lifecycle and its end: [the entry](../DECKIT-6/SPEC.md).
-- The window the shell shows a page apart in: [windows](../DECKIT-31/SPEC.md).
+- The window the shell shows a page apart in, and a page's dialogs: [windows](../DECKIT-31/SPEC.md).
 - The inputs `show` and `activate`, a page shown at a file of a bundle, the host's delegate and the look `delegated`: [the case format](../DECKIT-1/SPEC.md).
 - What a site is let have, an app for an address and a certificate refused, which is no failure of a load: [what a site is let have](../DECKIT-26/SPEC.md).
 - A site that refuses a connection, which a case serves at an address of its own: [the case format](../DECKIT-1/SPEC.md). A site's notification: [notifications of a site](../DECKIT-27/SPEC.md). A download a page starts: [downloads](../DECKIT-28/SPEC.md).

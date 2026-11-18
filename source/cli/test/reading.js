@@ -206,6 +206,88 @@ async function run({ check, reader, other, window, editor, settings, showsFor, i
     watching.stop();
     check('reading: a seat that watches is told a line as the desktop changes', !!told, watching.said());
 
+    // A page that waits on its dialog is not read: its window reads the dialog's parts in its place, the mark goes
+    // up as the dialog does and as it goes, and the seat answers it by their refs. Each dialog is started so the call
+    // that asks it returns at once, as a page that waits runs nothing.
+    const at = `w${window.id}.dialog`;
+    const windowRead = () => reader.as('read', 'window', `w${window.id}`);
+    const content = /^ {2}document \d+ content /m;
+    const markOf = (text) => /^\S.* mark (\d+)$/m.exec(text)?.[1];
+    const up = (part) =>
+        until(() => {
+            const read = windowRead();
+            return read.includes(` ${at}.${part}`) && read;
+        }, 4000);
+    const asks = (call) => inPage(window.content, `(setTimeout(() => (window.deckitAnswer = ${call})), true)`);
+    const answer = () => until(async () => (await inPage(window.content, 'window.deckitAnswer')) ?? null, 4000);
+    // The seat's keys are at the child laid over the content: the content's confirm covers it, so Return answers OK.
+    await asks(`confirm('Keep the child?')`);
+    const keyedUp = await up('ok');
+    const keyed = keyedUp && reader.as('key', 'Enter');
+    const keyedAnswer = await answer();
+    check(
+        "reading: a content's confirm takes the Return of a seat whose keys are at a child it covers, and answers true",
+        !!keyedUp && keyedAnswer === true,
+        JSON.stringify({ keyedUp, keyed, keyedAnswer })
+    );
+    await inPage(window.content, 'delete window.deckitAnswer');
+    const before = markOf(windowRead());
+    await asks(`confirm('Keep the draft?')`);
+    const confirmRead = await up('ok');
+    const cameAt = markOf(confirmRead);
+    const came = reader.as('changes', String(before));
+    const confirmPressed = confirmRead && reader.as('press', `${at}.ok`);
+    const confirmAnswer = await answer();
+    const answered = windowRead();
+    const went = reader.as('changes', String(cameAt));
+    check(
+        "reading: a page's confirm reads in its window in place of its page, who asks, the message and its buttons, " +
+            'and OK answers true',
+        !!confirmRead &&
+            new RegExp(
+                `^ {2}text "[^"]+" ${at}\\.from\\n {2}text "Keep the draft\\?" ${at}\\.message\\n` +
+                    ` {2}button "Cancel" ${at}\\.cancel\\n {2}button "OK" ${at}\\.ok$`,
+                'm'
+            ).test(confirmRead) &&
+            !content.test(confirmRead) &&
+            confirmAnswer === true &&
+            content.test(answered) &&
+            !answered.includes(at),
+        JSON.stringify({ confirmRead, confirmPressed, confirmAnswer, answered })
+    );
+    check(
+        'reading: the mark goes up as a dialog goes up and as it goes, its parts told as they come and go',
+        Number(cameAt) > Number(before) &&
+            new RegExp(`^\\+ button "OK" ${at}\\.ok$`, 'm').test(came) &&
+            new RegExp(`^- ${at}\\.ok$`, 'm').test(went),
+        JSON.stringify({ before, cameAt, came, went })
+    );
+    await inPage(window.content, 'delete window.deckitAnswer');
+    await asks(`prompt('Name it', 'draft')`);
+    const promptRead = await up('field');
+    // The seat presses the field and types: its keys go to the dialog up in the window that holds them.
+    const fieldTyped =
+        promptRead &&
+        (reader.as('press', `${at}.field`),
+        reader.as('type', ' notes'),
+        await until(() => {
+            const read = windowRead();
+            return read.includes(`textbox [value "draft notes"] ${at}.field`) && read;
+        }, 4000));
+    if (fieldTyped) reader.as('press', `${at}.ok`);
+    const promptAnswer = await answer();
+    check(
+        "reading: a prompt's field reads with its text, and OK answers it",
+        !!promptRead && new RegExp(`^ {2}textbox \\[value "draft"\\] ${at}\\.field$`, 'm').test(promptRead),
+        JSON.stringify({ promptRead })
+    );
+    check(
+        "reading: what a seat types goes into a prompt's field, and OK answers the typed text",
+        !!fieldTyped && promptAnswer === 'draft notes',
+        JSON.stringify({ fieldTyped, promptAnswer })
+    );
+    await inPage(window.content, 'delete window.deckitAnswer');
+
     // The other seat brings the Editor in front for itself, then presses its text by the ref it read.
     const shown = editor && showsFor(other, editor);
     const pressed = shown && other.as('press', shown);

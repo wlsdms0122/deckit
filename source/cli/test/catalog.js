@@ -276,6 +276,7 @@ async function main() {
         MANIFEST_FIELD: { define: () => {} },
         SETUP: { stack: () => {} },
         SEAT: {},
+        DIALOG: {},
     }).make({ onStart: () => {}, restart: () => {} });
     const fields = api.mods.fieldsOf('s');
     check(

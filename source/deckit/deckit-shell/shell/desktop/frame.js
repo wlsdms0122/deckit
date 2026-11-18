@@ -23,6 +23,33 @@ const EVERYWHERE = 'M0 0H16384V16384H0Z';
 // How high the bar that says whose view the page shows is, px.
 const FOLLOWING = 22;
 const STYLE = `
+    .deckit-page-dialog-dim { position: fixed; background: var(--deckit-scrim); }
+    .deckit-page-dialog-card {
+        position: fixed;
+        box-sizing: border-box;
+        border-radius: var(--deckit-radius-card);
+        background: var(--deckit-elevated);
+        box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
+    }
+    .deckit-page-dialog-from {
+        position: fixed;
+        overflow: hidden;
+        color: var(--deckit-muted);
+        font: var(--deckit-type-small);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .deckit-page-dialog-message {
+        position: fixed;
+        display: -webkit-box;
+        overflow: hidden;
+        color: var(--deckit-text);
+        font: var(--deckit-type-body);
+        line-height: 18px;
+        overflow-wrap: anywhere;
+        -webkit-box-orient: vertical;
+    }
+    .deckit-page-dialog-part { position: fixed; box-sizing: border-box; margin: 0; }
     .deckit-desktop-strip { position: fixed; top: 0; left: 0; right: 0; --app-region: drag; }
     .deckit-window-title-text {
         overflow: hidden;
@@ -395,6 +422,7 @@ function boot(theme, channels) {
             bar.style.height = laid.height + 'px';
             bar.style.padding = `0 ${laid.areaX}px`;
             text.textContent = window.title ?? '';
+            drawDialogs(window.id, drawn.get(window.id), window.dialogs ?? [], window.key);
             for (const edge of edges) edge.hidden = !laid.enabled.zoom;
             for (const { name, x, y } of LAYOUT.buttonsOf(laid)) {
                 const button = buttons.querySelector(`[data-button='${name}']`);
@@ -402,6 +430,82 @@ function boot(theme, channels) {
                 button.disabled = !laid.enabled[name];
             }
         }
+    }
+
+    // The dialogs the pages of window `id` ask, in its dialog's surface, from the window's top left: a dim over each
+    // one's rect and its card with who asks, the message, a prompt's field, and the buttons, as the state lays them.
+    // The field's text is the state's, and what the person types in it is told to main as it is typed.
+    function drawDialogs(id, { asks, cards }, dialogs, key) {
+        const up = new Set(dialogs.map(({ ask }) => ask));
+        for (const [ask, made] of cards) {
+            if (up.has(ask)) continue;
+            for (const node of made.nodes) node.remove();
+            cards.delete(ask);
+        }
+        const place = (node, { x, y, width, height }) =>
+            Object.assign(node.style, { left: x + 'px', top: y + 'px', width: width + 'px', height: height + 'px' });
+        for (const dialog of dialogs) {
+            if (!cards.has(dialog.ask)) cards.set(dialog.ask, dialogOf(id, asks.document, { ...dialog, key }));
+            const made = cards.get(dialog.ask);
+            place(made.dim, dialog.rect);
+            place(made.card, dialog.parts.card);
+            place(made.from, dialog.parts.from);
+            place(made.message, dialog.parts.message);
+            made.message.style.webkitLineClamp = String(dialog.parts.message.lines);
+            made.from.textContent = dialog.from;
+            made.message.textContent = dialog.message;
+            if (made.field) place(made.field, dialog.parts.field);
+            if (made.field && made.field.value !== dialog.value) made.field.value = dialog.value;
+            for (const { name, label, rect } of dialog.parts.buttons) {
+                place(made.buttons.get(name), rect);
+                made.buttons.get(name).querySelector('span').textContent = label;
+            }
+        }
+    }
+
+    // What is drawn of one dialog of window `id` in `page`, its surface's document: its buttons and dim tell main of
+    // the pointer as the title bar's buttons do, and a prompt's field keeps its own press.
+    function dialogOf(id, page, { ask, parts, key }) {
+        const { field: at, buttons } = parts;
+        const dim = element(page, 'div', 'deckit-page-dialog-dim');
+        const card = element(page, 'div', 'deckit-page-dialog-card');
+        const from = element(page, 'div', 'deckit-page-dialog-from');
+        const message = element(page, 'div', 'deckit-page-dialog-message');
+        const under = ({ clientX, clientY }) =>
+            page.elementFromPoint(clientX, clientY)?.closest('[data-dialog-part]')?.dataset.dialogPart ?? 'dialog';
+        const made = { dim, card, from, message, field: null, buttons: new Map() };
+        for (const node of [dim, card]) forward(id, node, under, { takes: true, ask });
+        const nodes = [dim, card, from, message];
+        if (at) {
+            const field = element(page, 'input', 'deckit-input deckit-page-dialog-part');
+            field.type = 'text';
+            field.dataset.dialogPart = 'dialog-field';
+            field.addEventListener('pointerdown', (event) => event.stopPropagation());
+            field.addEventListener('input', () => PROTOCOL.dialog.send({ ask, text: field.value }));
+            field.addEventListener('keydown', (event) => {
+                if (!['Enter', 'Escape'].includes(event.key)) return;
+                event.preventDefault();
+                PROTOCOL.dialog.send({ ask, text: field.value, key: event.key });
+            });
+            made.field = field;
+            nodes.push(field);
+        }
+        buttons.forEach(({ name }, at) => {
+            const button = element(page, 'button', 'deckit-button deckit-text-button deckit-page-dialog-part');
+            button.type = 'button';
+            button.dataset.size = 'medium';
+            button.dataset.dialogPart = `dialog-${name}`;
+            if (at === buttons.length - 1) button.dataset.variant = 'primary';
+            button.append(element(page, 'span', ''));
+            forward(id, button, under, { takes: true, ask });
+            made.buttons.set(name, button);
+            nodes.push(button);
+        });
+        page.body.append(...nodes);
+        ui.motion.appear(card);
+        if (made.field && key) made.field.focus();
+        made.nodes = nodes;
+        return made;
     }
 
     // Each panel window's material at its frame, rounded by its `radius`, and the backdrop cut away under it.
@@ -706,16 +810,20 @@ function boot(theme, channels) {
             buttons.append(button);
         });
         held.document.body.append(buttons);
-        return { material, holder, bar, text, buttons, edges, off: [frame.off, held.off] };
+        const asks = surface(PAGE.dialogOf(id));
+        const cards = new Map(); // a dialog's ask -> what is drawn of it
+        return { material, holder, bar, text, buttons, edges, asks, cards, off: [frame.off, held.off, asks.off] };
     }
 
     // What the pointer does on `node`, a part of the window `id`, told to main as it does it: its press there, and
     // with the button held, each move and the up, wherever it goes, read on the screen as the surface moves with the
-    // frame. `partOf(event)` names the part under it. A part that `takes` its press leaves the document none of it.
-    function forward(id, node, partOf, { takes = false } = {}) {
+    // frame. `partOf(event)` names the part under it, of the dialog `ask` where it is one's. A part that `takes` its
+    // press leaves the document none of it.
+    function forward(id, node, partOf, { takes = false, ask } = {}) {
         const send = (type, event, more = {}) =>
             PROTOCOL.pointer.send({
                 id,
+                ...(ask === undefined ? {} : { ask }),
                 part: partOf(event),
                 type,
                 x: event.screenX,

@@ -88,6 +88,8 @@ A seat has at most one view shown for it by activation: as a view is shown for a
 
 The views lie over the normal windows and the panel windows in the bar, as the levels of [windows](../DECKIT-31/SPEC.md) fix it. On a seat's screen they lie in the order they opened, but the one shown for that seat by activation over the others.
 
+A view's page asks [a dialog](../DECKIT-31/SPEC.md) as a window's content does: it is drawn in the view, on the screens of the seats the view is shown for.
+
 ### Putting a view away
 
 A view **put away** for a seat is shown for it by activation no more, and is open still. A view shown for a seat by activation is put away for that seat:

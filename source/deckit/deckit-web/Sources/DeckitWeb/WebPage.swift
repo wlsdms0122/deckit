@@ -21,8 +21,10 @@ import CNodeAPI
 // download (WebDownload), or nothing to cancel it; `key` ({ type, code, key, meta, control, alt, shift }), true for a
 // key taken; and `certificate` ({ url, host, error, fingerprint, subject, issuer }), true for a certificate trusted
 // though the Mac does not. Asked, answered later through `reply`: `permission` ({ origin, permissions, reply }),
-// `unhandled` ({ code, key, meta, control, alt, shift, reply }), a key pressed that the page did not handle, true for
-// one taken from the rest of the app, and, for a page made with a scheme of its own, `request` (SchemeHandler).
+// `dialog` ({ kind, message, value, origin, reply }), what the page asks and waits on (PageDialog), of which it draws
+// nothing, `unhandled` ({ code, key, meta, control, alt, shift, reply }), a key pressed that the page did not handle,
+// true for one taken from the rest of the app, and, for a page made with a scheme of its own, `request`
+// (SchemeHandler).
 @MainActor
 final class WebPage: NSObject {
     // MARK: - Property
@@ -60,6 +62,14 @@ final class WebPage: NSObject {
     private var observations: [NSKeyValueObservation] = []
     // The address JavaScript asked to load, which asked deck before: its navigation is not asked again.
     private var requested: URL?
+    // The dialogs the page waits on, each refused as the page closes, so no handler is left uncalled.
+    private var dialogs: [PageDialog] = []
+    // A page that waits on its dialog runs nothing, so it draws nothing new: what it drew last that came back is kept,
+    // and a picture of it while it waits is that, as a page under a dialog shows frozen.
+    private var drawnLast: CGImage?
+    // Those a picture of the page is to be handed to, by take, each handed what the page drew last as a dialog goes up.
+    private var drawing: [Int: @MainActor (CGImage?, Error?) -> Void] = [:]
+    private var takes = 0
 
     // MARK: - Initializer
     // `configuration` is the page's, WebKit's own for a window a page opened, and `scripts` those every document of the
@@ -238,17 +248,29 @@ final class WebPage: NSObject {
         }
     }
 
-    // What the page draws now, as PNG, clear where it draws nothing.
+    // What the page draws now, as PNG, clear where it draws nothing; while it waits on a dialog, what it drew last.
     func snapshot(done: @escaping @MainActor (Result<Data, Error>) -> Void) {
+        picture { picture, error in
+            guard let picture,
+                let png = NSBitmapImageRep(cgImage: picture).representation(using: .png, properties: [:])
+            else {
+                return done(.failure(error ?? NodeError(message: "the page drew nothing to take")))
+            }
+            done(.success(png))
+        }
+    }
+
+    // What the page draws now; while it waits on a dialog, what it drew last, taking no new picture, or nothing.
+    func picture(done: @escaping @MainActor (CGImage?, Error?) -> Void) {
+        guard !dialogs.contains(where: { !$0.isAnswered }) else { return done(drawnLast, nil) }
+        takes += 1
+        let take = takes
+        drawing[take] = done
         view.takeSnapshot(with: nil) { image, error in
             MainActor.assumeIsolated {
-                guard let image,
-                    let picture = image.cgImage(forProposedRect: nil, context: nil, hints: nil),
-                    let png = NSBitmapImageRep(cgImage: picture).representation(using: .png, properties: [:])
-                else {
-                    return done(.failure(error ?? NodeError(message: "the page drew nothing to take")))
-                }
-                done(.success(png))
+                let picture = image?.cgImage(forProposedRect: nil, context: nil, hints: nil)
+                if let picture { self.drawnLast = picture }
+                self.drawing.removeValue(forKey: take)?(picture, error)
             }
         }
     }
@@ -265,6 +287,9 @@ final class WebPage: NSObject {
     }
 
     func close() {
+        for dialog in dialogs { dialog.refuse() }
+        dialogs = []
+        handDrawnLast()
         for observation in observations { observation.invalidate() }
         observations = []
         view.stopLoading()
@@ -320,7 +345,7 @@ final class WebPage: NSObject {
     }
 
     // An origin as the URL Standard serializes it: `null` for an opaque one, which has no scheme.
-    private static func serialized(_ origin: WKSecurityOrigin) -> String {
+    static func serialized(_ origin: WKSecurityOrigin) -> String {
         guard !origin.protocol.isEmpty else { return "null" }
         let port = origin.port == 0 ? "" : ":\(origin.port)"
 
@@ -354,16 +379,6 @@ final class WebPage: NSObject {
             view.observe(\.cameraCaptureState) { _, _ in MainActor.assumeIsolated { told() } },
             view.observe(\.microphoneCaptureState) { _, _ in MainActor.assumeIsolated { told() } }
         ]
-    }
-
-    private func dialog(_ alert: NSAlert, done: @escaping @MainActor (NSApplication.ModalResponse) -> Void) {
-        guard let window = view.window else {
-            done(.cancel)
-            return
-        }
-        alert.beginSheetModal(for: window) { response in
-            MainActor.assumeIsolated { done(response) }
-        }
     }
 
     // A load that became a download stops; it did not fail.
@@ -636,9 +651,7 @@ extension WebPage: WKUIDelegate {
         initiatedByFrame frame: WKFrameInfo,
         completionHandler: @escaping @MainActor @Sendable () -> Void
     ) {
-        let alert = NSAlert()
-        alert.messageText = message
-        dialog(alert) { _ in completionHandler() }
+        ask(PageDialog(kind: "alert", message: message, frame: frame) { _ in completionHandler() })
     }
 
     func webView(
@@ -647,11 +660,9 @@ extension WebPage: WKUIDelegate {
         initiatedByFrame frame: WKFrameInfo,
         completionHandler: @escaping @MainActor @Sendable (Bool) -> Void
     ) {
-        let alert = NSAlert()
-        alert.messageText = message
-        alert.addButton(withTitle: "OK")
-        alert.addButton(withTitle: "Cancel")
-        dialog(alert) { response in completionHandler(response == .alertFirstButtonReturn) }
+        ask(PageDialog(kind: "confirm", message: message, frame: frame) { answer in
+            completionHandler(answer.bool ?? false)
+        })
     }
 
     func webView(
@@ -661,19 +672,48 @@ extension WebPage: WKUIDelegate {
         initiatedByFrame frame: WKFrameInfo,
         completionHandler: @escaping @MainActor @Sendable (String?) -> Void
     ) {
-        let alert = NSAlert()
-        alert.messageText = prompt
-        alert.addButton(withTitle: "OK")
-        alert.addButton(withTitle: "Cancel")
-        let field = NSTextField(frame: CGRect(x: 0, y: 0, width: 260, height: 24))
-        field.stringValue = defaultText ?? ""
-        alert.accessoryView = field
-        dialog(alert) { response in completionHandler(response == .alertFirstButtonReturn ? field.stringValue : nil) }
+        ask(PageDialog(kind: "prompt", message: prompt, value: defaultText ?? "", frame: frame) { answer in
+            completionHandler(answer.string)
+        })
+    }
+
+    // WebKit's own hook, which it asks on a navigation of the page whose document asks to be let go; no hook lets it
+    // go unasked. Its text is the engine's, never the page's, so the message is empty.
+    @objc(_webView:runBeforeUnloadConfirmPanelWithMessage:initiatedByFrame:completionHandler:)
+    func webView(
+        _ webView: WKWebView,
+        runBeforeUnloadConfirmPanelWithMessage message: String,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping @MainActor @Sendable (Bool) -> Void
+    ) {
+        ask(PageDialog(kind: "leave", message: "", frame: frame) { answer in completionHandler(answer.bool ?? true) })
     }
 }
 
 extension WebPage {
     // MARK: - Private
+    // A dialog put to JavaScript, held until it is answered.
+    private func ask(_ dialog: PageDialog) {
+        dialogs.removeAll { $0.isAnswered }
+        dialogs.append(dialog)
+        handDrawnLast()
+        let reply = Reply { node, arguments in dialog.reply(node, arguments.first) }
+        emitter.emit("dialog", [
+            "kind": dialog.kind,
+            "message": dialog.message,
+            "value": dialog.value,
+            "origin": dialog.origin,
+            "reply": reply
+        ])
+    }
+
+    // Every picture still being taken handed what the page drew last, as a page that waits or is closed draws no more.
+    private func handDrawnLast() {
+        let waiting = drawing.values
+        drawing = [:]
+        for done in waiting { done(drawnLast, nil) }
+    }
+
     // What a site asks for, by the web platform's names, put to JavaScript as `permission`: given on true, else
     // refused. `origin` is the frame's that asks, as the web platform asks a frame's permission.
     private func askPermission(
@@ -693,6 +733,53 @@ extension WebPage {
             "permissions": permissions,
             "reply": reply
         ])
+    }
+}
+
+// A dialog a page asks, `kind` `alert`, `confirm`, `prompt` or `leave`, put to JavaScript as `dialog` and answered
+// once, by `reply` or refused: `answered` is handed what JavaScript replied, a value that is no boolean or string for
+// the refusal, which each kind reads as its own.
+@MainActor
+private final class PageDialog {
+    struct Answer {
+        var bool: Bool?
+        var string: String?
+    }
+
+    let kind: String
+    let message: String
+    let value: String
+    let origin: String
+    private var answered: (@MainActor (Answer) -> Void)?
+
+    init(
+        kind: String,
+        message: String,
+        value: String = "",
+        frame: WKFrameInfo,
+        answered: @escaping @MainActor (Answer) -> Void
+    ) {
+        self.kind = kind
+        self.message = message
+        self.value = value
+        self.origin = WebPage.serialized(frame.securityOrigin)
+        self.answered = answered
+    }
+
+    var isAnswered: Bool { answered == nil }
+
+    func reply(_ node: Node, _ value: napi_value?) {
+        settle(Answer(bool: value.flatMap { try? node.bool($0) }, string: value.flatMap { try? node.string($0) }))
+    }
+
+    func refuse() {
+        settle(Answer())
+    }
+
+    private func settle(_ answer: Answer) {
+        guard let answered else { return }
+        self.answered = nil
+        answered(answer)
     }
 }
 

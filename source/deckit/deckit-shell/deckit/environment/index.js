@@ -57,6 +57,11 @@ const MAIN = Object.freeze({
         clearStorage: 'function',
         // countStorage(modId) -> Promise of an integer: how many items the mod's pages keep in the web's local storage
         countStorage: 'function',
+        // dialogs(answer), once: what any page asks and waits on, `answer(page, { kind, message, value, origin }) ->
+        // Promise of the reply`, `kind` `alert`, `confirm`, `prompt` or `leave`, `value` the prompt's starting text,
+        // `origin` the asking frame's; a reply that is no boolean (confirm, leave) or string (prompt) is the refusal:
+        // done, false, null, and leaves. Until it is given, every page is refused
+        dialogs: 'function',
     },
     // What is opened outside the app, by the system: `url(url, { activate }) -> Promise`, an address in the app that
     // opens its scheme, the browser for the web, brought forward unless `activate` is false; `file(path, { activate })

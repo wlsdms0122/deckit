@@ -13,8 +13,9 @@ import { createWeb } from '../engine/main.js';
 // of the mod's web sessions there, with what it keeps of each mod: its sessions, its downloads, what it let sites have
 // and the certificates it trusted. The web engine starts with deckit, before any mod launches. Answers what a UI on
 // deckit reads of the web pages mods show: `pageFor(page)`, the page of deckit's a page answers to,
-// `holdsKeyboard(page)`, whether the keyboard is in that page or a web page in it, and `onPage(listener(page)) -> off`,
-// each web page told as the web engine adopts it, before it watches the page's input.
+// `holdsKeyboard(page)`, whether the keyboard is in that page or a web page in it, `placeOf(page)`, where an element
+// shows a web page, `{ over, frame }` or null, `onPlaced(listener(page, place)) -> off`, told each time that changes,
+// and `onPage(listener(page)) -> off`, each web page told as the web engine adopts it, before it watches its input.
 function attach(deckit, environment) {
     const ENV = checked(environment, ENVIRONMENT.WEB, 'the environment');
     for (const permission of WEB_PERMISSION.PERMISSIONS) deckit.permissions.define(permission);
@@ -28,7 +29,13 @@ function attach(deckit, environment) {
     });
     deckit.stack(WEB_LAYER.LAYER, { setup: (id) => ({ sessions: ENV.web.sessionsOf(id) }), keeps: WEB.keeps });
     deckit.onStart(WEB.start);
-    return Object.freeze({ pageFor: WEB.pageFor, holdsKeyboard: WEB.holdsKeyboard, onPage: WEB.onPage });
+    return Object.freeze({
+        pageFor: WEB.pageFor,
+        holdsKeyboard: WEB.holdsKeyboard,
+        placeOf: WEB.placeOf,
+        onPlaced: WEB.onPlaced,
+        onPage: WEB.onPage,
+    });
 }
 
 // MARK: - Private

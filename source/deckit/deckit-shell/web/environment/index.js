@@ -19,6 +19,9 @@ const WEB = Object.freeze({
         // holderOf(page) -> { embedder, id, inPage }: the page showing it, its id, and whether it is an element of
         // that page; null for a page that is no web page
         holderOf: 'function',
+        // placeOf(page) -> { over, frame }: where an element shows the web page, `over` the page the element is in, the
+        // mod's page or a surface it opened, and `frame` its rect in that page; null while no element shows it
+        placeOf: 'function',
         // holdsKeyboard(page) -> whether the page, or a web page shown in it, has the keyboard
         holdsKeyboard: 'function',
         // openWindow(embedder, { mod, session, url, title }) -> the id of a web page in a window, a blank page that
@@ -87,7 +90,8 @@ const WEB = Object.freeze({
 // `permitted(session, name)`, the origins that may. Told: `adopted(embedder, page)`, a web
 // page now shown, in its page or in a window; `opened(embedder, opener, id, { url, activates })`, the page of id `id`
 // the web page of id `opener` opened, handed to `embedder`, which shows it with `view`; `changed(embedder, id, state)`;
-// `found(embedder, id, { matches, active, final })`; `closed(embedder, id)`, a window gone; `refused(embedder, id,
+// `found(embedder, id, { matches, active, final })`; `placed(embedder, id, place)`, where the web page of that id now
+// shows, as `placeOf` (WEB) answers it; `closed(embedder, id)`, a window gone; `refused(embedder, id,
 // certificate)`; `notified(embedder, id, { origin, notification, title, body, silent })`, what a site's notification
 // shows, as the page told it, which answers whether it is shown; and `downloaded(embedder, { id, url, name, path,
 // state, received, expected, error })`, a download a web page it shows started, as it changes, written to the Downloads
@@ -113,6 +117,7 @@ const WEB_CLIENT = Object.freeze({
     opened: 'function',
     changed: 'function',
     found: 'function',
+    placed: 'function',
     closed: 'function',
     refused: 'function',
     notified: 'function',

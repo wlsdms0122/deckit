@@ -460,6 +460,9 @@ async function walk({
         loaded === OPENED.join() && !!(await page('deckit://broker-provider.mod')),
         loaded
     );
+    // A mod's own page asks nothing of a seat: its dialog is refused at once, and one that waited loses the race.
+    const confirmed = await Promise.race([probePage?.evaluate('confirm("x")'), sleep(2000).then(() => 'waited')]);
+    check("a mod's own page's confirm answers false at once", confirmed === false, String(confirmed));
     await dockClick('editor');
     await until(async () => (await keyMod()) === 'editor', 6000);
     await sleep(3000);
@@ -1452,6 +1455,61 @@ async function walk({
                 async () => (await shownAt()) === openerPage && !(await webPage(openerId).state())?.loading,
                 5000
             );
+            // A dialog the browser's content asks, or the site laid in it, is drawn in the browser's window and
+            // answered by a press on its part there; while the site's waits, the rest of the window takes a press. Each
+            // is started so the call that asks it returns at once, as a page that waits runs nothing.
+            {
+                const own = (await windowsNow()).filter(({ mod }) => mod === 'browser').at(-1);
+                const surface = async () =>
+                    pageById((await stackNow()).find(({ name }) => name === `dialog-${own?.id}`)?.id);
+                const drawn = async (kind) => {
+                    const page = await surface();
+                    const shows = `!!document.querySelector('[data-dialog-part="dialog-ok"]') &&
+                        ${kind === 'prompt'} === !!document.querySelector('[data-dialog-part="dialog-field"]')`;
+                    return (await until(async () => (await page?.evaluate(shows)) === true, 4000)) && page;
+                };
+                const asks = (call) => browser?.evaluate(`setTimeout(() => (window.deckitAnswer = ${call})), true`);
+                const answer = () => until(async () => (await browser?.evaluate('window.deckitAnswer')) ?? null, 4000);
+                await asks(`confirm('Keep the tabs?')`);
+                await (await drawn('confirm'))?.press('[data-dialog-part="dialog-ok"]');
+                const confirmAnswer = await answer();
+                check(
+                    "a window's content's confirm is drawn in its window and answered true by a press on OK",
+                    confirmAnswer === true,
+                    String(confirmAnswer)
+                );
+                await browser?.evaluate('delete window.deckitAnswer');
+                await asks(`prompt('Name the tab', '')`);
+                const promptPage = await drawn('prompt');
+                await promptPage?.press('[data-dialog-part="dialog-field"]');
+                await promptPage?.type('Reading');
+                await sleep(300);
+                await promptPage?.press('[data-dialog-part="dialog-ok"]');
+                const promptAnswer = await answer();
+                check(
+                    "a window's content's prompt is answered by the text typed in its field",
+                    promptAnswer === 'Reading',
+                    JSON.stringify(promptAnswer)
+                );
+                await browser?.evaluate(`delete window.deckitAnswer; window.deckitPressed = 0;
+                    addEventListener('pointerdown', () => window.deckitPressed++, { capture: true })`);
+                const site = webPage(openerId);
+                await site.evaluate(`setTimeout(() => (alert('Saved'), (window.deckitAlerted = true))), true`);
+                const alertPage = await drawn('alert');
+                await browser?.press('.browser-toolbar');
+                const pressedBeside = await until(
+                    async () => (await browser?.evaluate('window.deckitPressed')) > 0,
+                    3000
+                );
+                const waits = await Promise.race([site.evaluate('1'), sleep(1500).then(() => 'waits')]);
+                await alertPage?.press('[data-dialog-part="dialog-ok"]');
+                const alerted = await until(async () => (await site.evaluate('window.deckitAlerted')) === true, 4000);
+                check(
+                    "a laid page's alert waits in its window while the rest of the window takes a press, until OK",
+                    !!alertPage && !!pressedBeside && waits === 'waits' && !!alerted,
+                    JSON.stringify({ drawn: !!alertPage, pressedBeside, waits, alerted })
+                );
+            }
             const press = async () => {
                 for (const type of ['down', 'up'])
                     await main(`return webkit.sendMouse(${openerId}, { type: '${type}', x: 40, y: 40 })`);

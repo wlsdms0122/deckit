@@ -44,7 +44,8 @@ A `seat/read` is refused at `call` with the first of these that is so, after wha
 1. kind `INVALID_ARGUMENT`, where `format` is neither `text` nor `json`; where `of` is `window`, or `picture` with `window`, and `window` is not `w` and digits or digits alone; where `window` is left out of a `window` or `ref` of a `node`; where `depth`, `items`, `text`, `lines` or `since` is below 0; or where a picture is asked as *A picture* refuses it;
 2. kind `STALE`, where `since` is above the mark now, under *Changes and the mark*;
 3. kind `NOT_FOUND`, where `window` names no normal window open and no panel window on the seat's screen;
-4. kind `GONE`, where a `ref` names nothing, under *Refs*.
+4. kind `GONE`, where a `ref` names nothing, under *Refs*;
+5. kind `REFUSED`, where a `ref` names an element of a document whose page waits on its dialog, under *A window*.
 
 ### The lines
 
@@ -107,10 +108,14 @@ The first line is the window's line of the desktop's reading, with the mark. Und
 |---|---|---|---|
 | each button its title bar has, in the bar's order | `button` | `Close`, `Minimize`, `Zoom` | `w<id>.close`, `w<id>.minimize`, `w<id>.zoom` |
 | its title bar, where the bar has a height | `titlebar` | the window's title, where it has one | `w<id>.bar` |
+| who asks the dialog up in it, as [windows](../DECKIT-31/SPEC.md) fixes a page's dialogs, the one asked last where there are more | `text` | who asks, as the dialog names it | `w<id>.dialog.from` |
+| that dialog's message | `text` | the message | `w<id>.dialog.message` |
+| a prompt's field, with the state `value` and its text as it reads now, as *What an element reads as* writes a value | `textbox` | none | `w<id>.dialog.field` |
+| each of its buttons, left to right | `button` | `OK`, `Cancel`, `Leave`, `Stay` | `w<id>.dialog.ok`, `.cancel`, `.leave`, `.stay` |
 
 A button that is not enabled, as [windows](../DECKIT-31/SPEC.md) fixes when one is, has the state `disabled`. A panel window lists no part.
 
-Then comes each **document** the window shows, from the one that lies lowest to the one on top, and after them those of the web pages shown inside them: its number, the `part` it is, for a `child` the id of the mod whose page it is, and the size of its page. `content` is the window's content, `child` a page another mod lays into [a region](../DECKIT-36/SPEC.md) of it, `overlay` what a page presents over itself, and `web` [a web page](../DECKIT-25/SPEC.md) shown inside one of them. A document's number is a count the shell gives a document as a reading, or an answer of `changes`, first lists it, in the order it lists them: the first document any lists is 1, and each one listed after that has none is given the next. A number once given stays the document's while its page shows that document; a page that loads another document has a new number as that one is next listed, and a page no reading has listed has none. Under each document come its elements, as *What an element reads as* gives them, an element under the element that holds it. A document whose page cannot be read is left out.
+Then comes each **document** the window shows, from the one that lies lowest to the one on top, and after them those of the web pages shown inside them: its number, the `part` it is, for a `child` the id of the mod whose page it is, and the size of its page. `content` is the window's content, `child` a page another mod lays into [a region](../DECKIT-36/SPEC.md) of it, `overlay` what a page presents over itself, and `web` [a web page](../DECKIT-25/SPEC.md) shown inside one of them. A document's number is a count the shell gives a document as a reading, or an answer of `changes`, first lists it, in the order it lists them: the first document any lists is 1, and each one listed after that has none is given the next. A number once given stays the document's while its page shows that document; a page that loads another document has a new number as that one is next listed, and a page no reading has listed has none. Under each document come its elements, as *What an element reads as* gives them, an element under the element that holds it. A document whose page cannot be read is left out. A page that waits on its dialog runs nothing, so its document is not read while it waits: the window leaves it out and reads the dialog's parts in its place, `changes` tells nothing of it, and a `ref` of an element in it is refused with kind `REFUSED`, as the element is there and its page waits. It reads again, with what changed in it, once its dialog is answered or gone.
 
 ### A node
 
@@ -183,10 +188,11 @@ An element that names a node and has no role reads as `generic`.
 ### Refs
 
 ```
-ref        = window-id "." ( "close" / "minimize" / "zoom" / "bar" / "edge." edge )
+ref        = window-id "." ( "close" / "minimize" / "zoom" / "bar" / "edge." edge / "dialog." dialog-part )
            / "dock." mod-id
            / "dock-menu." ( "open" / "keep" / "quit" )
            / count "." count
+dialog-part = "from" / "message" / "field" / "ok" / "cancel" / "leave" / "stay"
 edge       = "top" / "bottom" / "left" / "right" / "top-left" / "top-right" / "bottom-left" / "bottom-right"
 ```
 
@@ -196,6 +202,7 @@ A **ref** names one thing a seat can point at, and is the same string for every 
 |---|---|
 | `w<id>.close`, `.minimize`, `.zoom` | that button of the title bar of the normal window `w<id>` |
 | `w<id>.bar` | the title bar of that window |
+| `w<id>.dialog.<part>` | that part of the dialog up in that window, as *A window* lists it |
 | `w<id>.edge.<edge>` | the edge or the corner of that window a drag resizes it by, as [windows](../DECKIT-31/SPEC.md) names them; no reading lists it |
 | `dock.<mod>` | the item of the Dock of the mod `<mod>` |
 | `dock-menu.open`, `.keep`, `.quit` | a choice of the menu of an item of the Dock, while that menu is open for the seat: the one that opens or shows the app, the one that keeps it in the Dock or takes it out, and the one that quits it |
@@ -209,7 +216,7 @@ A ref **names nothing** where it is of none of these forms, or names what is not
 
 The **mark** is one count for the desktop, 0 as the host app starts. It goes up by 1:
 
-- as a line of the desktop's reading would read otherwise for some seat, or one is added or leaves, where a seat's pointer is and `(you)` apart: any number of lines that change together raise it once;
+- as a line of the desktop's reading would read otherwise for some seat, or one is added or leaves, where a seat's pointer is and `(you)` apart, and as a part of a dialog in a window on its screen does, the dialog going up or away among them: any number of lines that change together raise it once;
 - as a document a window shows is first heard of, or tells that what it shows changed.
 
 Every reading and every answer of `changes` carries the mark as it was made.
@@ -224,7 +231,7 @@ line       = "desktop " size / seat-line / item-line / entry-line / window-line 
 gone       = "desktop" / seat-id / window-id / ref / "document " count
 ```
 
-The first line holds `since` and the mark now. `+` is a line that was not there at `since`, `~` a line that was and changed after it, each as it reads now, and `-` what was there and is gone, by its ref, a seat by its id, a window by its `window-id`, and by its number a document that had one whose page loaded another. A window that closed is told gone, and its documents with it by no line. The Dock's line is never told: it changes only as an item comes or goes, which is told. They come in this order: the lines of the desktop's reading that are new or changed, in its order; what is gone of the desktop; then, for each window on the seat's screen and each panel window on it, the documents first read since, each with the window it is in, and the elements that changed, came or went in the others.
+The first line holds `since` and the mark now. `+` is a line that was not there at `since`, `~` a line that was and changed after it, each as it reads now, and `-` what was there and is gone, by its ref, a seat by its id, a window by its `window-id`, and by its number a document that had one whose page loaded another. A window that closed is told gone, and its documents with it by no line. The Dock's line is never told: it changes only as an item comes or goes, which is told. They come in this order: the lines of the desktop's reading that are new or changed, in its order, the parts of a window's dialog after that window's line; what is gone of the desktop; then, for each window on the seat's screen and each panel window on it, the documents first read since, each with the window it is in, and the elements that changed, came or went in the others.
 
 With no `since`, the answer is `changes <mark> to <mark>` alone. A `since` above the mark now is a mark the desktop never had, and is refused at `call` with kind `STALE`.
 
@@ -241,7 +248,7 @@ A seat that watches `changes`, as [users and seats](../DECKIT-38/SPEC.md) fixes 
 | `rect` | table `{ x, y, width, height }`, numbers: of that rect of the desktop |
 | `scale` | a number above 0 and at most 4: the pixels a point of the desktop is drawn with; 1 where it is left out |
 
-With none of `window`, `ref` and `rect` it is of the whole desktop. It is drawn as the screen shows it: each material the shell draws, as [windows](../DECKIT-31/SPEC.md) has one under a panel window, is in it at its shape, what lies under it there shown through it blurred. It answers `{ png, width, height, at }`: `png` a string, the picture as a PNG in base64; `width` and `height` its size in pixels; `at` table `{ x, y }`, the desktop's point its top left is at.
+With none of `window`, `ref` and `rect` it is of the whole desktop. It is drawn as the screen shows it: each material the shell draws, as [windows](../DECKIT-31/SPEC.md) has one under a panel window, is in it at its shape, what lies under it there shown through it blurred. A page that waits on its dialog draws nothing new while it waits: it is in the picture as it was drawn last, and nothing of it is where it was never drawn. It answers `{ png, width, height, at }`: `png` a string, the picture as a PNG in base64; `width` and `height` its size in pixels; `at` table `{ x, y }`, the desktop's point its top left is at.
 
 It is refused at `call` with kind `INVALID_ARGUMENT` where more than one of `window`, `ref` and `rect` is written, where `scale` is not above 0 or is above 4, or where a member of `rect` is no finite number or its `width` or `height` is not above 0; with kind `REFUSED` where `ref` names an element of a `web` document; and as *The request* refuses a `window` and a `ref`.
 
