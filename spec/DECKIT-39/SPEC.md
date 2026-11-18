@@ -21,7 +21,7 @@ A user's run is handed nothing but the requests of a seat, so nothing a mod or a
 
 ### Each seat's desktop
 
-Every rule of [windows](../DECKIT-31/SPEC.md), [activation](../DECKIT-32/SPEC.md), [the Dock](../DECKIT-33/SPEC.md) and [the shell's keys](../DECKIT-34/SPEC.md) that speaks of the person, of the person's hand or of the keyboard holds for each seat: the person is the seat's user, the hand the seat's pointer, and the keyboard the seat's. What those rules keep is parted so:
+Every rule of [windows](../DECKIT-31/SPEC.md), [activation](../DECKIT-32/SPEC.md), [the Dock](../DECKIT-33/SPEC.md) and [the shell's keys](../DECKIT-34/SPEC.md) that speaks of the person, of the person's hand or of the keyboard holds for each seat: the person is the seat's user, the hand the seat's pointer, and the keyboard the seat's. What those rules keep is parted as [users and seats](../DECKIT-38/SPEC.md) parts every state, so:
 
 | kept for each seat | kept once, for every seat |
 |---|---|
