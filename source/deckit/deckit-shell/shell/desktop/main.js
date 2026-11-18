@@ -9,6 +9,7 @@ import * as WM from './model/window-manager.js';
 import * as MOTION from './model/motion.js';
 import * as ACTIVATION_MODEL from './model/activation.js';
 import * as SHOWING_MODEL from './model/showing.js';
+import * as DIALOG_MODEL from './model/dialog.js';
 import * as DOCK_MODEL from '../dock/model/dock.js';
 import * as MODS from '../mods/index.js';
 import * as COLOURS_MODEL from './model/colours.js';
@@ -34,13 +35,13 @@ const cut = (one, other) => {
 const REREAD = 16;
 
 // `deckit` is what connect answered, `state` the shell's own state, `web` what the web engine answered (`pageFor`,
-// `placeOf`), `host` the app's answers, `REGION` the regions mods give their children, `PAGES` the shell's pages,
-// `OVERLAY` their overlays, `KEY` the keys of the app, `makeStage()` a stage to lay them on (environment: SHELL.stage),
-// `actionOnDoubleClick()` what the person set a double click on a title bar to do (environment: SHELL), `input` what
-// tells the machine's input and puts a seat's in a page, `reserve` what keeps a page from the machine's keyboard
-// (environment: SHELL `input`, `keys.reserve`), `read` what reads a page (environment: SHELL `read`), and `clock`
-// what tells time: `now()` in ms, `later(next)`, next called once the next frame is due, and `after(next, ms)`, next
-// called once `ms` passed.
+// `placeOf`, `onPlaced`), `host` the app's answers, `REGION` the regions mods give their children, `PAGES` the shell's
+// pages, `OVERLAY` their overlays, `KEY` the keys of the app, `makeStage()` a stage to lay them on (environment:
+// SHELL.stage), `actionOnDoubleClick()` what the person set a double click on a title bar to do (environment: SHELL),
+// `input` what tells the machine's input and puts a seat's in a page, `reserve` what keeps a page from the machine's
+// keyboard (environment: SHELL `input`, `keys.reserve`), `read` what reads a page (environment: SHELL `read`), and
+// `clock` what tells time: `now()` in ms, `later(next)`, next called once the next frame is due, and `after(next, ms)`,
+// next called once `ms` passed.
 export function createDesktop({
     REGION,
     PAGES,
@@ -148,6 +149,9 @@ export function createDesktop({
     const pressers = new Map(); // window id -> the seat that pressed it last, which what its content asks is done for
     const inWindows = new Map(); // a child's page -> the window or panel window whose region shows it, as last laid
     const fronts = new Map(); // a mod's page -> its front window or panel window, where its overlay lies, as last laid
+    const DIALOGS = DIALOG_MODEL.createDialogs(); // the dialogs the pages ask, where each stands in its window
+    const asking = new Map(); // a dialog's ask -> the page that asked it, while it is up
+    let answering = null; // `{ answer(ask, value), refuse(ask) }`, what deckit answered as the dialogs were served
     const reserved = new WeakMap(); // a window's content -> whether it is kept from the machine's keyboard, as told
     const onDesktop = new Map(); // a page laid in the host window's view -> its rect on the desktop, as last laid
     // id -> what is drawn of a window: `{ window, motion, value, velocity, late, leaving, gone }`, `value` its frame
@@ -221,6 +225,8 @@ export function createDesktop({
             for (const [seat, typing] of typings) if (typing.page === page) reread(seat);
         });
         READING.start();
+        answering = deckit.pages.dialogs({ whose, asked: dialogAsked, withdrawn: dialogWithdrawn });
+        web.onPlaced(dialogMoved);
         INPUT.listen(carried);
         deckit.mods.onRequest(({ from, to }) => ACTIVATION.request(from, to));
         KEY.monitor((page, _keystroke, source) => ACTIVATION.input(seatOf(source), modAt(page)));
@@ -1172,6 +1178,64 @@ export function createDesktop({
         return [...windows.values(), ...panels.values()].find(
             ({ id, surface }) => surface === held || over.includes(id)
         );
+    }
+
+    // Whose a page that asks a dialog is, as deckit asks it: the mod that shows it as a web page, laid in a page or
+    // apart in a window, or the mod of the window whose content it is; or null for any other page.
+    function whose(page) {
+        const held = web.pageFor(page);
+        if (held && held !== page) return { mod: deckit.mods.modOf(held), web: true };
+        const window = [...windows.values(), ...panels.values()].find(({ surface }) => surface === page);
+        return window ? { mod: window.mod, web: false } : null;
+    }
+
+    // A dialog deckit keeps up stands where its page shows (DIALOGS), and is refused where that is in no window.
+    function dialogAsked({ ask, page, kind, message, value, from }) {
+        if (!DIALOGS.ask({ ask, kind, message, value, from }, dialogAt(page))) return answering.refuse(ask);
+        asking.set(ask, page);
+        // Until a dialog is drawn, each placed one is refused at once, so its page does not wait on what no seat sees.
+        answering.refuse(ask);
+    }
+
+    // A dialog is up no more, however it went.
+    function dialogWithdrawn(ask) {
+        DIALOGS.withdraw(ask);
+        asking.delete(ask);
+    }
+
+    // A web page shows somewhere else: its dialog up stands where it shows now.
+    function dialogMoved(page) {
+        for (const [ask, asker] of asking) if (asker === page) DIALOGS.move(ask, dialogAt(page));
+    }
+
+    // Where `page` shows, as DIALOGS takes it, in the coordinates of its window's frame: the window's content where it
+    // is that content; where it is laid in that content or in a child's page a region of the window shows, its rect
+    // there and what shows it; or null in no window.
+    function dialogAt(page) {
+        const window = windowAt(page);
+        if (!window) return null;
+        const content = contentIn(window);
+        if (window.surface === page) return content && { window: window.id, content };
+        const place = web.placeOf(page);
+        const shows = place && (place.over === window.surface ? content : regionIn(window, place.over));
+        return shows ? { window: window.id, content: shows, rect: place.frame } : null;
+    }
+
+    // The rect of a window's content from its frame's top left, or null for a panel window on no screen.
+    function contentIn(window) {
+        if (panels.has(window.id)) {
+            const frame = panelFrames().find((one) => one.window === window)?.frame;
+            return frame ? { x: 0, y: 0, width: frame.width, height: frame.height } : null;
+        }
+        const { width, height } = MANAGER.frameOf(window.id);
+        return LAYOUT.contentOf({ x: 0, y: 0, width, height }, window.bar);
+    }
+
+    // The rect of the region of `window` that shows the child's page `page`, from its frame's top left, or null.
+    function regionIn(window, page) {
+        const child = deckit.mods.modOf(page);
+        const laid = child && REGION.laidOut(window.mod, (mod) => mod === child).get(child);
+        return laid?.window === window.id ? laid.rect : null;
     }
 
     // The part the shell draws that a point of a page is on, `{ id, part }`: of the window `id`, 'bar', its title bar,
@@ -2189,6 +2253,8 @@ export function createDesktop({
 
     return {
         start,
+        // The dialogs up in window `id`, each where it stands (DIALOG_MODEL).
+        dialogsIn: (id) => DIALOGS.inWindow(id),
         openPanel,
         closePanel,
         setAnchors,

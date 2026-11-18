@@ -874,7 +874,8 @@ async function main() {
     anchoredChecks({ ANCHOR, ANCHORED }, check);
     await anchorChecks({ LAYOUT, createDesktop }, check);
     showingChecks(await import(url('deckit-shell', 'shell', 'desktop', 'model', 'showing.js')), check);
-    await webPressChecks({ LAYOUT, createDesktop }, check);
+    dialogChecks(await import(url('deckit-shell', 'shell', 'desktop', 'model', 'dialog.js')), check);
+    await webPageChecks({ LAYOUT, createDesktop }, check);
     await viewChecks({ LAYOUT, createDesktop }, check);
     await askChecks({ createDesktop }, check);
     await followChecks({ LAYOUT, createDesktop }, check);
@@ -2310,17 +2311,21 @@ async function anchorChecks({ LAYOUT, createDesktop }, check) {
 // as text and as data, what changed since a mark, a mark that is not kept, an act on a ref and a picture.
 // What the desktop's page is told of the seats: each one's colour, where its pointer is and what it holds.
 // A web page is of the window it shows in: a press in one laid in a window's content, or apart in a window, is a
-// press on that window, not on its mod's other windows.
-async function webPressChecks({ LAYOUT, createDesktop }, check) {
+// press on that window, not on its mod's other windows. A page's dialog is told whose it is, stands where the page
+// shows, moves with a laid page, and is refused where the page is in no window and, while none is drawn, once placed.
+async function webPageChecks({ LAYOUT, createDesktop }, check) {
     const pages = { a: { name: 'page-a', mod: 'a' } };
     const laid = { name: 'web-laid', embedder: pages.a };
     const apart = { name: 'web-apart', embedder: pages.a };
     const surfaces = {};
+    let laidIn = 1;
+    let placed = null;
     const desk = desktopOver(createDesktop, {
         web: {
             pageFor: (page) => page?.embedder ?? null,
             placeOf: (page) =>
-                page === laid ? { over: surfaces[1], frame: { x: 10, y: 10, width: 100, height: 80 } } : null,
+                page === laid ? { over: surfaces[laidIn], frame: { x: 10, y: 10, width: 100, height: 80 } } : null,
+            onPlaced: (listener) => (placed = listener),
         },
     });
     desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
@@ -2336,8 +2341,8 @@ async function webPressChecks({ LAYOUT, createDesktop }, check) {
         minimum: { width: 0, height: 0 },
         bar: { ...LAYOUT.DEFAULT_BAR, style: 'titled', enabled: { close: true, minimize: true, zoom: true } },
     });
-    surfaces[1] = { name: 'content-1', of: pages.a };
-    const made = [windowOf(1, surfaces[1]), windowOf(2, apart), windowOf(3, { name: 'content-3', of: pages.a })];
+    for (const id of [1, 3]) surfaces[id] = { name: `content-${id}`, of: pages.a };
+    const made = [windowOf(1, surfaces[1]), windowOf(2, apart), windowOf(3, surfaces[3])];
     for (const window of made) {
         desk.desktop.open(window);
         desk.openSurfaces(window.id);
@@ -2357,6 +2362,134 @@ async function webPressChecks({ LAYOUT, createDesktop }, check) {
         "a press in a web page laid in a window's content, or apart in a window, is a press on that window",
         keys.join(' ') === '1 2',
         keys
+    );
+
+    const { served, refused } = desk.dialogs;
+    const lost = { name: 'lost' };
+    const owners = [surfaces[1], laid, apart, lost].map((page) => served.whose(page));
+    check(
+        "a page's dialog is the mod's of the window whose content it is, or of the page that shows it as a web page",
+        JSON.stringify(owners) ===
+            JSON.stringify([{ mod: 'a', web: false }, { mod: 'a', web: true }, { mod: 'a', web: true }, null]),
+        owners
+    );
+    const asks = [surfaces[1], laid, apart, lost];
+    asks.forEach((page, at) =>
+        served.asked({ ask: at + 1, page, kind: 'confirm', message: 'Sure?', value: '', from: 'A' })
+    );
+    const frameOf = (id) => desk.desktop.control.windows().find((one) => one.id === id).frame;
+    const contentOf = (id) =>
+        LAYOUT.contentOf({ x: 0, y: 0, width: frameOf(id).width, height: frameOf(id).height }, made[0].bar);
+    const where = (id) => desk.desktop.dialogsIn(id).map(({ ask, rect, whole }) => ({ ask, rect, whole }));
+    const content = contentOf(1);
+    const standing = [where(1), where(2)];
+    check(
+        "a dialog stands over its window's content, or a laid page's rect in it, and is refused once placed",
+        JSON.stringify(standing) ===
+            JSON.stringify([
+                [
+                    { ask: 1, rect: content, whole: true },
+                    { ask: 2, rect: { x: 10, y: content.y + 10, width: 100, height: 80 }, whole: false },
+                ],
+                [{ ask: 3, rect: contentOf(2), whole: true }],
+            ]) && refused.join() === '1,2,3,4',
+        { standing, refused }
+    );
+    laidIn = 3;
+    placed(laid, null);
+    const movedTo = [
+        where(1)
+            .map(({ ask }) => ask)
+            .join(),
+        where(3)
+            .map(({ ask }) => ask)
+            .join(),
+    ];
+    for (const ask of [1, 2, 3]) served.withdrawn(ask);
+    check(
+        "a laid page's dialog moves with it to the window it is laid in now, and is gone once withdrawn",
+        movedTo.join(' ') === '1 2' && [1, 2, 3].every((id) => where(id).length === 0),
+        movedTo
+    );
+}
+
+// Where a page's dialog stands (model/dialog.js): over the whole content of a window, over a page shown in a part of
+// it cut to what shows it, nowhere for a page in no window or one shown outside what shows it, moved as its page is,
+// kept where it was while its page shows nowhere, and up until it is withdrawn.
+function dialogChecks({ createDialogs }, check) {
+    const dialogs = createDialogs();
+    const content = { x: 0, y: 28, width: 400, height: 300 };
+    const asked = (ask, kind = 'confirm') => ({ ask, kind, message: 'Sure?', value: '', from: 'A' });
+    const whole = dialogs.ask(asked(1), { window: 7, content });
+    check(
+        "a window's content's dialog stands over the whole content, in the window's coordinates",
+        JSON.stringify(whole) === JSON.stringify({ ask: 1, window: 7, rect: content, whole: true, ...asked(1) }) &&
+            Object.isFrozen(whole),
+        whole
+    );
+    const laid = dialogs.ask(asked(2, 'alert'), {
+        window: 7,
+        content,
+        rect: { x: 350, y: -10, width: 100, height: 60 },
+    });
+    const region = dialogs.ask(asked(3), {
+        window: 8,
+        content: { x: 20, y: 48, width: 200, height: 100 },
+        rect: { x: 10, y: 10, width: 50, height: 40 },
+    });
+    check(
+        'a page laid in a part of a window has its dialog over its rect, cut to what shows it',
+        JSON.stringify(laid?.rect) === JSON.stringify({ x: 350, y: 28, width: 50, height: 50 }) &&
+            laid.whole === false &&
+            JSON.stringify(region?.rect) === JSON.stringify({ x: 30, y: 58, width: 50, height: 40 }) &&
+            region.whole === false,
+        { laid, region }
+    );
+    const nowhere = [
+        dialogs.ask(asked(4), null),
+        dialogs.ask(asked(5), { window: 7, content, rect: { x: 500, y: 0, width: 10, height: 10 } }),
+        dialogs.ask(asked(6), { window: 7, content, rect: null }),
+        dialogs.ask(asked(7), { window: 7, content: { x: 0, y: 28, width: 0, height: 0 } }),
+        dialogs.ask(asked(1), { window: 9, content }),
+    ];
+    check(
+        'a dialog stands nowhere for a page in no window, one shown outside what shows it, or one asked twice',
+        nowhere.every((one) => one === null) &&
+            dialogs
+                .inWindow(7)
+                .map(({ ask }) => ask)
+                .join() === '1,2' &&
+            dialogs
+                .inWindow(8)
+                .map(({ ask }) => ask)
+                .join() === '3',
+        { nowhere, in7: dialogs.inWindow(7), in8: dialogs.inWindow(8) }
+    );
+    const moved = dialogs.move(2, { window: 8, content, rect: { x: 0, y: 0, width: 40, height: 30 } });
+    const stays = dialogs.move(2, null);
+    const unknown = dialogs.move(9, { window: 7, content });
+    check(
+        'a dialog moves with its page, stays where it was while its page shows nowhere, and none moves that is not up',
+        JSON.stringify(moved?.rect) === JSON.stringify({ x: 0, y: 28, width: 40, height: 30 }) &&
+            moved.window === 8 &&
+            moved.kind === 'alert' &&
+            stays === moved &&
+            unknown === null &&
+            dialogs
+                .inWindow(7)
+                .map(({ ask }) => ask)
+                .join() === '1' &&
+            dialogs
+                .inWindow(8)
+                .map(({ ask }) => ask)
+                .join() === '2,3',
+        { moved, stays, unknown }
+    );
+    const withdrawn = [dialogs.withdraw(2), dialogs.withdraw(2)];
+    check(
+        'a dialog withdrawn is up no more, once',
+        withdrawn.join() === 'true,false' && dialogs.of(2) === null && dialogs.of(3) === region,
+        { withdrawn, of: dialogs.of(2) }
     );
 }
 
@@ -4176,7 +4309,8 @@ async function numberingChecks({ LAYOUT, createDesktop }, check) {
 // it at `frame`. `page()` is what it was told last, and `press(id, page)` presses the shell's key `id` in `page`,
 // which the page did not handle. `request(from, to)` is a request of one mod of another as deckit tells it,
 // `key(page)` a key pressed in a page and `chord(mod)` a chord told to a mod. `read` is what reads a page, and
-// `pictures` each picture the stage was asked for. `web` stands in for members of what the web engine answered.
+// `pictures` each picture the stage was asked for. `web` stands in for members of what the web engine answered, and
+// `dialogs` is what the desktop served of the dialogs and the asks it refused.
 function desktopOver(
     createDesktop,
     { state = {}, clock, read = { listen() {} }, overlays = () => [], ownerOf = (page) => page, web = {} }
@@ -4194,6 +4328,8 @@ function desktopOver(
     const desktopPage = { name: 'desktop' };
     const closed = []; // the ids of the windows the desktop asked the shell's windows to close
     const heard = { requests: null, monitor: null, chords: null, press: null, carried: null };
+    // What the desktop served deckit of the dialogs, and the asks it refused, which nothing withdraws here.
+    const dialogs = { served: null, refused: [] };
     // The seats as deckit keeps them: the local one, those `sit` opens, what the desktop serves, the seats judged
     // idle, what a seat was told of a window held, each event put in a page and each page kept from the keyboard.
     const local = { id: 'local', local: true, user: { id: 'local', name: 'Local' }, source: 'of-local' };
@@ -4250,7 +4386,13 @@ function desktopOver(
         },
         config: { name: 'Deckit' },
         core: { onDown() {} },
-        pages: { whenEnds() {} },
+        pages: {
+            whenEnds() {},
+            dialogs: (served) => {
+                dialogs.served = served;
+                return { answer() {}, refuse: (ask) => dialogs.refused.push(ask) };
+            },
+        },
         mods: {
             list: () => mods,
             runs: () => children.runs,
@@ -4328,7 +4470,7 @@ function desktopOver(
             read: (key, fallback) => state[key] ?? fallback,
             write: async (key, value) => (state[key] = value),
         },
-        web: { pageFor: () => null, placeOf: () => null, onPage() {}, ...web },
+        web: { pageFor: () => null, placeOf: () => null, onPlaced() {}, onPage() {}, ...web },
         host: { show: () => (hostShown += 1), desktopTitled: (title) => titles.push(title) },
         ...(clock ? { clock } : {}),
     });
@@ -4425,6 +4567,7 @@ function desktopOver(
         enter: (seat, event) => seats.served.input(seat, { ...event, source: seat.source }),
         machine,
         carried: (event) => heard.carried(event),
+        dialogs,
         seats,
         closed,
         puts,
