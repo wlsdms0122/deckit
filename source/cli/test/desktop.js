@@ -874,6 +874,7 @@ async function main() {
     anchoredChecks({ ANCHOR, ANCHORED }, check);
     await anchorChecks({ LAYOUT, createDesktop }, check);
     showingChecks(await import(url('deckit-shell', 'shell', 'desktop', 'model', 'showing.js')), check);
+    await webPressChecks({ LAYOUT, createDesktop }, check);
     await viewChecks({ LAYOUT, createDesktop }, check);
     await askChecks({ createDesktop }, check);
     await followChecks({ LAYOUT, createDesktop }, check);
@@ -2308,6 +2309,57 @@ async function anchorChecks({ LAYOUT, createDesktop }, check) {
 // What a seat reads of the desktop, over a reader that answers one document a page: the desktop, a window and a node
 // as text and as data, what changed since a mark, a mark that is not kept, an act on a ref and a picture.
 // What the desktop's page is told of the seats: each one's colour, where its pointer is and what it holds.
+// A web page is of the window it shows in: a press in one laid in a window's content, or apart in a window, is a
+// press on that window, not on its mod's other windows.
+async function webPressChecks({ LAYOUT, createDesktop }, check) {
+    const pages = { a: { name: 'page-a', mod: 'a' } };
+    const laid = { name: 'web-laid', embedder: pages.a };
+    const apart = { name: 'web-apart', embedder: pages.a };
+    const surfaces = {};
+    const desk = desktopOver(createDesktop, {
+        web: {
+            pageFor: (page) => page?.embedder ?? null,
+            placeOf: (page) =>
+                page === laid ? { over: surfaces[1], frame: { x: 10, y: 10, width: 100, height: 80 } } : null,
+        },
+    });
+    desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
+    desk.desktop.control.show();
+    const windowOf = (id, surface) => ({
+        id,
+        mod: 'a',
+        name: `w${id}`,
+        level: 'normal',
+        page: pages.a,
+        surface,
+        size: { width: 300, height: 200 },
+        minimum: { width: 0, height: 0 },
+        bar: { ...LAYOUT.DEFAULT_BAR, style: 'titled', enabled: { close: true, minimize: true, zoom: true } },
+    });
+    surfaces[1] = { name: 'content-1', of: pages.a };
+    const made = [windowOf(1, surfaces[1]), windowOf(2, apart), windowOf(3, { name: 'content-3', of: pages.a })];
+    for (const window of made) {
+        desk.desktop.open(window);
+        desk.openSurfaces(window.id);
+    }
+    const settled = () => new Promise((resolve) => setTimeout(resolve));
+    const pressIn = async (page) => {
+        for (const type of ['down', 'up'])
+            desk.carried({ page, event: 'pointer', type, x: 5, y: 5, button: 0, carried: true });
+        await settled();
+        return made
+            .filter((window) => desk.desktop.stateOf(window).key)
+            .map(({ id }) => id)
+            .join();
+    };
+    const keys = [await pressIn(laid), await pressIn(apart)];
+    check(
+        "a press in a web page laid in a window's content, or apart in a window, is a press on that window",
+        keys.join(' ') === '1 2',
+        keys
+    );
+}
+
 // The showing rule (model/showing.js): on which seats' screens a view is after each thing that shows it and each that
 // puts it away, and which seat holds its keyboard.
 function showingChecks({ createShowing, KEY, HELD }, check) {
@@ -4124,10 +4176,10 @@ async function numberingChecks({ LAYOUT, createDesktop }, check) {
 // it at `frame`. `page()` is what it was told last, and `press(id, page)` presses the shell's key `id` in `page`,
 // which the page did not handle. `request(from, to)` is a request of one mod of another as deckit tells it,
 // `key(page)` a key pressed in a page and `chord(mod)` a chord told to a mod. `read` is what reads a page, and
-// `pictures` each picture the stage was asked for.
+// `pictures` each picture the stage was asked for. `web` stands in for members of what the web engine answered.
 function desktopOver(
     createDesktop,
-    { state = {}, clock, read = { listen() {} }, overlays = () => [], ownerOf = (page) => page }
+    { state = {}, clock, read = { listen() {} }, overlays = () => [], ownerOf = (page) => page, web = {} }
 ) {
     const handlers = {};
     const sent = [];
@@ -4276,7 +4328,7 @@ function desktopOver(
             read: (key, fallback) => state[key] ?? fallback,
             write: async (key, value) => (state[key] = value),
         },
-        web: { pageFor: () => null, onPage() {} },
+        web: { pageFor: () => null, placeOf: () => null, onPage() {}, ...web },
         host: { show: () => (hostShown += 1), desktopTitled: (title) => titles.push(title) },
         ...(clock ? { clock } : {}),
     });

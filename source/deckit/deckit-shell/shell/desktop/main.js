@@ -33,9 +33,9 @@ const cut = (one, other) => {
 // How long after it is asked where a seat types is read again, in ms: a frame, by which the page took the input.
 const REREAD = 16;
 
-// `deckit` is what connect answered, `state` the shell's own state, `web` what the web engine answered (`pageFor`),
-// `host` the app's answers, `REGION` the regions mods give their children, `PAGES` the shell's pages, `OVERLAY` their
-// overlays, `KEY` the keys of the app, `makeStage()` a stage to lay them on (environment: SHELL.stage),
+// `deckit` is what connect answered, `state` the shell's own state, `web` what the web engine answered (`pageFor`,
+// `placeOf`), `host` the app's answers, `REGION` the regions mods give their children, `PAGES` the shell's pages,
+// `OVERLAY` their overlays, `KEY` the keys of the app, `makeStage()` a stage to lay them on (environment: SHELL.stage),
 // `actionOnDoubleClick()` what the person set a double click on a title bar to do (environment: SHELL), `input` what
 // tells the machine's input and puts a seat's in a page, `reserve` what keeps a page from the machine's keyboard
 // (environment: SHELL `input`, `keys.reserve`), `read` what reads a page (environment: SHELL `read`), and `clock`
@@ -1162,12 +1162,13 @@ export function createDesktop({
         return { over: window.id, key: made === WM.HELD ? 'held' : 'key', holder: MANAGER.holderOf(window.id) };
     }
 
-    // The window or panel window a page is of: its content, a child a region of it shows, a web page in it or an
-    // overlay of one, the overlay of a mod's own page being of that page's front window; or null.
+    // The window or panel window a page is of: its content, a child a region of it shows, a web page apart in it or
+    // laid in either where its element shows it, or an overlay of one, the overlay of a mod's own page being of that
+    // page's front window; or null.
     function windowAt(page) {
         const owner = OVERLAY.ownerOf(page);
-        const held = web.pageFor(owner) ?? owner;
-        const over = [inWindows.get(held), ...(owner === page ? [] : [fronts.get(held)])];
+        const held = web.placeOf(owner)?.over ?? owner;
+        const over = [inWindows.get(held), ...(owner === page ? [] : [fronts.get(web.pageFor(owner) ?? owner)])];
         return [...windows.values(), ...panels.values()].find(
             ({ id, surface }) => surface === held || over.includes(id)
         );
