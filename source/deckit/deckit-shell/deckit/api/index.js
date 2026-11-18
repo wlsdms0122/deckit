@@ -19,6 +19,7 @@ export function createApi({
     MANIFEST_FIELD,
     SETUP,
     SEAT,
+    DIALOG,
 }) {
     // MARK: - Property
     const NOTIFICATIONS = Object.freeze([...LIFECYCLE.NOTIFICATIONS]);
@@ -134,6 +135,9 @@ export function createApi({
                 // onSandbox(listener(page, id)) -> off: each mod's sandbox page as it is made, known as the page of
                 // the mod `id` and before it loads, so what its owner sets up is in place before the mod's code runs.
                 onSandbox: (listener) => RUNNER.onSandbox((page, mod) => listener(page, mod.id)),
+                // dialogs({ whose, asked, withdrawn }) -> { answer(ask, value), refuse(ask) }, once: what a page asks
+                // and waits on, its dialog, served as deckit keeps it (deckit/dialog).
+                dialogs: DIALOG.serve,
             }),
             // The seats: where a user sits while a run of theirs is hosted, each `{ id, user: { id, name }, local,
             // source }`, `local` for the one whose devices are this machine's hardware and `source` the word every

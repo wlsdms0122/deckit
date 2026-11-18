@@ -20,6 +20,7 @@ import { createMods } from '../mods/main.js';
 import { createCore } from '../core/main.js';
 import { createOutside } from '../outside/main.js';
 import { createSeat } from '../seat/main.js';
+import { createDialog } from '../dialog/main.js';
 import { createOpen } from '../open/main.js';
 import { createNotification } from '../notification/main.js';
 import { createClipboard } from '../clipboard/main.js';
@@ -113,6 +114,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         path: `${HOME.folder}/deckit.sock`,
     });
     const SETUP = createSetup({ IDENTITY });
+    const DIALOG = createDialog({ IDENTITY, CATALOG, pages: ENV.pages });
     const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST, SETUP, pages: ENV.pages });
     const CONTRIBUTION = createContribution({ CORE, IDENTITY });
     const OPEN = createOpen({ open: ENV.open });
@@ -145,6 +147,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         MANIFEST_FIELD,
         SETUP,
         SEAT,
+        DIALOG,
     });
     const starting = []; // what starts with deckit, before any mod launches: the UI on it
     let told = false; // what starts with deckit has been told
@@ -182,6 +185,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
             await CATALOG.load();
             await SEAT.start();
         }
+        DIALOG.start();
         ENV.pages.serve((modId) => CATALOG.mods().find((mod) => mod.id === modId)?.folder || null);
         OPEN.start();
         NOTIFICATION.start();

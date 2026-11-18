@@ -74,6 +74,7 @@ const main = async () => {
         'catalog.js',
         'open.js',
         'web.js',
+        'dialog.js',
         'tellings.js',
         'main-process.js',
         'page.js',
