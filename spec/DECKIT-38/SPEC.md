@@ -5,7 +5,7 @@ Area: system
 
 ## Summary
 
-A **user** is a principal that is no mod: who attaches to the system from outside it, and who is at the machine. This DECKIT fixes what a user is and how a host makes and removes one, the job a user's run holds and the permission `deckit.seat` that job alone holds, the **seat** a user sits at while its run goes, the local seat, how a user is admitted to a seat and the two settings a host keeps of the seats, and the requests and the message by which a seat sends what its devices do and is handed what it perceives, which a layer over the system serves.
+A **user** is a principal that is no mod: who attaches to the system from outside it, and who is at the machine. This DECKIT fixes what a user is and how a host makes and removes one, the job a user's run holds and the permission `deckit.seat` that job alone holds, the **seat** a user sits at while its run goes, the local seat, whose each state the system keeps is, how a user is admitted to a seat and the two settings a host keeps of the seats, and the requests and the message by which a seat sends what its devices do and is handed what it perceives, which a layer over the system serves.
 
 ## Motivation
 
@@ -59,6 +59,18 @@ A user's run that failed counts toward no relaunch limit, as [the lifecycle](../
 The **local user** is the user of the id `local`: whoever is at the machine the host app runs on. Where no user is kept under that id as the host app starts, the system makes it, under a name the host gives.
 
 The **local seat** is the seat `{ id = "local", local = true }` of the local user, whose devices are the machine's own. It opens as the host app starts and stays open until the host app quits. No run holds it, so no party sits at it: a party that proves the principal `local` is refused with kind `ALREADY_RUNNING`.
+
+### Whose a state is
+
+Every state the system and the layers over it keep is of one of three: of what the seats share, of a seat, or of the machine the host app runs on. There is nothing else for a state to be of, and a state is of one of them alone.
+
+- **The shared state** is what runs: the runs of the mods, what they keep and show, and where what they show stands. It is one, so every seat meets the same, and a seat's input changes it for every seat. Inputs that reach one state are taken in the order they reach it, and a permission decides what a seat's input may do.
+- **A seat's own state** is how the seat meets the shared state: what it looks at and how, where its keys go, and what a layer draws around the shared state for that seat alone. It changes by that seat's input alone. A seat shows in the shared state by what its input does and by where its pointer is, and by nothing else of its own.
+- **The machine's state** is what the shared state runs on: its storage, its network and its devices, and who sits. What the machine shows of itself stands outside the shared state, so only whoever is at the machine meets it. What the shared state makes is kept in the machine's storage. The machine's say over the shared state reaches it as a permission alone, which the local seat holds first.
+
+A state passes from one of the three to another by an input alone: what a seat's input carries out of the shared state goes to that seat's devices, and what it carries in comes from them. The shared state is kept whether a seat looks at it or not, and what no seat can meet has no seat to ask.
+
+**Note.** Which permissions a seat holds, and how the local seat hands one on, are not fixed, and this DECKIT is not accepted before they are.
 
 ### Admission
 
@@ -158,12 +170,14 @@ A user is made, removed and read, and a setting set, with the host app started o
 - Erasing what a principal stored: [storage](../DECKIT-13/SPEC.md).
 - A layer a host stacks, and `PERMISSION` at the start: [embedding](../DECKIT-22/SPEC.md).
 - The users and keys a case's host makes, and a party of a case: [the case format](../DECKIT-1/SPEC.md).
+- What of the desktop is the shared state and what is a seat's own: [seats at the desktop](../DECKIT-39/SPEC.md).
 - `REFUSED` of an admission, and `INVALID_ARGUMENT`, `REFUSED` and `NOT_FOUND` of a seat's requests and of what a host asks: here.
 
 ## Alternatives considered
 
 - A party that runs as a mod. A key would then reach a mod's records and connections from outside its sandbox, and a mod's run would have two hosts; a user is a principal of its own, with a job that holds one permission.
 - A seat named in every request. A party would name another's seat; the transport connection says whose it is, as it says the principal and the run.
+- A list of what the seats share and what is each seat's. A state the list leaves out would have no rule, and every state it names would weigh on how the next is read; three things a state can be of hold every state, the next one too.
 - The local seat as a thing apart from seats. Every rule of a seat would gain a second case for the machine's own devices; the local seat is a seat whose devices are the machine's, and whoever attaches stands as the one at the machine does.
 - Admission decided by how long the local seat gave no input. Whoever attaches while nobody is at the machine would sit unasked or never, by a clock; the setting says which, and the idle time decides nothing of it.
 
