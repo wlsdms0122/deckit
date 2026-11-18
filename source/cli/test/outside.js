@@ -526,7 +526,7 @@ async function run({
         ];
         check(
             'outside: deckit seat scroll, drag and move print what the pointer reached',
-            same(acted, [`over ${windowA.id}`, `over ${windowA.id}, key`, 'over nothing']),
+            same(acted, [`over ${windowA.id}`, `over ${windowA.id}, key`, 'over desktop']),
             JSON.stringify(acted)
         );
         // What the desktop's page draws of the two seats: in the cursors' surface, the last page laid on the desktop,

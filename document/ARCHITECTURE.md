@@ -197,3 +197,9 @@ The kit is the shell's, and the one way things look and behave in every page it 
 
 - A rename renames everything, stored keys and channels included. A record's shape is its owner's, and nothing reads an old shape: data written in one is the consumer's to write again.
 - A file of a mod's data edited by hand is read at the next start.
+
+## 9. Where the build falls short of the spec
+
+A rule of the spec that this build does not keep, and why. Each is WebKit's: what it lets a host set of a page.
+
+- WebKit hit tests a move with no button held only in a page it counts active, and it counts a page active only while the page's window has the machine's keyboard. The desktop's windows are views in the host window, so a seat's move over a page is heard while the host window has the machine's keyboard, and not while another app or an overlay window has it. The app `deckit test` and `deckit conformance` run never has it, so the cases of [seats at the desktop](../spec/DECKIT-39/SPEC.md) on a move with no button held fail there.

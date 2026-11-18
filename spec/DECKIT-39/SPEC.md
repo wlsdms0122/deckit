@@ -28,7 +28,7 @@ Every rule of [windows](../DECKIT-31/SPEC.md), [activation](../DECKIT-32/SPEC.md
 | the desktop's order | which windows are open, and each one's frame, zoom and tile, and the dialog a page asks in one |
 | the key window, and with it the active mod | the Dock's items and which are kept |
 | which windows it minimized | each mod's run |
-| which mods may activate, which are held back and which ask for attention | |
+| which mods may activate, which are held back and which ask for attention | where each page's pointer is |
 | the Dock's marks `active` and `attention` | |
 | whether the Dock is out, and the menu of an item | |
 
@@ -103,9 +103,11 @@ An event names its place by `x` and `y`, both, or by `ref`, never by both. It an
 | `holder` | written with `key`: the id of the seat that holds the window, or null |
 | `at` | table `{ x, y }`: the point of the desktop the event went to |
 
-A `down` and a `scroll` reach what lies at the point in the seat's order, the windows it minimized left out. A `down` on a window is the seat's press on it, as [windows](../DECKIT-31/SPEC.md) fixes the person's hand, and input of that seat to the window's mod. A `move` with a button held and the `up` that ends it reach what the `down` reached, and answer it under `over`; a `move` or an `up` with no `down` before it moves the seat's pointer alone and answers `over` null.
+A `down`, a `scroll` and a `move` with no button of the seat held reach what lies at the point in the seat's order, the windows it minimized left out. A `down` on a window is the seat's press on it, as [windows](../DECKIT-31/SPEC.md) fixes the person's hand, and input of that seat to the window's mod. A `move` with a button held and the `up` that ends it reach what the `down` reached, and answer it under `over`; an `up` with no `down` before it moves the seat's pointer alone and answers `over` null.
 
-An event at a `ref` goes to the place the ref names. Where another window covers that place in the seat's order, the window the ref is of first comes in front, as the seat's press on it brings it.
+Where the pointer is over a page, and whether the page is hovered, is the page's, one for every seat: a page has one pointer, and the last move of any seat places it. A `move` with no button held is heard by the page of the window it reaches as that page hears the machine's own pointer move: the pointer comes over what lies there, enters it and moves; and a page whose pointer a move of that seat placed, and that this move left, hears the pointer leave it. Such a move presses nothing: it brings no window in front, makes no window key and changes no seat's order, and it is no input to a mod, as the machine's own pointer moving is none in [activation](../DECKIT-32/SPEC.md).
+
+An event at a `ref` goes to the place the ref names. Where another window covers that place in the seat's order, the window the ref is of first comes in front, as the seat's press on it brings it; a `move` with no button held brings none, and reaches what lies there.
 
 ### Where a seat's keys go
 
@@ -125,9 +127,8 @@ A `seat/input` is refused at `call` with the first of these that is so, after wh
 
 1. kind `HIDDEN`, where the host app's window is hidden: no page takes input;
 2. kind `INVALID_ARGUMENT`, where a pointer event names no place, names one by both `x`, `y` and `ref`, writes an `x` or a `y` that is no finite number, or writes a `button` or a `count` below 0, which is no count;
-3. kind `REFUSED`, where it is a `move` at a `ref` with no button of the seat held: no page hears a pointer that only moves;
-4. kind `GONE`, where its `ref` names nothing, as [what a seat reads](../DECKIT-40/SPEC.md) fixes when a ref does: nothing a reading named, or what one named and is there no more;
-5. kind `HELD`, where it is a key or text event, and either the window the seat pressed last is held from it and that window's holder is not idle, or a view is shown for the seat by activation while another seat that is not idle holds its keyboard, as [views](../DECKIT-41/SPEC.md) fix it.
+3. kind `GONE`, where its `ref` names nothing, as [what a seat reads](../DECKIT-40/SPEC.md) fixes when a ref does: nothing a reading named, or what one named and is there no more;
+4. kind `HELD`, where it is a key or text event, and either the window the seat pressed last is held from it and that window's holder is not idle, or a view is shown for the seat by activation while another seat that is not idle holds its keyboard, as [views](../DECKIT-41/SPEC.md) fix it.
 
 A seat's events are done in the order its party sent them: one that takes time, as an event at a `ref` does, is answered before the next is begun.
 
@@ -191,7 +192,7 @@ It guards every member of `shell.seats`.
 - The handle `shell`, a request, a registration, `ENDED` and how the shell defines a permission: [the shell](../DECKIT-29/SPEC.md). A privileged permission and `NOT_PERMITTED`: [the permissions](../DECKIT-3/SPEC.md).
 - `[host] seats`, the key `seat` of the looks `windows`, `desktop` and `dock`, a party of a case and the look `told`: [the case format](../DECKIT-1/SPEC.md).
 - A reading, a ref and when it names nothing, the mark and the output `changes`: [what a seat reads](../DECKIT-40/SPEC.md).
-- `HIDDEN`, `HELD` and `REFUSED` of an input: here.
+- `HIDDEN` and `HELD` of an input: here.
 
 ## Alternatives considered
 
@@ -202,6 +203,7 @@ It guards every member of `shell.seats`.
 - Every rule of the desktop written again for a seat in its own DECKIT. Four DECKITs would say each thing twice; one rule reads them for each seat, as [a party from outside](../DECKIT-37/SPEC.md) reads a run for its principal.
 - A seat named in what a mod is handed, so a mod acts for the seat that asked. A mod would tell seats apart, and with them who asks; the shell keeps for which seat a mod acts.
 - The ids of `shell.seats` being the seats' own ids. `local` would tell a mod which seat is the machine's; an id here is a count.
+- A pointer over a page for each seat. A page would hear several pointers and tell them apart, and with them the seats; a page has one, which the last move of any seat places.
 - Following as a seat that watches another. The seat followed would have two users at one view; only the host app's window, which is no seat, shows another's desktop.
 
 ## Notes
