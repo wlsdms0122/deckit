@@ -1159,8 +1159,8 @@ function seatChecks({ LAYOUT, DOCK, createDesktop }, check) {
     const moved = desk.enter(me, pointer('move', { x: 3, y: 500 }));
     const nowhere = desk.enter(me, pointer('down', { x: 3, y: 500 }));
     check(
-        'a move with no button reaches no page, and a press where no window is reaches the desktop',
-        moved.over === null && nowhere.over === 'desktop',
+        'a move with no button held and a press where no window is reach the desktop',
+        moved.over === 'desktop' && nowhere.over === 'desktop',
         JSON.stringify({ moved, nowhere })
     );
     desk.dock.items = [{ id: 'a', pinned: true, running: true }];
@@ -1361,11 +1361,11 @@ async function dockChecks({ LAYOUT, DOCK, createDesktop }, check) {
             'for it; the seat reads it, and its press on an entry chooses it and puts the menu away',
         mine === null &&
             read.includes('  menu "c"\n  menuitem "Show" dock-menu.open\n  menuitem "Keep in Dock" dock-menu.keep') &&
-            offMenu.over === null &&
+            offMenu.over === 'dock' &&
             chose.over === 'dock' &&
             JSON.stringify(desk.dock.chosen) === '[["c","keep","s1"]]' &&
             !after.includes('menu'),
-        JSON.stringify({ mine, read, chose, chosen: desk.dock.chosen })
+        JSON.stringify({ mine, read, offMenu, chose, chosen: desk.dock.chosen })
     );
     desk.enter(me, pointer('down', on('c'), { button: 2 }));
     desk.enter(me, pointer('up', on('c'), { button: 2 }));
@@ -1743,7 +1743,7 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
 
 // How what a seat's devices did finds where it goes (model/routes.js), as plain data.
 function routeChecks(ROUTING, check) {
-    const { routeOf, placeOf, noCount, waits, hovers, raises } = ROUTING;
+    const { routeOf, placeOf, noCount, waits, hovers, hovered, raises } = ROUTING;
     check(
         'each kind of event has its route by the table, and what is no kind has none',
         ['pointer', 'key', 'text', 'act', undefined].map((event) => routeOf({ event })).join() ===
@@ -1777,16 +1777,32 @@ function routeChecks(ROUTING, check) {
         ''
     );
     check(
-        'a move at a ref with no button held hovers, and a window comes forward only where another covers the place',
+        'a move with no button held only moves, and a window comes forward only where another covers the place',
         hovers({ type: 'move', ref: '4.2' }, []) &&
             !hovers({ type: 'move', ref: '4.2' }, [0]) &&
-            !hovers({ type: 'move', x: 1, y: 2 }, []) &&
+            hovers({ type: 'move', x: 1, y: 2 }, []) &&
             !hovers({ type: 'down', ref: '4.2' }, []) &&
             raises(1, 3) &&
             !raises(1, 1) &&
             !raises(1, null) &&
             !raises(null, 3),
         ''
+    );
+    const into = hovered(
+        [
+            { page: 'a', seat: 's1' },
+            { page: 'b', seat: 's2' },
+        ],
+        's1',
+        'b'
+    );
+    const off = hovered(into.placed, 's1', null);
+    check(
+        "a page has one pointer, placed by the last move of any seat, and a seat's move leaves the pages it placed",
+        JSON.stringify(into) === '{"placed":[{"page":"b","seat":"s1"}],"left":["a"]}' &&
+            JSON.stringify(off) === '{"placed":[],"left":["b"]}' &&
+            hovered(into.placed, 's2', 'a').left.length === 0,
+        JSON.stringify({ into, off })
     );
 }
 
@@ -4300,10 +4316,18 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
         onDock.over === 'dock' && desk.dock.clicked.map(String).join(' ') === 'b,s1',
         JSON.stringify({ onDock, clicked: desk.dock.clicked })
     );
+    desk.puts.length = 0;
+    const hovering = await byRef('move', '1.2');
+    const away = await desk.enter(me, pointer('move', { x: 5, y: 790 }));
+    const hovered = desk.puts.map(({ page: to, event }) => [to, event.type, event.x, event.y].join()).join(' ');
     check(
-        'a move at a ref with no button held, a place that is neither a point nor a ref, and a ref gone are refused',
-        (await refused(byRef('move', '1.2'))) === 'REFUSED' &&
-            (await refused(entering({ ...pointer('down', { x: 1, y: 1 }), ref: '1.2' }))) === 'INVALID_ARGUMENT' &&
+        'a move at a ref with no button held reaches the page there, and the page hears it leave as it moves off',
+        hovering.over === 1 && away.over !== 1 && hovered === 'content-1,move,60,35 content-1,move,-1,-1',
+        JSON.stringify({ hovering, away, puts: desk.puts })
+    );
+    check(
+        'a place that is neither a point nor a ref, and a ref gone are refused',
+        (await refused(entering({ ...pointer('down', { x: 1, y: 1 }), ref: '1.2' }))) === 'INVALID_ARGUMENT' &&
             (await refused(entering(pointer('down', {})))) === 'INVALID_ARGUMENT' &&
             (await refused(entering({ event: 'act', ref: '1.2', action: 'press' }))) === 'INVALID_ARGUMENT' &&
             (await refused(byRef('down', 'w9.close'))) === 'GONE',
@@ -4358,6 +4382,16 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
         "a window's bar is listed with a ref, and a press there brings the window forward",
         listed.text.includes('  titlebar "Cover" w3.bar\n') && onBar.over === 3 && front.over === 3,
         JSON.stringify({ listed: listed.text, onBar, front })
+    );
+    desk.puts.length = 0;
+    const onCover = await desk.enter(me, pointer('move', { x: 160, y: 335 }));
+    desk.desktop.close(cover);
+    await desk.enter(me, pointer('move', { x: 5, y: 790 }));
+    const toCover = desk.puts.filter(({ page }) => page === 'content-3').map(({ event }) => `${event.x},${event.y}`);
+    check(
+        "a page whose window closes under a seat's pointer hears no leave once it is gone",
+        onCover.over === 3 && toCover.length === 1 && toCover[0] !== '-1,-1',
+        JSON.stringify({ onCover, puts: desk.puts })
     );
 }
 

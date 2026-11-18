@@ -31,10 +31,19 @@ function waits(event, waiting) {
     return waiting || event.ref !== undefined;
 }
 
-// Whether a pointer that only moves is refused: no page hears a lone move, so one sent to what a reading named, with
-// no button of the seat's held, would do nothing a seat could see.
-function hovers({ type, ref }, buttons) {
-    return type === 'move' && ref !== undefined && buttons.length === 0;
+// Whether a pointer event only moves: a move with no button of the seat's held, `buttons`. It reaches what lies at its
+// place as a press would, and presses nothing.
+function hovers({ type }, buttons) {
+    return type === 'move' && buttons.length === 0;
+}
+
+// Where the one pointer of each page stands once `seat` moved with no button held into `page`, or into no page where
+// it is null. `placed` is `[{ page, seat }]`, each page whose pointer a seat's move placed last: a page has one pointer
+// whoever moves it. Answers `{ placed, left }`, `left` the pages whose pointer that seat placed and that move left.
+function hovered(placed, seat, page) {
+    const left = placed.filter((one) => one.seat === seat && one.page !== page).map((one) => one.page);
+    const kept = placed.filter((one) => one.seat !== seat && one.page !== page);
+    return { placed: page === null ? kept : [...kept, { page, seat }], left };
 }
 
 // Whether the window a ref is of comes to the front of the seat's order before the pointer goes to it: `window` is
@@ -44,4 +53,4 @@ function raises(window, reached) {
     return window !== null && reached !== null && reached !== window;
 }
 
-export { ROUTES, routeOf, placeOf, noCount, waits, hovers, raises };
+export { ROUTES, routeOf, placeOf, noCount, waits, hovers, hovered, raises };

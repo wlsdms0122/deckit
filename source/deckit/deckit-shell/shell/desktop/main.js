@@ -86,6 +86,8 @@ export function createDesktop({
     // page drew its cursor, or null; and `rests`, whether the fold of its name is due. The view shown for it is
     // SHOWING's.
     const hands = new Map();
+    // `[{ page, seat }]`: each page whose one pointer a seat's move placed last (ROUTING.hovered).
+    let pointers = [];
     const COLOURS = COLOURS_MODEL.createColours(SEAT_COLOURS); // the colour each seat here is told apart by
     let tells = null; // what deckit answered the shell's serving with: what tells a seat
     // seat id -> where it types, as the reader last answered of the page its keys go to: `{ page, ring, bars, caret }`,
@@ -377,6 +379,7 @@ export function createDesktop({
         anchors.delete(window.id);
         MANAGER.close(null, window.id);
         pressers.delete(window.id);
+        pointers = pointers.filter(({ page }) => windowAt(page));
         if (![...windows.values()].some(({ mod }) => mod === window.mod)) ACTIVATION.cancelAttention(window.mod);
         for (const [seat, hand] of hands) {
             if (hand.moving?.id === window.id) endDrag(seat);
@@ -752,6 +755,7 @@ export function createDesktop({
         SHOWING.removeSeat(seat.id);
         COLOURS.give(seat.id);
         hands.delete(seat.id);
+        pointers = pointers.filter((one) => one.seat !== seat.id);
         typings.delete(seat.id);
         seated.delete(seat.id);
         for (const [source, id] of sources) if (id === seat.id) sources.delete(source);
@@ -899,15 +903,15 @@ export function createDesktop({
     // A pointer event placed by `ref`, what a reading named: the pointer goes to the middle of what shows of it, an
     // item of the Dock by way of the Dock's sliver while the Dock is in for the seat, and the event enters there as one
     // at that point does. Where another window covers that place in the seat's order, the window the ref is of comes to
-    // the front of that order first, as the seat's press on it brings it. No page hears a pointer that only moves, so a
-    // move with no button held is refused.
+    // the front of that order first, as the seat's press on it brings it, but for a move with no button held, which
+    // presses nothing and reaches what lies there.
     async function placed(seat, hand, { ref, ...event }) {
-        if (ROUTING.hovers({ ...event, ref }, hand.buttons))
-            throw refusal('REFUSED', 'no page hears a pointer that only moves yet');
         const { at, by, window } = await READING.place({ id: seat }, ref);
         if (hands.get(seat) !== hand) throw refusal('NOT_FOUND', 'the seat is not at the desktop');
         if (!shown) throw refusal('HIDDEN', 'the desktop is hidden: nothing of it takes input');
-        if (windows.has(window) && ROUTING.raises(window, windowUnder(seat, at))) press(seat, windows.get(window));
+        const lone = ROUTING.hovers(event, hand.buttons);
+        if (!lone && windows.has(window) && ROUTING.raises(window, windowUnder(seat, at)))
+            press(seat, windows.get(window));
         if (by && !hand.dock)
             pointed(seat, hand, { event: 'pointer', type: 'move', source: event.source, ...by }, 'ref');
         return { ...pointed(seat, hand, { ...event, ...at }, 'ref'), at };
@@ -931,6 +935,8 @@ export function createDesktop({
     // press on that window.
     function arrived(seat, hand, event) {
         if (Number.isFinite(event.x)) hand.pointer = { x: event.x, y: event.y };
+        if (ROUTING.hovers(event, hand.buttons))
+            pointers = ROUTING.hovered(pointers, seat, event.page && windowAt(event.page) ? event.page : null).placed;
         moved(seat, hand, event);
         if (followed !== null) {
             if (event.type === 'down') follow(null);
@@ -950,10 +956,12 @@ export function createDesktop({
     // A pointer event to be carried. A press and a scroll go where `stage.hit` finds a page in what is laid for the
     // seat; a move with a button held and the up that ends it go where the press went, at the pointer's point of that
     // page where its window is now, so a window its content's drag moves stays under the pointer. A press on the
-    // desktop or the Dock leaves the seat's keyboard with its key window, wanting no other. A move with none
-    // held moves the seat's pointer alone. The Dock comes out for the seat as its pointer reaches the Dock's sliver,
-    // and stays out while it is there or on the Dock's card, or an item's menu is open for it; a press off the Dock
-    // and that menu puts the menu away. `how` is how the seat named the place (ROUTING.placeOf).
+    // desktop or the Dock leaves the seat's keyboard with its key window, wanting no other. A move with none held
+    // reaches what lies at its point as a press does and presses nothing: a window's page it reaches hears it as the
+    // machine's moving pointer, and the pages it left hear the pointer leave (pointedAlone). The Dock comes out for
+    // the seat as its pointer reaches the Dock's sliver, and stays out while it is there or on the Dock's card, or an
+    // item's menu is open for it; a press off the Dock and that menu puts the menu away. `how` is how the seat named
+    // the place (ROUTING.placeOf).
     function pointed(seat, hand, event, how = 'point') {
         const { type } = event;
         const point = { x: event.x, y: event.y };
@@ -964,13 +972,15 @@ export function createDesktop({
         const [sliver, card] = DOCK_MODEL.inputOf(area(), true, DOCK.items());
         const out = () => within(sliver, point) || (hand.dock && within(card, point)) || hand.menu !== null;
         hand.dock = out();
-        const hit = type === 'move' ? null : stage.hit(laidFor(seat), point);
+        const lone = ROUTING.hovers(event, hand.buttons);
+        const hit = type === 'move' && !lone ? null : stage.hit(laidFor(seat), point);
         const part = hit && partAt(hit, seat);
+        if (lone) pointedAlone(seat, part || !hit || !windowAt(hit.page) ? null : hit.page, event.source);
         if (type === 'down' && !DOCK_PARTS.includes(part?.part)) {
             unmenu(seat, hand);
             hand.dock = out();
         }
-        if (type === 'move' || type === 'up') {
+        if ((type === 'move' && !lone) || type === 'up') {
             const held = hand.down;
             if (!held) return { over: null };
             if (held.part) gesture(seat, type, point, part);
@@ -1012,6 +1022,19 @@ export function createDesktop({
         INPUT.put(hit.page, { ...event, x: hit.x, y: hit.y });
         reread(seat);
         return answer;
+    }
+
+    // The one pointer of each page goes where a move of `seat` with no button held went, into `page` or into none:
+    // each page whose pointer the seat's move placed and that this one left hears it leave, by a move off the page. A
+    // page no window shows any more is left out: it is gone.
+    function pointedAlone(seat, page, source) {
+        const { placed, left } = ROUTING.hovered(
+            pointers.filter((one) => windowAt(one.page)),
+            seat,
+            page
+        );
+        pointers = placed;
+        for (const each of left) INPUT.put(each, { event: 'pointer', type: 'move', x: -1, y: -1, buttons: [], source });
     }
 
     // A key or text to be carried: put in the page that took the seat's last press in the window that holds its
