@@ -2312,7 +2312,8 @@ async function anchorChecks({ LAYOUT, createDesktop }, check) {
 // What the desktop's page is told of the seats: each one's colour, where its pointer is and what it holds.
 // A web page is of the window it shows in: a press in one laid in a window's content, or apart in a window, is a
 // press on that window, not on its mod's other windows. A page's dialog is told whose it is, stands where the page
-// shows, moves with a laid page, and is refused where the page is in no window and, while none is drawn, once placed.
+// shows, moves with a laid page, and is refused where the page is in no window; drawn over its place in the window,
+// it takes the press there alone, and any seat answers it.
 async function webPageChecks({ LAYOUT, createDesktop }, check) {
     const pages = { a: { name: 'page-a', mod: 'a' } };
     const laid = { name: 'web-laid', embedder: pages.a };
@@ -2384,7 +2385,7 @@ async function webPageChecks({ LAYOUT, createDesktop }, check) {
     const content = contentOf(1);
     const standing = [where(1), where(2)];
     check(
-        "a dialog stands over its window's content, or a laid page's rect in it, and is refused once placed",
+        "a dialog stands over its window's content, or a laid page's rect in it, and only one in no window is refused",
         JSON.stringify(standing) ===
             JSON.stringify([
                 [
@@ -2392,7 +2393,7 @@ async function webPageChecks({ LAYOUT, createDesktop }, check) {
                     { ask: 2, rect: { x: 10, y: content.y + 10, width: 100, height: 80 }, whole: false },
                 ],
                 [{ ask: 3, rect: contentOf(2), whole: true }],
-            ]) && refused.join() === '1,2,3,4',
+            ]) && refused.join() === '4',
         { standing, refused }
     );
     laidIn = 3;
@@ -2411,12 +2412,77 @@ async function webPageChecks({ LAYOUT, createDesktop }, check) {
         movedTo.join(' ') === '1 2' && [1, 2, 3].every((id) => where(id).length === 0),
         movedTo
     );
+
+    // Drawn in the window's dialog surface over its content and under its buttons, taking presses over its rect alone.
+    const { answered } = desk.dialogs;
+    const ask = (id, page, kind, value = '') =>
+        served.asked({ ask: id, page, kind, message: 'Go on?', value, from: 'A' });
+    ask(11, surfaces[3], 'confirm');
+    const names = () => desk.laid().map(({ page }) => page?.name);
+    const at = (name) => names().indexOf(name);
+    const over = desk.laid().find(({ page }) => page?.name === 'dialog-3');
+    const told = desk.page().windows.find(({ id }) => id === 3).dialogs[0];
+    check(
+        "a window's dialog is laid over its content and under its buttons, taking the press over its rect alone",
+        at('content-3') < at('dialog-3') &&
+            at('dialog-3') < at('buttons-3') &&
+            JSON.stringify(over.input) === JSON.stringify([where(3).at(-1).rect]) &&
+            told.kind === 'confirm' &&
+            told.from === 'A' &&
+            told.parts.buttons.map(({ label }) => label).join() === 'Cancel,OK',
+        { names: names(), input: over?.input, told }
+    );
+    const seat = desk.sit('s1');
+    const stageOf = (id, { x, y, width, height }) => ({
+        x: frameOf(id).x + x + width / 2,
+        y: frameOf(id).y + y + height / 2,
+    });
+    const click = async (point) => {
+        for (const type of ['down', 'up'])
+            await desk.enter(seat, { event: 'pointer', type, ...point, button: 0, count: 1 });
+    };
+    const okOf = (id) =>
+        desk
+            .page()
+            .windows.find((one) => one.id === id)
+            .dialogs[0].parts.buttons.at(-1).rect;
+    await click(stageOf(3, okOf(3)));
+    ask(12, surfaces[3], 'prompt', 'a');
+    await click(stageOf(3, desk.page().windows.find(({ id }) => id === 3).dialogs[0].parts.field));
+    await desk.enter(seat, { event: 'text', type: 'insert', text: 'bc' });
+    await desk.enter(seat, { event: 'key', type: 'down', key: 'Enter', code: 'Enter' });
+    ask(13, apart, 'leave');
+    desk.pagePointer(2, 'dialog-stay', 'down', { x: 0, y: 0 }, { ask: 13 });
+    desk.pagePointer(2, 'dialog-stay', 'up', { x: 0, y: 0 }, { ask: 13 });
+    check(
+        "any seat answers a dialog: a press on its button, a prompt's text typed and Return, the host window's press",
+        JSON.stringify(answered) ===
+            JSON.stringify([
+                [11, true],
+                [12, 'abc'],
+                [13, false],
+            ]),
+        answered
+    );
+    const pressed = (point) => {
+        desk.puts.length = 0;
+        return click(point).then(() => desk.puts.map(({ page }) => page).join());
+    };
+    ask(14, laid, 'alert');
+    const rect = where(3)[0].rect;
+    const inside = await pressed(stageOf(3, rect));
+    const beside = await pressed(stageOf(3, { x: rect.x + rect.width + 20, y: rect.y, width: 0, height: 0 }));
+    check(
+        "a laid page's dialog takes the press over its rect, and the rest of its window still takes the hand",
+        inside === '' && beside.split(',').includes('content-3') && answered.length === 3,
+        { inside, beside }
+    );
 }
 
 // Where a page's dialog stands (model/dialog.js): over the whole content of a window, over a page shown in a part of
 // it cut to what shows it, nowhere for a page in no window or one shown outside what shows it, moved as its page is,
 // kept where it was while its page shows nowhere, and up until it is withdrawn.
-function dialogChecks({ createDialogs }, check) {
+function dialogChecks({ createDialogs, partsOf, partAt, answerOf, keyed }, check) {
     const dialogs = createDialogs();
     const content = { x: 0, y: 28, width: 400, height: 300 };
     const asked = (ask, kind = 'confirm') => ({ ask, kind, message: 'Sure?', value: '', from: 'A' });
@@ -2490,6 +2556,53 @@ function dialogChecks({ createDialogs }, check) {
         'a dialog withdrawn is up no more, once',
         withdrawn.join() === 'true,false' && dialogs.of(2) === null && dialogs.of(3) === region,
         { withdrawn, of: dialogs.of(2) }
+    );
+
+    const prompt = dialogs.ask({ ...asked(8, 'prompt'), value: 'a' }, { window: 7, content });
+    const parts = partsOf(prompt);
+    const inside = (rect, part) => rect.x >= part.x && rect.y >= part.y && rect.x + rect.width <= part.x + part.width;
+    const middle = ({ x, y, width, height }) => ({ x: x + width / 2, y: y + height / 2 });
+    check(
+        "a dialog's card stands at the top centre of its rect, holding who asks, the message, a prompt's field and " +
+            'its buttons, Cancel then OK',
+        parts.card.x - content.x === content.x + content.width - parts.card.x - parts.card.width &&
+            parts.card.y > content.y &&
+            [parts.from, parts.message, parts.field, ...parts.buttons.map(({ rect }) => rect)].every((rect) =>
+                inside(rect, parts.card)
+            ) &&
+            parts.buttons.map(({ label }) => label).join() === 'Cancel,OK' &&
+            partAt(prompt, middle(parts.buttons[1].rect)) === 'dialog-ok' &&
+            partAt(prompt, middle(parts.field)) === 'dialog-field' &&
+            partAt(prompt, { x: content.x + 1, y: content.y + content.height - 1 }) === 'dialog',
+        parts
+    );
+    const typed = dialogs.type(8, 'abc');
+    const answers = [
+        answerOf(typed, 'dialog-ok'),
+        answerOf(typed, 'dialog-cancel'),
+        answerOf(dialogs.of(3), 'dialog-ok'),
+        answerOf(dialogs.of(3), 'dialog-leave'),
+        answerOf({ kind: 'leave' }, 'dialog-stay'),
+        answerOf({ kind: 'alert' }, 'dialog-ok'),
+        answerOf(typed, 'dialog'),
+    ];
+    const keys = [keyed(typed, 'Enter'), keyed(typed, 'Escape'), keyed({ kind: 'leave' }, 'Enter')];
+    const more = [keyed({ kind: 'alert' }, 'Escape'), dialogs.type(3, 'x')];
+    check(
+        "a dialog's buttons and keys answer it: OK true or the prompt's text typed, Cancel false or null, Leave and Stay",
+        JSON.stringify(answers) ===
+            JSON.stringify([
+                { value: 'abc' },
+                { value: null },
+                { value: true },
+                null,
+                { value: false },
+                { value: true },
+                null,
+            ]) &&
+            keys.join() === 'dialog-ok,dialog-cancel,dialog-leave' &&
+            more.every((one) => one === null),
+        { answers, keys, more }
     );
 }
 
@@ -4328,8 +4441,9 @@ function desktopOver(
     const desktopPage = { name: 'desktop' };
     const closed = []; // the ids of the windows the desktop asked the shell's windows to close
     const heard = { requests: null, monitor: null, chords: null, press: null, carried: null };
-    // What the desktop served deckit of the dialogs, and the asks it refused, which nothing withdraws here.
-    const dialogs = { served: null, refused: [] };
+    // What the desktop served deckit of the dialogs, the asks it refused, which nothing withdraws here, and those it
+    // answered, `[ask, value]`, each withdrawn then as deckit does.
+    const dialogs = { served: null, refused: [], answered: [] };
     // The seats as deckit keeps them: the local one, those `sit` opens, what the desktop serves, the seats judged
     // idle, what a seat was told of a window held, each event put in a page and each page kept from the keyboard.
     const local = { id: 'local', local: true, user: { id: 'local', name: 'Local' }, source: 'of-local' };
@@ -4390,7 +4504,13 @@ function desktopOver(
             whenEnds() {},
             dialogs: (served) => {
                 dialogs.served = served;
-                return { answer() {}, refuse: (ask) => dialogs.refused.push(ask) };
+                return {
+                    answer: (ask, value) => {
+                        dialogs.answered.push([ask, value]);
+                        served.withdrawn(ask);
+                    },
+                    refuse: (ask) => dialogs.refused.push(ask),
+                };
             },
         },
         mods: {
@@ -4529,7 +4649,7 @@ function desktopOver(
             resized();
         },
         openSurfaces: (id) => {
-            for (const name of [`frame-${id}`, `buttons-${id}`]) allowed.get(name)({ name });
+            for (const name of [`frame-${id}`, `buttons-${id}`, `dialog-${id}`]) allowed.get(name)({ name });
         },
         openCursors: () => allowed.get('cursors')({ name: 'cursors' }),
         fromPage,

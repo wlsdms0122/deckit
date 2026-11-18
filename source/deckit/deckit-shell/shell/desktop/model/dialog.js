@@ -11,6 +11,19 @@ const isRect = (rect) =>
     ['x', 'y', 'width', 'height'].every((key) => Number.isFinite(rect[key])) &&
     rect.width > 0 &&
     rect.height > 0;
+// The buttons of each kind, left to right, the last the one Return presses; and what each answers its page.
+const BUTTONS = Object.freeze({
+    alert: ['ok'],
+    confirm: ['cancel', 'ok'],
+    prompt: ['cancel', 'ok'],
+    leave: ['stay', 'leave'],
+});
+const ESCAPED = Object.freeze({ confirm: 'cancel', prompt: 'cancel', leave: 'stay' });
+const LABELS = Object.freeze({ ok: 'OK', cancel: 'Cancel', leave: 'Leave', stay: 'Stay' });
+// The card, px: at most this wide, this far from the rect's sides and top, its padding, a line of text, the most
+// lines of the message, about how wide a character of it is, the field's height and a button's size and gap.
+const CARD = Object.freeze({ width: 320, margin: 16, padding: 16, line: 18, lines: 6, glyph: 7, field: 28 });
+const BUTTON = Object.freeze({ width: 76, height: 28, gap: 8 });
 
 // MARK: - Initializer
 // MARK: - Public
@@ -48,6 +61,15 @@ function createDialogs() {
         return dialog;
     }
 
+    // The text of prompt `ask` is `text` now, as a seat typed it. Answers the dialog, or null for no prompt up.
+    function type(id, text) {
+        const held = up.get(id);
+        if (held?.kind !== 'prompt' || typeof text !== 'string') return null;
+        const dialog = Object.freeze({ ...held, value: text });
+        up.set(id, dialog);
+        return dialog;
+    }
+
     // Dialog `ask` is up no more. Answers whether it was.
     function withdraw(id) {
         return up.delete(id);
@@ -75,7 +97,64 @@ function createDialogs() {
         return rect && { window: at.window, rect, whole: false };
     }
 
-    return Object.freeze({ ask, move, withdraw, of, inWindow });
+    return Object.freeze({ ask, move, type, withdraw, of, inWindow });
 }
 
-export { createDialogs };
+// Where the parts of `dialog` are drawn, in its window's coordinates: the card at the top centre of its rect, the
+// line that names who asks (`from`), the message with how many lines it takes, the field of a prompt, and each
+// button, `{ name, label, rect }`, left to right.
+function partsOf({ rect, kind, message }) {
+    const { margin, padding, line } = CARD;
+    const width = Math.max(0, Math.min(CARD.width, rect.width - 2 * margin));
+    const inner = width - 2 * padding;
+    const x = rect.x + (rect.width - width) / 2;
+    const top = rect.y + margin;
+    const from = { x: x + padding, y: top + padding, width: inner, height: line };
+    const lines = Math.min(CARD.lines, Math.max(1, Math.ceil((String(message).length * CARD.glyph) / (inner || 1))));
+    const said = { x: from.x, y: from.y + line + 4, width: inner, height: lines * line, lines };
+    const field =
+        kind === 'prompt' ? { x: from.x, y: said.y + said.height + 12, width: inner, height: CARD.field } : null;
+    const row = (field ?? said).y + (field ?? said).height + 16;
+    const names = BUTTONS[kind] ?? [];
+    const buttons = names.map((name, at) => ({
+        name,
+        label: LABELS[name],
+        rect: {
+            x: x + width - padding - (names.length - at) * BUTTON.width - (names.length - at - 1) * BUTTON.gap,
+            y: row,
+            width: BUTTON.width,
+            height: BUTTON.height,
+        },
+    }));
+    const card = { x, y: top, width, height: row + BUTTON.height + padding - top };
+    return { card, from, message: said, field, buttons };
+}
+
+// The part of `dialog` at `point`, in its window's coordinates: 'dialog-' and a button's name, 'dialog-field', or
+// 'dialog' anywhere else over its rect.
+function partAt(dialog, point) {
+    const holds = ({ x, y, width, height }) =>
+        point.x >= x && point.y >= y && point.x < x + width && point.y < y + height;
+    const { field, buttons } = partsOf(dialog);
+    const button = buttons.find(({ rect }) => holds(rect));
+    if (button) return `dialog-${button.name}`;
+    return field && holds(field) ? 'dialog-field' : 'dialog';
+}
+
+// What `dialog` is answered by its part `part` (partAt) pressed, `{ value }`, or null for a part that answers nothing:
+// `ok` done, true, or a prompt's text, `cancel` false or null, `leave` true and `stay` false.
+function answerOf({ kind, value }, part) {
+    const name = String(part).replace(/^dialog-/, '');
+    if (!(BUTTONS[kind] ?? []).includes(name)) return null;
+    if (name === 'ok') return { value: kind === 'prompt' ? value : true };
+    if (name === 'cancel') return { value: kind === 'prompt' ? null : false };
+    return { value: name === 'leave' };
+}
+
+// The part of `dialog` a key presses: Return the last button, OK or Leave, Escape Cancel or Stay; or null.
+function keyed({ kind }, key) {
+    if (key === 'Enter') return `dialog-${BUTTONS[kind]?.at(-1)}`;
+    return key === 'Escape' && ESCAPED[kind] ? `dialog-${ESCAPED[kind]}` : null;
+}
+
+export { createDialogs, partsOf, partAt, answerOf, keyed };

@@ -268,6 +268,11 @@ export function createDesktop({
         windows.set(window.id, window);
         for (const name of [PAGE.frameOf(window.id), PAGE.buttonsOf(window.id)])
             PAGES.allowSurface(desktop.page, name, (surface) => openSurface(name, surface));
+        // The dialog's surface keeps the keyboard it takes, for a prompt's field.
+        PAGES.allowSurface(desktop.page, PAGE.dialogOf(window.id), (surface) => {
+            desktop.surfaces.set(PAGE.dialogOf(window.id), surface);
+            update();
+        });
         MANAGER.open(null, window.id, { frame, minimum });
         orderFront(window, { activates });
     }
@@ -376,7 +381,7 @@ export function createDesktop({
             if (hand.wanted === window.id) hand.wanted = null;
             if (hand.down?.id === window.id) hand.down = null;
         }
-        const surfaces = [PAGE.frameOf(window.id), PAGE.buttonsOf(window.id)].map((name) => {
+        const surfaces = [PAGE.frameOf(window.id), PAGE.buttonsOf(window.id), PAGE.dialogOf(window.id)].map((name) => {
             const surface = desktop.surfaces.get(name);
             desktop.surfaces.delete(name);
             return surface;
@@ -885,6 +890,7 @@ export function createDesktop({
     function keyboard(seat, hand, event) {
         if (!event.carried) return typed(seat, event);
         if (event.event === 'key' && seat === LOCAL) unfollowed(event.type);
+        if (event.page) dialogKeyed(seat, event, event.page);
         return { to: keyWindow(seat)?.id ?? null };
     }
 
@@ -1025,6 +1031,7 @@ export function createDesktop({
         }
         const key = keyboardOf(seat);
         if (!key?.surface) return { to: null };
+        if (dialogKeyed(seat, event, keysPageOf(seat))) return { to: key.id };
         ACTIVATION.input(seat, key.mod);
         INPUT.put(keysPageOf(seat), event);
         reread(seat);
@@ -1193,14 +1200,38 @@ export function createDesktop({
     function dialogAsked({ ask, page, kind, message, value, from }) {
         if (!DIALOGS.ask({ ask, kind, message, value, from }, dialogAt(page))) return answering.refuse(ask);
         asking.set(ask, page);
-        // Until a dialog is drawn, each placed one is refused at once, so its page does not wait on what no seat sees.
-        answering.refuse(ask);
+        update();
+    }
+
+    // Dialog `ask` is answered as its part `part` says (DIALOG_MODEL partAt), pressed or keyed by any seat.
+    function dialogPressed(ask, part) {
+        const dialog = DIALOGS.of(ask);
+        const answer = dialog && DIALOG_MODEL.answerOf(dialog, part);
+        if (answer) answering.answer(ask, answer.value);
+    }
+
+    // A key or text of `seat`'s that goes to `page`, on the dialog that page asks: Return and Escape answer it, and in
+    // a prompt text and Backspace edit its text. Answers whether a dialog took it.
+    function dialogKeyed(seat, event, page) {
+        const dialog = DIALOGS.inWindow(keyboardOf(seat)?.id).findLast(({ ask }) => asking.get(ask) === page);
+        if (!dialog) return false;
+        if (event.event === 'text' && ['insert', 'commit'].includes(event.type))
+            DIALOGS.type(dialog.ask, dialog.value + String(event.text ?? ''));
+        else if (event.event === 'key' && event.type === 'down' && event.key === 'Backspace')
+            DIALOGS.type(dialog.ask, dialog.value.slice(0, -1));
+        else if (event.event === 'key' && event.type === 'down') {
+            const part = DIALOG_MODEL.keyed(dialog, event.key);
+            if (part) dialogPressed(dialog.ask, part);
+        }
+        update();
+        return true;
     }
 
     // A dialog is up no more, however it went.
     function dialogWithdrawn(ask) {
         DIALOGS.withdraw(ask);
         asking.delete(ask);
+        update();
     }
 
     // A web page shows somewhere else: its dialog up stands where it shows now.
@@ -1251,6 +1282,10 @@ export function createDesktop({
             return id === null ? null : { id, part: 'dock' };
         }
         for (const [id, { bar }] of windows) {
+            if (page === desktop.surfaces.get(PAGE.dialogOf(id))) {
+                const dialog = DIALOGS.inWindow(id).findLast(({ rect }) => holds(rect));
+                return dialog ? { id, part: DIALOG_MODEL.partAt(dialog, { x, y }), ask: dialog.ask } : null;
+            }
             if (page === desktop.surfaces.get(PAGE.buttonsOf(id)))
                 return { id, part: LAYOUT.buttonsOf(bar).find(holds)?.name ?? 'buttons' };
             if (page !== desktop.surfaces.get(PAGE.frameOf(id))) continue;
@@ -1313,6 +1348,11 @@ export function createDesktop({
         if (!window) return;
         const [dx, dy] = [point.x - held.from.x, point.y - held.from.y];
         const phase = type === 'up' ? 'ended' : 'changed';
+        if (held.part.startsWith('dialog')) {
+            const same = on?.id === held.id && on.part === held.part && on.ask === held.ask;
+            if (type === 'up' && same) dialogPressed(held.ask, held.part);
+            return;
+        }
         if (held.part === 'bar') return move(seat, window, phase, dx, dy);
         if (held.part === 'buttons' || held.part in window.bar.enabled) {
             if (type === 'up' && on?.id === held.id && on.part === held.part) clicked(seat, window, held.part);
@@ -1388,13 +1428,23 @@ export function createDesktop({
             return { state };
         });
         PROTOCOL.pointer.on(
-            fromPage(({ id, item, part, type, x, y, button, count, grabX, grabY }) => {
+            fromPage(({ id, item, part, ask, type, x, y, button, count, grabX, grabY }) => {
                 if (!['down', 'move', 'up'].includes(type)) return;
                 const grab = Number.isFinite(grabX) && Number.isFinite(grabY) ? { x: grabX, y: grabY } : null;
                 const named =
                     item === undefined ? partAt({ page: desktop.page, x, y }, LOCAL) : item && { id: item, part };
-                const on = DOCK_PARTS.includes(part) ? named || null : { id, part };
+                const on = DOCK_PARTS.includes(part)
+                    ? named || null
+                    : { id, part, ...(ask === undefined ? {} : { ask }) };
                 gesture(LOCAL, type, { x, y }, on, { button, count, grab });
+            })
+        );
+        PROTOCOL.dialog.on(
+            fromPage(({ ask, text, key }) => {
+                if (typeof text === 'string') DIALOGS.type(ask, text);
+                const part = key && DIALOGS.of(ask) && DIALOG_MODEL.keyed(DIALOGS.of(ask), key);
+                if (part) dialogPressed(ask, part);
+                update();
             })
         );
         PROTOCOL.dock.on(
@@ -1730,6 +1780,8 @@ export function createDesktop({
     function layout() {
         const full = { x: 0, y: 0, ...stage.size() };
         inPanels.clear();
+        // A dialog stands where its page shows as this layout has it: its window resized, zoomed or tiled.
+        for (const [ask, page] of asking) DIALOGS.move(ask, dialogAt(page));
         if (down) {
             stage.lay(whole({ desktop: [{ page: desktop.page, rect: full }] }));
             REGION.show(stage, []);
@@ -1820,10 +1872,12 @@ export function createDesktop({
                     const { bar } = window;
                     const parts = LAYOUT.partsOf(frame, bar);
                     const clip = { ...frame, cornerRadius: LAYOUT.RADIUS };
-                    const [frameSurface, buttons] = surfaces ?? [
+                    const [frameSurface, buttons, dialogSurface] = surfaces ?? [
                         surface(PAGE.frameOf(id)),
                         surface(PAGE.buttonsOf(id)),
+                        surface(PAGE.dialogOf(id)),
                     ];
+                    const asked = DIALOGS.inWindow(id).map(({ rect }) => rect);
                     const seenAs = { ...(opacity < 1 ? { opacity } : {}), ...(scale ? { scale } : {}) };
                     const laid = { ...content, x: frame.x, y: frame.y };
                     // Drawn scaled, as it opens, closes or goes into its Dock tile and back, it is laid whole at its
@@ -1852,6 +1906,14 @@ export function createDesktop({
                         ...children
                             .filter(({ window }) => window === id)
                             .map(({ page, rect }) => ({ page, rect, clip, ...still, ...seenAs })),
+                        dialogSurface &&
+                            asked.length > 0 && {
+                                page: dialogSurface,
+                                rect: { x: laid.x, y: laid.y, width: laid.width, height: laid.height },
+                                clip,
+                                input: resting ? asked : [],
+                                ...seenAs,
+                            },
                         buttons && {
                             page: buttons,
                             rect: parts.buttons,
@@ -2132,6 +2194,15 @@ export function createDesktop({
                 holder: COLOURS.of(MANAGER.holderOf(id)),
                 bar: windows.get(id).bar,
                 title: isTitled(windows.get(id)) ? windows.get(id).title : null,
+                dialogs: DIALOGS.inWindow(id).map((dialog) => ({
+                    ask: dialog.ask,
+                    kind: dialog.kind,
+                    message: dialog.message,
+                    from: dialog.from,
+                    value: dialog.value,
+                    rect: dialog.rect,
+                    parts: DIALOG_MODEL.partsOf(dialog),
+                })),
             })),
             panels: stackedFor(seat, panelFrames(seat)).map(({ window, frame }) => ({
                 id: window.id,
