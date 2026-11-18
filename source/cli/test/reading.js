@@ -254,14 +254,26 @@ async function run({ check, reader, other, window, editor, settings, showsFor, i
     await inPage(window.content, 'delete window.deckitAnswer');
     await asks(`prompt('Name it', 'draft')`);
     const promptRead = await up('field');
-    if (promptRead) reader.as('press', `${at}.ok`);
+    // The seat presses the field and types: its keys go to the dialog up in the window that holds them.
+    const fieldTyped =
+        promptRead &&
+        (reader.as('press', `${at}.field`),
+        reader.as('type', ' notes'),
+        await until(() => {
+            const read = windowRead();
+            return read.includes(`textbox [value "draft notes"] ${at}.field`) && read;
+        }, 4000));
+    if (fieldTyped) reader.as('press', `${at}.ok`);
     const promptAnswer = await answer();
     check(
         "reading: a prompt's field reads with its text, and OK answers it",
-        !!promptRead &&
-            new RegExp(`^ {2}textbox \\[value "draft"\\] ${at}\\.field$`, 'm').test(promptRead) &&
-            promptAnswer === 'draft',
-        JSON.stringify({ promptRead, promptAnswer })
+        !!promptRead && new RegExp(`^ {2}textbox \\[value "draft"\\] ${at}\\.field$`, 'm').test(promptRead),
+        JSON.stringify({ promptRead })
+    );
+    check(
+        "reading: what a seat types goes into a prompt's field, and OK answers the typed text",
+        !!fieldTyped && promptAnswer === 'draft notes',
+        JSON.stringify({ fieldTyped, promptAnswer })
     );
     await inPage(window.content, 'delete window.deckitAnswer');
 

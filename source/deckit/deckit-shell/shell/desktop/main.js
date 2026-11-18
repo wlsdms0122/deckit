@@ -1033,7 +1033,7 @@ export function createDesktop({
         }
         const key = keyboardOf(seat);
         if (!key?.surface) return { to: null };
-        if (dialogKeyed(seat, event, keysPageOf(seat))) return { to: key.id };
+        if (dialogKeyed(seat, event)) return { to: key.id };
         ACTIVATION.input(seat, key.mod);
         INPUT.put(keysPageOf(seat), event);
         reread(seat);
@@ -1212,10 +1212,12 @@ export function createDesktop({
         if (answer) answering.answer(ask, answer.value);
     }
 
-    // A key or text of `seat`'s that goes to `page`, on the dialog that page asks: Return and Escape answer it, and in
-    // a prompt text and Backspace edit its text. Answers whether a dialog took it.
-    function dialogKeyed(seat, event, page) {
-        const dialog = DIALOGS.inWindow(keyboardOf(seat)?.id).findLast(({ ask }) => asking.get(ask) === page);
+    // A key or text of `seat`'s while a dialog is up in the window that holds its keyboard, on the one asked last
+    // there: Return and Escape answer it, and in a prompt text and Backspace edit its text. One the machine's keyboard
+    // already put in `page` is taken only where that page waits on the dialog. Answers whether a dialog took it.
+    function dialogKeyed(seat, event, page = null) {
+        const dialogs = DIALOGS.inWindow(keyboardOf(seat)?.id);
+        const dialog = page === null ? dialogs.at(-1) : dialogs.findLast(({ ask }) => asking.get(ask) === page);
         if (!dialog) return false;
         if (event.event === 'text' && ['insert', 'commit'].includes(event.type))
             DIALOGS.type(dialog.ask, dialog.value + String(event.text ?? ''));
