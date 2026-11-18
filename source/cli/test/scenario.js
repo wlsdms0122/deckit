@@ -460,6 +460,9 @@ async function walk({
         loaded === OPENED.join() && !!(await page('deckit://broker-provider.mod')),
         loaded
     );
+    // A mod's own page asks nothing of a seat: its dialog is refused at once, and one that waited loses the race.
+    const confirmed = await Promise.race([probePage?.evaluate('confirm("x")'), sleep(2000).then(() => 'waited')]);
+    check("a mod's own page's confirm answers false at once", confirmed === false, String(confirmed));
     await dockClick('editor');
     await until(async () => (await keyMod()) === 'editor', 6000);
     await sleep(3000);
