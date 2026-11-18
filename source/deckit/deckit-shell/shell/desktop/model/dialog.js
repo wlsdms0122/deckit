@@ -157,4 +157,10 @@ function keyed({ kind }, key) {
     return key === 'Escape' && ESCAPED[kind] ? `dialog-${ESCAPED[kind]}` : null;
 }
 
-export { createDialogs, partsOf, partAt, answerOf, keyed };
+// Whether `dialog` covers a page of the window it stands in, `asked` whether that page asked it: a dialog of the
+// window's content covers every page laid over it, any other the page that waits on it alone.
+function covers({ whole }, asked) {
+    return !!asked || !!whole;
+}
+
+export { createDialogs, partsOf, partAt, answerOf, keyed, covers };

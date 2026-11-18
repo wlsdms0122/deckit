@@ -220,6 +220,17 @@ async function run({ check, reader, other, window, editor, settings, showsFor, i
         }, 4000);
     const asks = (call) => inPage(window.content, `(setTimeout(() => (window.deckitAnswer = ${call})), true)`);
     const answer = () => until(async () => (await inPage(window.content, 'window.deckitAnswer')) ?? null, 4000);
+    // The seat's keys are at the child laid over the content: the content's confirm covers it, so Return answers OK.
+    await asks(`confirm('Keep the child?')`);
+    const keyedUp = await up('ok');
+    const keyed = keyedUp && reader.as('key', 'Enter');
+    const keyedAnswer = await answer();
+    check(
+        "reading: a content's confirm takes the Return of a seat whose keys are at a child it covers, and answers true",
+        !!keyedUp && keyedAnswer === true,
+        JSON.stringify({ keyedUp, keyed, keyedAnswer })
+    );
+    await inPage(window.content, 'delete window.deckitAnswer');
     const before = markOf(windowRead());
     await asks(`confirm('Keep the draft?')`);
     const confirmRead = await up('ok');

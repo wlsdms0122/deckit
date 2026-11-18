@@ -2482,7 +2482,7 @@ async function webPageChecks({ LAYOUT, createDesktop }, check) {
 // Where a page's dialog stands (model/dialog.js): over the whole content of a window, over a page shown in a part of
 // it cut to what shows it, nowhere for a page in no window or one shown outside what shows it, moved as its page is,
 // kept where it was while its page shows nowhere, and up until it is withdrawn.
-function dialogChecks({ createDialogs, partsOf, partAt, answerOf, keyed }, check) {
+function dialogChecks({ createDialogs, partsOf, partAt, answerOf, keyed, covers }, check) {
     const dialogs = createDialogs();
     const content = { x: 0, y: 28, width: 400, height: 300 };
     const asked = (ask, kind = 'confirm') => ({ ask, kind, message: 'Sure?', value: '', from: 'A' });
@@ -2603,6 +2603,12 @@ function dialogChecks({ createDialogs, partsOf, partAt, answerOf, keyed }, check
             keys.join() === 'dialog-ok,dialog-cancel,dialog-leave' &&
             more.every((one) => one === null),
         { answers, keys, more }
+    );
+    const covered = [covers({ whole: true }, false), covers({ whole: false }, true), covers({ whole: false }, false)];
+    check(
+        "a content's dialog covers every page laid over it, a laid page's the page that asked it alone",
+        covered.join() === 'true,true,false',
+        covered
     );
 }
 
