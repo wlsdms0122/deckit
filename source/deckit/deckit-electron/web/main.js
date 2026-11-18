@@ -13,9 +13,9 @@ import { CHANNEL } from '../messages/main.js';
 // laid just over the document the element that holds a web page's place is in, the mod's page or a surface it opened,
 // or alone in a window of the app's, each in a session of the mod's, kept in a data store of its own. `MESSAGES`
 // carries what the mod's page says of them, `relayOf(page)` lays a page's web pages again where it is shown,
-// `WINDOWS.openForStage` asks the host app for a window, and `surfaceOf(page, name)` is the surface a page opened by
-// that name.
-export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surfaceOf }) {
+// `WINDOWS.openForStage` asks the host app for a window, `surfaceOf(page, name)` is the surface a page opened by that
+// name, and `asking(page, question)` answers a page's dialog as every page's is answered.
+export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surfaceOf, asking }) {
     // MARK: - Property
     const windows = new Map(); // window page id -> { window, embedder }
     const PARTITION = createPartition({ CONFIG });
@@ -282,6 +282,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surf
                     ? client.request(modPage, page.id, { origin: SITE.originOf(origin), permissions })
                     : Promise.resolve(false),
             certificate: (info) => CERTIFICATE.decide(page, shown() && modPage, page.partition, info),
+            dialog: asking,
             download: ({ url }) => {
                 if (!shown()) return null;
                 return DOWNLOAD.listenerFor(

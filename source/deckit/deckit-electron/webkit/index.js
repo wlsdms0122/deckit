@@ -180,6 +180,16 @@ export function createWebKit({ path, folder, LOG, containerOf, always = [], post
                         () => payload.reply(false)
                     );
                     return undefined;
+                case 'dialog': {
+                    // `dialog(page, { kind, message, value, origin })` answers what the page is replied; no member,
+                    // or a rejection, replies the refusal.
+                    const { reply, ...question } = payload;
+                    Promise.resolve(delegate.dialog?.(page, question)).then(
+                        (answer) => reply(answer),
+                        () => reply()
+                    );
+                    return undefined;
+                }
                 default:
                     return undefined;
             }

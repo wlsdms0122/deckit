@@ -85,7 +85,7 @@ function createEnvironment({ core, preload, openWindow }) {
     const MESSAGES = createMessages();
     const WINDOWS = createWindows({ LOG, WEBKIT, openWindow });
     const STAGES = createStages({ LOG, WEBKIT, idOf: WINDOWS.idOf, webPagesIn: (page) => WEB.webPagesIn(page) });
-    const WEB = createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surfaceOf });
+    const WEB = createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS, surfaceOf, asking });
     const LOADER = createLoader({ LOG, FOLDER, windowShowing });
     const NOTIFICATIONS = createNotifications({ guard });
     const origins = new WeakMap(); // a page deck made -> its origin
@@ -96,6 +96,7 @@ function createEnvironment({ core, preload, openWindow }) {
     const pins = new WeakMap(); // a pinned page -> { address }, the address its first load committed
     let answer = null; // how a load of deck's scheme is answered, once deck serves (serve)
     let script = null; // the preload's source
+    let dialogs = null; // what answers every page's dialog, once given (pages.dialogs)
     const hearing = new Set(); // what hears the machine's input (listen)
     const moved = { last: null, timer: null }; // the move not told yet
     let hardware; // the source of the machine's own pointer and keyboard, once told (machine)
@@ -150,6 +151,9 @@ function createEnvironment({ core, preload, openWindow }) {
             watchInput: (page, listener) => watchInput(guard, page, listener),
             clearStorage: (modId) => clearStorage(WEBKIT, CONFIG.id, modId),
             countStorage: (modId) => countStorage(WEBKIT, CONFIG.id, modId),
+            dialogs: (answer) => {
+                dialogs = answer;
+            },
         }),
         keys: Object.freeze({
             capture: (page, handler) => capture(guard, page, handler, sourceOf),
@@ -334,7 +338,13 @@ function createEnvironment({ core, preload, openWindow }) {
             open: (opened) => opening(asked.page, opened),
             permission: () => false,
             certificate: () => false,
+            dialog: asking,
         };
+    }
+
+    // A page's dialog, answered by the one answer `pages.dialogs` gave, refused where none was given.
+    function asking(page, question) {
+        return dialogs ? dialogs(page, question) : undefined;
     }
 
     // A mod's page asked to go outside its origin is told to what watches it leave. A pinned page stays at the address
@@ -357,7 +367,7 @@ function createEnvironment({ core, preload, openWindow }) {
         held.name = null;
         if (name !== null && (url === '' || url === 'about:blank') && held.surfaces?.allow(name))
             return WEBKIT.listenerFor({
-                delegate: SURFACE,
+                delegate: { ...SURFACE, dialog: asking },
                 opened: (surface) => {
                     held.opened.set(name, surface);
                     surface.once('destroyed', () => held.opened.get(name) === surface && held.opened.delete(name));

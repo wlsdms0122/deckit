@@ -21,8 +21,10 @@ import CNodeAPI
 // download (WebDownload), or nothing to cancel it; `key` ({ type, code, key, meta, control, alt, shift }), true for a
 // key taken; and `certificate` ({ url, host, error, fingerprint, subject, issuer }), true for a certificate trusted
 // though the Mac does not. Asked, answered later through `reply`: `permission` ({ origin, permissions, reply }),
-// `unhandled` ({ code, key, meta, control, alt, shift, reply }), a key pressed that the page did not handle, true for
-// one taken from the rest of the app, and, for a page made with a scheme of its own, `request` (SchemeHandler).
+// `dialog` ({ kind, message, value, origin, reply }), what the page asks and waits on (PageDialog), of which it draws
+// nothing, `unhandled` ({ code, key, meta, control, alt, shift, reply }), a key pressed that the page did not handle,
+// true for one taken from the rest of the app, and, for a page made with a scheme of its own, `request`
+// (SchemeHandler).
 @MainActor
 final class WebPage: NSObject {
     // MARK: - Property
@@ -60,6 +62,8 @@ final class WebPage: NSObject {
     private var observations: [NSKeyValueObservation] = []
     // The address JavaScript asked to load, which asked deck before: its navigation is not asked again.
     private var requested: URL?
+    // The dialogs the page waits on, each refused as the page closes, so no handler is left uncalled.
+    private var dialogs: [PageDialog] = []
 
     // MARK: - Initializer
     // `configuration` is the page's, WebKit's own for a window a page opened, and `scripts` those every document of the
@@ -265,6 +269,8 @@ final class WebPage: NSObject {
     }
 
     func close() {
+        for dialog in dialogs { dialog.refuse() }
+        dialogs = []
         for observation in observations { observation.invalidate() }
         observations = []
         view.stopLoading()
@@ -320,7 +326,7 @@ final class WebPage: NSObject {
     }
 
     // An origin as the URL Standard serializes it: `null` for an opaque one, which has no scheme.
-    private static func serialized(_ origin: WKSecurityOrigin) -> String {
+    static func serialized(_ origin: WKSecurityOrigin) -> String {
         guard !origin.protocol.isEmpty else { return "null" }
         let port = origin.port == 0 ? "" : ":\(origin.port)"
 
@@ -354,16 +360,6 @@ final class WebPage: NSObject {
             view.observe(\.cameraCaptureState) { _, _ in MainActor.assumeIsolated { told() } },
             view.observe(\.microphoneCaptureState) { _, _ in MainActor.assumeIsolated { told() } }
         ]
-    }
-
-    private func dialog(_ alert: NSAlert, done: @escaping @MainActor (NSApplication.ModalResponse) -> Void) {
-        guard let window = view.window else {
-            done(.cancel)
-            return
-        }
-        alert.beginSheetModal(for: window) { response in
-            MainActor.assumeIsolated { done(response) }
-        }
     }
 
     // A load that became a download stops; it did not fail.
@@ -636,9 +632,7 @@ extension WebPage: WKUIDelegate {
         initiatedByFrame frame: WKFrameInfo,
         completionHandler: @escaping @MainActor @Sendable () -> Void
     ) {
-        let alert = NSAlert()
-        alert.messageText = message
-        dialog(alert) { _ in completionHandler() }
+        ask(PageDialog(kind: "alert", message: message, frame: frame) { _ in completionHandler() })
     }
 
     func webView(
@@ -647,11 +641,9 @@ extension WebPage: WKUIDelegate {
         initiatedByFrame frame: WKFrameInfo,
         completionHandler: @escaping @MainActor @Sendable (Bool) -> Void
     ) {
-        let alert = NSAlert()
-        alert.messageText = message
-        alert.addButton(withTitle: "OK")
-        alert.addButton(withTitle: "Cancel")
-        dialog(alert) { response in completionHandler(response == .alertFirstButtonReturn) }
+        ask(PageDialog(kind: "confirm", message: message, frame: frame) { answer in
+            completionHandler(answer.bool ?? false)
+        })
     }
 
     func webView(
@@ -661,19 +653,40 @@ extension WebPage: WKUIDelegate {
         initiatedByFrame frame: WKFrameInfo,
         completionHandler: @escaping @MainActor @Sendable (String?) -> Void
     ) {
-        let alert = NSAlert()
-        alert.messageText = prompt
-        alert.addButton(withTitle: "OK")
-        alert.addButton(withTitle: "Cancel")
-        let field = NSTextField(frame: CGRect(x: 0, y: 0, width: 260, height: 24))
-        field.stringValue = defaultText ?? ""
-        alert.accessoryView = field
-        dialog(alert) { response in completionHandler(response == .alertFirstButtonReturn ? field.stringValue : nil) }
+        ask(PageDialog(kind: "prompt", message: prompt, value: defaultText ?? "", frame: frame) { answer in
+            completionHandler(answer.string)
+        })
+    }
+
+    // WebKit's own hook, which it asks on a navigation of the page whose document asks to be let go; no hook lets it
+    // go unasked. Its text is the engine's, never the page's, so the message is empty.
+    @objc(_webView:runBeforeUnloadConfirmPanelWithMessage:initiatedByFrame:completionHandler:)
+    func webView(
+        _ webView: WKWebView,
+        runBeforeUnloadConfirmPanelWithMessage message: String,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping @MainActor @Sendable (Bool) -> Void
+    ) {
+        ask(PageDialog(kind: "leave", message: "", frame: frame) { answer in completionHandler(answer.bool ?? true) })
     }
 }
 
 extension WebPage {
     // MARK: - Private
+    // A dialog put to JavaScript, held until it is answered.
+    private func ask(_ dialog: PageDialog) {
+        dialogs.removeAll { $0.isAnswered }
+        dialogs.append(dialog)
+        let reply = Reply { node, arguments in dialog.reply(node, arguments.first) }
+        emitter.emit("dialog", [
+            "kind": dialog.kind,
+            "message": dialog.message,
+            "value": dialog.value,
+            "origin": dialog.origin,
+            "reply": reply
+        ])
+    }
+
     // What a site asks for, by the web platform's names, put to JavaScript as `permission`: given on true, else
     // refused. `origin` is the frame's that asks, as the web platform asks a frame's permission.
     private func askPermission(
@@ -693,6 +706,53 @@ extension WebPage {
             "permissions": permissions,
             "reply": reply
         ])
+    }
+}
+
+// A dialog a page asks, `kind` `alert`, `confirm`, `prompt` or `leave`, put to JavaScript as `dialog` and answered
+// once, by `reply` or refused: `answered` is handed what JavaScript replied, a value that is no boolean or string for
+// the refusal, which each kind reads as its own.
+@MainActor
+private final class PageDialog {
+    struct Answer {
+        var bool: Bool?
+        var string: String?
+    }
+
+    let kind: String
+    let message: String
+    let value: String
+    let origin: String
+    private var answered: (@MainActor (Answer) -> Void)?
+
+    init(
+        kind: String,
+        message: String,
+        value: String = "",
+        frame: WKFrameInfo,
+        answered: @escaping @MainActor (Answer) -> Void
+    ) {
+        self.kind = kind
+        self.message = message
+        self.value = value
+        self.origin = WebPage.serialized(frame.securityOrigin)
+        self.answered = answered
+    }
+
+    var isAnswered: Bool { answered == nil }
+
+    func reply(_ node: Node, _ value: napi_value?) {
+        settle(Answer(bool: value.flatMap { try? node.bool($0) }, string: value.flatMap { try? node.string($0) }))
+    }
+
+    func refuse() {
+        settle(Answer())
+    }
+
+    private func settle(_ answer: Answer) {
+        guard let answered else { return }
+        self.answered = nil
+        answered(answer)
     }
 }
 
