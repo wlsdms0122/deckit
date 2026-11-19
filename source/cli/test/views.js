@@ -80,9 +80,6 @@ list "Mods"`;
 // The views read where the checks of another area have them stand, whole, their items too: `*` is any text.
 const STANDING = {
     seats: `group "Seats"
-  group "Asker asks to sit"
-    button "Deny Asker"
-    button "Allow Asker"
   button "*"
   button "First"
   button "Second"`,

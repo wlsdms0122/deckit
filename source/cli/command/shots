@@ -216,8 +216,6 @@ async function draw(app, look, shots, origin) {
         desktopShot,
         stagePicture,
         allowed,
-        answerOf,
-        answer,
         pressAt,
         seatsView,
     } = seat({
@@ -338,10 +336,9 @@ async function draw(app, look, shots, origin) {
     await surface(`${apps.at(-1)}-inactive`, (name) => windowShot(name, apps.at(-1)));
     await surface('desktop-windows', backed);
     // Two users sit beside the local seat, each at a transport connection of its own with a key of its own, let in by
-    // the local seat's press on Allow in the view of Seats where it is asked, and each presses a window where it shows for it, so it holds
-    // that window's keyboard, and tiles it by the shell's key, one to each half, so the title bars of both show: their
-    // cursors at rest under them, a third user asking to sit, the view of one of them followed, then one of them mid
-    // drag, its button held. Each window is put back at its frame after.
+    // whoever is at the machine where it is asked, and each presses a window where it shows for it, so it holds that
+    // window's keyboard, and tiles it by the shell's key, one to each half, so the title bars of both show: their
+    // cursors at rest under them, the view of one of them followed, then one of them mid drag, its button held. Each window is put back at its frame after.
     const attach = async (id, name) => {
         const file = path.join(app.data, `${id}.key`);
         const command = path.join(__dirname, '..', 'deckit');
@@ -425,23 +422,6 @@ async function draw(app, look, shots, origin) {
         await sleep(400);
         await desktopShot(name, { under, crop: underItem(view) });
         await seatsView.away();
-    });
-    // A third user asks to sit: its row over theirs, with its two answers, until the local seat denies it.
-    await surface('seats-ask', async (name) => {
-        const file = path.join(app.data, 'lin.key');
-        const command = path.join(__dirname, '..', 'deckit');
-        execFileSync(command, ['user', 'add', 'lin', '--name', 'Lin', '--key', file, '--home', app.home], {
-            stdio: 'pipe',
-        });
-        const party = await connect(path.join(app.home, 'deckit.sock'));
-        const refused = party.authenticate({ principal: 'lin', ...readKey(fs.readFileSync(file, 'utf8')) }).then(
-            () => party.close(),
-            () => {}
-        );
-        const asked = await answerOf('Lin', 'deny', 5000);
-        if (asked) await desktopShot(name, { under, crop: underItem(asked.view) });
-        await answer('Lin', 'deny', 1000);
-        await refused;
     });
     // The local seat follows the first of the two by a press on its row: the whole desktop as that seat has it, and
     // the bar that says so.

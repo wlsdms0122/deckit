@@ -6,8 +6,10 @@ const { sleep, until } = require('./devtools.js');
 // a window's frame as the key window's.
 const SURFACE = `return ([window.name, window.opener?.location.href ?? '', !!document.querySelector('.deckit-window-material[data-key]')])`;
 
-// What the Seats mod's view writes on the two answers of a user that asks (mods/seats).
+// The two answers of the machine's box that asks whether a user may sit, by the buttons it shows, and what its
+// message says after the user's name (deckit-electron/environment).
 const ANSWERS = { allow: 'Allow', deny: 'Deny' };
+const ASKS = ' asks to sit';
 
 // A line of WebKit's module's `tree`, a view indented under its superview: its type, its frame in its superview,
 // whether it is hidden, whether it has its window's keyboard, the radius of the corners it cuts what is in it to, if
@@ -286,13 +288,12 @@ function seat({ main, pageById, compose, desktop }) {
             if (!(await laidOf('seats')).length) return;
         }
     };
-    // The rows of the Seats mod's view as it draws them, `{ asks, seats }`: each ask's user's name, and each seat's
-    // `{ name, says, colour, idle, following }`; of `view`, a view `seatsShown` answered, read where it stands or not,
-    // or of the one shown now, both empty where none is.
+    // The rows of the Seats mod's view as it draws them, `{ seats }`, each seat's `{ name, says, colour, idle,
+    // following }`; of `view`, a view `seatsShown` answered, read where it stands or not, or of the one shown now,
+    // empty where none is.
     const seatsRows = async (view = null) => {
         const from = view ?? (await seatsShown());
         const rows = await (from && (await pageById(from.id)))?.evaluate(`({
-            asks: [...document.querySelectorAll('.seats-ask .seats-name')].map((node) => node.textContent),
             seats: [...document.querySelectorAll('.seats-seat')].map((node) => ({
                 name: node.querySelector('.seats-name').textContent,
                 says: node.querySelector('.seats-says').textContent,
@@ -301,26 +302,17 @@ function seat({ main, pageById, compose, desktop }) {
                 following: node.getAttribute('aria-pressed') === 'true',
             })),
         })`);
-        return rows || { asks: [], seats: [] };
+        return rows || { seats: [] };
     };
-    // The users that ask to sit, by name, as that view has a row of each; none while the bar has no Seats item. The
-    // view is put away again.
+    // The users that ask to sit, by name, in the order they asked, as the machine's boxes ask of each, held by the
+    // stand-in for them (inactive.js) and shown on no screen.
     const asksNow = async () => {
-        const { asks } = await seatsRows();
-        await seatsAway();
-        return asks;
+        const messages = await main('return (globalThis.deckitTestBoxes ?? []).map(({ message }) => message)');
+        return messages.filter((message) => message.endsWith(ASKS)).map((message) => message.slice(0, -ASKS.length));
     };
-    // An answer, 'allow' or 'deny', of the row of the user named `name` that asks, once the view draws it within
-    // `within` ms: `{ view, selector }`, the view and what finds the answer's button in it, or null.
-    const answerOf = (name, word, within) => {
-        const selector = `[data-answer="${word}"][aria-label="${ANSWERS[word]} ${name}"]`;
-        return until(async () => {
-            const view = await seatsShown();
-            const session = view && (await pageById(view.id));
-            const drawn = await session?.evaluate(`!!document.querySelector(${JSON.stringify(selector)})`);
-            return drawn ? { view, selector } : null;
-        }, within);
-    };
+    // Whether the machine asks of the user named `name` within `within` ms.
+    const answerOf = (name, word, within) =>
+        until(async () => (await asksNow()).includes(name) && { name, word }, within);
     // The machine's press at a point of the desktop's page, the local seat's.
     const pressAt = async (at) => {
         for (const type of ['down', 'up'])
@@ -331,24 +323,25 @@ function seat({ main, pageById, compose, desktop }) {
     const mouseAt = (type, at) => main(`return webkit.sendMouse(${desktop().id}, ${JSON.stringify({ type, ...at })})`);
     // What `script` answers in the desktop's page.
     const inDesktop = (script) => desktop()?.evaluate(script);
-    // The local seat's answer to the user named `name`, as the machine presses it in the view, which is put away
-    // after: the users that asked as it did, by name, or null where the user did not ask in time.
+    // The answer, 'allow' or 'deny', of whoever is at the machine to the user named `name`, pressed on the machine's
+    // box that asks of it: the users that asked as it did, by name, or null where the user did not ask in time.
     const answer = async (name, word, within = 10000) => {
         const found = await answerOf(name, word, within);
-        const asking = found && (await seatsRows(found.view)).asks;
-        if (found) await pressIn(found.view, found.selector);
-        await seatsAway();
+        const asking = found && (await asksNow());
+        if (found)
+            await main(`
+                const box = globalThis.deckitTestBoxes.find(({ message }) => message === ${JSON.stringify(name + ASKS)});
+                box?.answer(box.buttons.indexOf(${JSON.stringify(ANSWERS[word])}));
+            `);
         return asking;
     };
-    // What `attaching` comes to, the local seat allowing the user named `name` where it is asked.
+    // What `attaching` comes to, whoever is at the machine allowing the user named `name` where it is asked.
     const allowed = async (name, attaching) => {
         let over = false;
         const come = Promise.resolve(attaching).finally(() => (over = true));
         come.catch(() => {});
         while (!over) if (await answer(name, 'allow', 300)) break;
-        const came = await come;
-        await seatsAway();
-        return came;
+        return come;
     };
     return {
         laidNow,
