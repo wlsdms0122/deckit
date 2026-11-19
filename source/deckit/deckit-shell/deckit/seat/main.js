@@ -3,17 +3,20 @@ import * as REFUSAL from '../../../deckit-sdk/deckit/request/index.js';
 import * as IPC from '../ipc/main.js';
 import * as DECLARED from './protocol.js';
 
-const { EVENTS, OUTPUTS, ...CHANNELS } = DECLARED;
-const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, CHANNELS);
+const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // The user whose devices are this machine's hardware.
 const LOCAL = 'local';
 // How long an admission waits for an answer, in milliseconds.
 const ASK_TIME = 60000;
-// What the shell may serve: `input(seat, event) -> result`, the entry, `event` a row of EVENTS named under `event` with
-// its fields and `source`; `read(seat, { of, ...query })`, an output of OUTPUTS asked once; and `onAsk({ user }, {
-// signal }) -> Promise of boolean`, whether a seated user lets `user` sit, `signal` aborted once no answer is waited
-// for.
+// What the shell may serve: `input(seat, event) -> result`, the entry, `event` of a kind of device `events` names
+// with its fields and `source`; `read(seat, { of, ...query })`, an output `reads` names, asked once; and `onAsk({
+// user }, { signal }) -> Promise of boolean`, whether a seated user lets `user` sit, `signal` aborted once no answer
+// is waited for.
 const SERVED = Object.freeze(['input', 'read', 'onAsk']);
+// What the shell names beside what it serves: `events`, each kind of device by its name, `{ types, fields }`, served
+// with `input`; `reads`, each output read by its name, the fields it is asked with, served with `read`; and `tells`,
+// each output told by its name, `{ fields, on }`, `on` whether a seat is told it from the moment it opens.
+const NAMED = Object.freeze({ events: 'input', reads: 'read', tells: null });
 
 // Its channels as a run a transport connection hosts speaks them (outside/): `asked`, method -> the channel, and
 // `told`, channel -> method.
@@ -40,6 +43,7 @@ export function createSeat({ CORE, LOG, IDENTITY, RUNNER, name }) {
     const openListeners = new Set();
     const closeListeners = new Set();
     let served = Object.freeze({}); // what the shell serves so far, each of SERVED once it does
+    let named = Object.freeze({ events: {}, reads: {}, tells: {} }); // what it named so far, each name once
     let local = null; // the local seat, once it opened
     let idleTime = null; // how long a seat gives no input before it is idle, in milliseconds, once it was asked here
 
@@ -103,20 +107,35 @@ export function createSeat({ CORE, LOG, IDENTITY, RUNNER, name }) {
         return need('input')(at, { ...event, source: at.source });
     }
 
-    // What the shell answers the entry, the outputs and the ask with from now on: each of SERVED is handed over once,
-    // together or by the part of the shell that answers it. Answers `{ tell(seat, output) }`, what the shell tells a
-    // seat: `output` is `{ of, ... }` with what the row of OUTPUTS tells, and reaches a seat that watches it.
-    function serve(answers) {
-        if (CHANNEL.kindOf(answers) !== 'object') throw new Error('[deckit] what serves the seats is an object');
+    // What the shell answers the entry, the outputs and the ask with from now on, and the names of NAMED: each of
+    // SERVED is handed over once, together or by the part of the shell that answers it, with what it names, and each
+    // name is named once. Answers `{ tell(seat, output) }`, what the shell tells a seat: `output` is `{ of, ... }` with
+    // what that output tells, and reaches a seat that watches it.
+    function serve({ events, reads, tells, ...answers } = {}) {
         for (const [key, answer] of Object.entries(answers)) {
             if (!SERVED.includes(key)) throw new Error(`[deckit] the seats are served no ${key}`);
             if (typeof answer !== 'function') throw new Error(`[deckit] ${key} is served as a function`);
             if (served[key]) throw new Error(`[deckit] the seats are served ${key} already`);
         }
+        const naming = { events, reads, tells };
+        for (const [key, names] of Object.entries(naming)) {
+            const by = NAMED[key];
+            if (by && !answers[by] !== (names === undefined)) throw new Error(`[deckit] ${key} is named with ${by}`);
+            if (names === undefined) continue;
+            if (CHANNEL.kindOf(names) !== 'object') throw new Error(`[deckit] ${key} is named as an object`);
+            const again = Object.keys(names).find((name) => Object.hasOwn(named[key], name));
+            if (again) throw new Error(`[deckit] ${again} is named already`);
+        }
         served = Object.freeze({ ...served, ...answers });
+        named = Object.freeze(
+            Object.fromEntries(Object.entries(named).map(([key, was]) => [key, { ...was, ...(naming[key] ?? {}) }]))
+        );
+        // A seat open already is told from now on what a seat is told from the moment it opens.
+        for (const [name, { on }] of Object.entries(tells ?? {}))
+            if (on) for (const watched of watching.values()) watched.add(name);
         return Object.freeze({
             tell: (seat, { of, ...data } = {}) => {
-                const told = Object.hasOwn(OUTPUTS, of) ? OUTPUTS[of].told : null;
+                const told = Object.hasOwn(named.tells, of) ? named.tells[of].fields : null;
                 if (!told) throw new Error(`[deckit] a seat is told no output ${of}`);
                 const problem = CHANNEL.problemOf({ channel: `the output ${of}`, fields: told }, data);
                 if (problem) throw new Error(`[deckit] ${problem}`);
@@ -147,7 +166,7 @@ export function createSeat({ CORE, LOG, IDENTITY, RUNNER, name }) {
         const opening = Object.freeze({ ...seat, user: Object.freeze({ ...seat.user }), source });
         seats.set(opening.user.id, opening);
         clocks.set(opening.id, Date.now());
-        const told = Object.entries(OUTPUTS).filter(([, row]) => row.told && row.on);
+        const told = Object.entries(named.tells).filter(([, { on }]) => on);
         watching.set(opening.id, new Set(told.map(([name]) => name)));
         for (const listener of openListeners) listener(opening);
         return opening;
@@ -209,12 +228,10 @@ export function createSeat({ CORE, LOG, IDENTITY, RUNNER, name }) {
         if (sender) PROTOCOL.output.send(sender, output);
     }
 
-    // The row of `table` that `name` names, which has the `part` asked for: refused for a name the table has not and
-    // for a row without that part.
-    function rowOf(table, name, part, what) {
-        if (!Object.hasOwn(table, name) || !table[name][part])
-            throw REFUSAL.refusal('call', 'INVALID_ARGUMENT', `${what} is not ${name}`);
-        return table[name];
+    // What `names` holds under `name`: refused for a name it has not.
+    function rowOf(names, name, what) {
+        if (!Object.hasOwn(names, name)) throw REFUSAL.refusal('call', 'INVALID_ARGUMENT', `${what} is not ${name}`);
+        return names[name];
     }
 
     // What was sent beside a row's name is that row's `fields` and no other.
@@ -226,7 +243,8 @@ export function createSeat({ CORE, LOG, IDENTITY, RUNNER, name }) {
     function listen() {
         PROTOCOL.input.handle(async ({ event, type, ...fields }, sender) => {
             const seat = seatFrom(sender);
-            const row = rowOf(EVENTS, event, 'fields', "what a seat's devices do");
+            need('input');
+            const row = rowOf(named.events, event, "what a seat's devices do");
             hold(event, row.fields, fields);
             if (!row.types.includes(type))
                 throw REFUSAL.refusal('call', 'INVALID_ARGUMENT', `a ${event} event is one of ${row.types.join(', ')}`);
@@ -234,12 +252,13 @@ export function createSeat({ CORE, LOG, IDENTITY, RUNNER, name }) {
         });
         PROTOCOL.read.handle(async ({ of, ...query }, sender) => {
             const seat = seatFrom(sender);
-            hold(of, rowOf(OUTPUTS, of, 'query', 'what a seat reads').query, query);
-            return need('read')(seat, { of, ...query });
+            const answer = need('read');
+            hold(of, rowOf(named.reads, of, 'what a seat reads'), query);
+            return answer(seat, { of, ...query });
         });
         PROTOCOL.watch.handle(({ of, on }, sender) => {
             const seat = seatFrom(sender);
-            rowOf(OUTPUTS, of, 'told', 'what a seat is told of');
+            rowOf(named.tells, of, 'what a seat is told of');
             if (on) watching.get(seat.id).add(of);
             else watching.get(seat.id).delete(of);
             return true;

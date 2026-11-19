@@ -11,6 +11,7 @@ const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit
 async function main() {
     const IPC = await import(url('deckit-shell', 'deckit', 'ipc', 'main.js'));
     const { createSeat, OUTSIDE } = await import(url('deckit-shell', 'deckit', 'seat', 'main.js'));
+    const SERVED = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'served.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {
@@ -111,18 +112,26 @@ async function main() {
     const asks = [];
     const tells = SEAT.serve({
         input: (seat, event) => (handed.push([seat.id, event]), { over: 'w1', key: 'key', holder: seat.id }),
+        events: SERVED.EVENTS,
         read: (seat, query) => ({ text: `desktop for ${seat.id} ${JSON.stringify(query)}`, mark: 1 }),
+        reads: SERVED.READS,
+        tells: SERVED.TELLS,
         onAsk: ({ user }, { signal }) => (asks.push({ user, signal }), Promise.resolve(user === 'guest')),
     });
+    const throws = (served) => {
+        try {
+            SEAT.serve(served);
+        } catch {
+            return true;
+        }
+        return false;
+    };
     check(
-        'each answer is served once',
-        (() => {
-            try {
-                SEAT.serve({ input: () => ({}) });
-            } catch {
-                return true;
-            }
-        })(),
+        'each answer is served once, each name is named once, and the kinds of device and the outputs read are named ' +
+            'with what answers them',
+        throws({ input: () => ({}), events: {} }) &&
+            throws({ tells: { held: SERVED.TELLS.held } }) &&
+            throws({ events: { wheel: { types: ['down'], fields: {} } } }),
         ''
     );
     const denied = await SEAT.admit({ transport: 't2', principal: 'other' }, hooks).catch((error) => error);
