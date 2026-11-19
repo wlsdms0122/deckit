@@ -13,7 +13,9 @@
 // on the person's screen, and presses a key in the page the shell gave the keyboard to, the app in front, never the
 // person's keyboard, or in another app, which reaches the chords the shell holds outside the app, held by the host,
 // never with the machine. It shows none of the system's notifications: it keeps each one, for the look shown, and
-// presses one when asked. It shows no dialog of folders: each answers the folders the case names. It shows no path
+// presses one when asked. It shows no dialog of folders: each answers the folders the case names. It shows no ask to
+// sit: on the base shell it holds each one, under the party the runner names, until the runner answers it in the place
+// of whoever is at the machine, and on the other bases it takes none. It shows no path
 // where it lies: it keeps each one, for the look revealed. It knows the app for an address of a scheme only where the
 // case names one. Its clipboard is a file of the run's, never the person's. A request fetched through a web session
 // reaches no address but on the loopback address. On the base shell it hands the shell the mods the case keeps in the
@@ -58,6 +60,9 @@ const windowed = new WeakSet(); // the mods' pages shown in a window of the host
 const opened = []; // { url, activates }: each address handed to open outside the app, in the order handed
 const shown = []; // { notification: { title, body, silent }, onClick }: each notification handed to show, in order
 const revealed = []; // each path handed to show where it lies, in the order handed
+// { party, resolve(allow) }: each ask to sit handed on the base shell and not yet answered, in order, `party` the name
+// the runner gave it, null until then. One whose party left stays held, and its answer seats nobody.
+const held = [];
 // The machine's screen on the base shell, which the host window fills, the desktop in it: nothing of either is on the
 // person's screen.
 const SCREEN = Object.freeze({ width: 1280, height: 800 });
@@ -312,8 +317,12 @@ try {
     const dialogs = Object.freeze({
         chooseFolders: async ({ multiple = false }) => (multiple ? setup.chosen : setup.chosen.slice(0, 1)),
     });
-    // An ask to sit shown nowhere, and answered no: the host takes no ask.
-    const admission = Object.freeze({ ask: async () => false });
+    // An ask to sit shown nowhere: held on the base shell, and on another base answered no, as by a host that takes
+    // no ask.
+    const admission = Object.freeze({
+        ask: async () =>
+            setup.base === 'shell' ? new Promise((resolve) => held.push({ party: null, resolve })) : false,
+    });
     // Each path kept, and shown nowhere.
     const reveal = (file) => {
         revealed.push(file);
@@ -423,7 +432,11 @@ socket.on('data', (chunk) => {
                                     ? scroll(asked)
                                     : asked.input === 'parties'
                                       ? partiesSettled(asked)
-                                      : told().then(() => (asked.look === 'worn' ? worn(asked) : look(asked)))
+                                      : asked.input === 'asked'
+                                        ? namedAsk(asked)
+                                        : asked.input === 'answer'
+                                          ? answered(asked)
+                                          : told().then(() => (asked.look === 'worn' ? worn(asked) : look(asked)))
             ).then(async (came) => {
                 // A run a page starts or ends as it takes what it was told is waited for too.
                 if (asked.input) {
@@ -672,6 +685,22 @@ async function runsSettled() {
     const was = !!deckit?.mods.runs().some(moving);
     while (deckit?.mods.runs().some(moving)) await new Promise((resolve) => setTimeout(resolve, 10));
     return was;
+}
+
+// The ask handed last that no party names is the party's, as the runner tells: `{}`.
+function namedAsk({ party }) {
+    const ask = held.findLast((each) => each.party === null);
+    if (ask) ask.party = party;
+    return {};
+}
+
+// The ask of the party answered, `allow` whether its user may sit: `{}`, or `{ none }` where none of it is held.
+function answered({ party, allow }) {
+    const at = held.findIndex((each) => each.party === party);
+    if (at < 0) return { none: `the host holds no ask of ${party}` };
+    const [ask] = held.splice(at, 1);
+    ask.resolve(allow);
+    return {};
 }
 
 // Resolves once deckit has taken what the parties did, `{}`: of each principal a party proved, `{ principal, open }`,

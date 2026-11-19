@@ -210,6 +210,7 @@ async function take(step, app, paths, served, delegate, answers, downloads, part
     if (what === 'attach') return partOf(await parties.attach(step), part);
     if (what === 'ask') return partOf(await parties.ask(step), part);
     if (what === 'detach') return parties.detach(step);
+    if (what === 'answer') return parties.answer(step);
     if (what === 'told') return partOf(await parties.told(step), part);
     if (what === 'admitted') return partOf(await parties.admitted(step), part);
     if (what === 'requested') return { answers: served.read(step.headers ?? []) };
@@ -438,9 +439,9 @@ function fileAt(folder, at) {
 // folder `home`, and what the host keeps for them before its first start, registered by the host app's own core at
 // `core`: `register()`, the users, then the keys and then the seats' settings `host` names, each key the public half of
 // a pair made here under its name, which comes to null, or to the refusal of the first one refused; `attach`, `ask`,
-// `detach`, `told` and `admitted`, each what that step comes to; and `close()`, every transport connection closed. A
-// party keeps each message the host sends it that answers nothing it asked, and answers each request among them with a
-// null at once. After what a party does, the host app settles of the run each principal proved last hosts (host.js).
+// `detach`, `told`, `admitted` and `answer`, each what that step comes to; and `close()`, every transport connection
+// closed. A party keeps each message the host sends it that answers nothing it asked, and answers each request among
+// them with a null at once. After what a party does, the host app settles of the run each principal proved last hosts (host.js).
 function createParties({ host, core, home, app }) {
     const pairs = new Map(); // a key's name -> its pair, made as it is first named
     const parties = new Map(); // a party's name -> { connection, principal, messages, closed, admission }
@@ -501,7 +502,8 @@ function createParties({ host, core, home, app }) {
     }
 
     // An attach that waits ends once the party is told the host asks, or its admission is answered, whichever is first,
-    // and comes to nothing: `admitted` comes to what the admission is answered.
+    // and comes to nothing: `admitted` comes to what the admission is answered. Told first, the host app is told the
+    // party, whose ask it was handed as the party was told.
     async function attach({ party, principal, key, waits = false }) {
         let connection;
         try {
@@ -525,7 +527,18 @@ function createParties({ host, core, home, app }) {
             return came;
         });
         if (!waits) return settle(await bounded(one.admission));
-        return settle(await bounded(Promise.race([asking, one.admission.then(() => ({}))])));
+        let told = false;
+        const came = await bounded(
+            Promise.race([asking.then(() => ((told = true), {})), one.admission.then(() => ({}))])
+        );
+        if (told) await app.ask({ input: 'asked', party });
+        return settle(came);
+    }
+
+    // Whoever is at the machine answers the ask of the party, as the host app holds it.
+    async function answer({ party, allow }) {
+        const came = await app.ask({ input: 'answer', party, allow });
+        return came.none ? came : settle(came);
     }
 
     async function admitted({ party }) {
@@ -560,7 +573,7 @@ function createParties({ host, core, home, app }) {
         for (const { connection } of parties.values()) connection.close();
     }
 
-    return { register, attach, ask, detach, told, admitted, close };
+    return { register, attach, ask, detach, told, admitted, answer, close };
 }
 
 // The value under the key `part` of an answer that is a table, or of each element that holds it of one that is an
