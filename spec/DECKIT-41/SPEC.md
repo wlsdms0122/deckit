@@ -43,7 +43,7 @@ It throws at `call` with kind `INVALID_ARGUMENT` where `anchors` is no array, on
 
 An anchor has a **name**, `{ mod, id }`: the id of the mod that told it, and its `id`. Where a mod tells one `id` in two of its windows, the anchor of that name is the one of the window opened first. A window that closes tells no anchor.
 
-An anchor **stands** while the content of its window is laid in the host app's window: that of a panel window in the bar, while it is open; that of a normal window, while some seat has the window on screen; and that of a view, while the view stands. It stands at its `rect` moved by the content's top left, in the coordinates of the host app's window, `x` to the right and `y` down.
+An anchor **stands** while the content of its window is laid on a seat's screen: that of a panel window in the bar, while it is open; that of a normal window, while some seat has the window on screen; and that of a view, while the view stands. It stands at its `rect` moved by the content's top left, a rect of the desktop as a frame is, on each seat's screen where the content is laid, as [seats at the desktop](../DECKIT-39/SPEC.md) fixes where a panel window and a view stand for each seat.
 
 ### A view under an anchor
 
@@ -57,21 +57,21 @@ A name no window tells refuses nothing: the view opens. A view under an anchor *
 
 | place | where it is |
 |---|---|
-| `"top-right"` | the top of the desktop, at the right side of the host app's window |
-| `"top-left"` | the top of the desktop, at the left side of the host app's window |
+| `"top-right"` | under the bar, at the right side of the camera |
+| `"top-left"` | under the bar, at the left side of the camera |
 
 After the refusals [windows](../DECKIT-31/SPEC.md) fixes, it throws at `call` with kind `INVALID_ARGUMENT`, and opens nothing, where `place` is a string that is none of them. A view at a place stands while it is open.
 
 ### Its size and where it stands
 
-A view has a frame, `{ x, y, width, height }`, in the coordinates of the host app's window, as a panel window in the bar has. Its size is the size it **asks**, the `width` and `height` it is opened at or `resize` set last, held so:
+A view has a frame, `{ x, y, width, height }`, a rect of the desktop placed in the camera, as a panel window in the bar has. Its size is the size it **asks**, the `width` and `height` it is opened at or `resize` set last, held so:
 
 - `width` is the width asked, rounded to the nearest whole number, no less than 240 and no more than 480, and no more than the width of the host app's window less 16;
-- `height` is the height asked, rounded, no less than 80, and no more than the desktop's height less 16.
+- `height` is the height asked, rounded, no less than 80, and no more than the height of the host app's window under the bar less 16.
 
-A view under an anchor stands under it, their right edges in line, and inside the host app's window and the desktop: `x` is the anchor's right edge, rounded, less the view's width, no more than the window's width less 8 less the view's width, and no less than 8; `y` is the anchor's bottom edge, rounded, plus 8, no more than the desktop's bottom less 8 less the view's height, and no less than the desktop's top plus 8.
+A view under an anchor stands under it, their right edges in line, and inside the camera under the bar: `x` is the anchor's right edge, rounded, less the view's width, no more than the camera's right less 8 less the view's width, and no less than the camera's left plus 8; `y` is the anchor's bottom edge, rounded, plus 8, no more than the camera's bottom less 8 less the view's height, and no less than the bar's bottom plus 8.
 
-A view at a place stands with `y` at the desktop's top plus 8, and `x` at 8 at the place `"top-left"`, and at the window's width less 8 less the view's width, no less than 8, at the place `"top-right"`.
+A view at a place stands with `y` at the bar's bottom plus 8, and `x` at the camera's left plus 8 at the place `"top-left"`, and at the camera's right less 8 less the view's width, no less than the camera's left plus 8, at the place `"top-right"`.
 
 A view is never minimized or zoomed, keeps no frame, has no title bar and no room: `room` of its handle is `null`, and it is told no `didChangeRoom`. The shell draws no frame around a view: under it, its frame rounded by 12, it draws the material [windows](../DECKIT-31/SPEC.md) fixes under a panel window, and the view's content is cut to that shape.
 
@@ -151,4 +151,4 @@ A view is told the callbacks of [windows](../DECKIT-31/SPEC.md), each as the win
 
 **Note.** Some sentences above are held by no case under `conformance/`, each for its reason. `ENDED` of `setAnchors` and `toggle()`: no `call` reaches a cut handle, as [the shell](../DECKIT-29/SPEC.md) says of its cases. That `setAnchors` does nothing of an overlay window or of a window that has closed: doing nothing is what no look tells from an anchor no view stands under. An `id` or a `mod` longer than 128: the cases read an anchor that does not fit the table by its `rect`, the same sentence. A view no wider than the host app's window less 16: the host app's window of [the case format](../DECKIT-1/SPEC.md) is 1280 wide, and no view is wider than 480. Where a view under an anchor near the bottom of the desktop stands: the case format's bar and the anchors its cases name are at the desktop's top. The material under a view, its corners and its content cut to them: no look reads what is drawn. Which view lies over which on a seat's screen: the look `windows` lists the views in the order they opened. A press in a child's view a view's regions show, or in what its content presents over itself: the cases of this DECKIT show no child's view in a view and present nothing over one. A view put away as the host app's window begins to follow another seat: no input of the case format has the host app's window follow. A seat that takes a view's keyboard at its next press or key once the holder is idle: the idle time a case sets has every seat idle at once or none in its time, so the cases hold an idle holder as the view is shown for another seat. A text event of a seat refused `HELD`: the cases hold `HELD` by a key event, and a text event is refused where a key event is. That a view keeps no frame and has no title bar: a view stands where the shell places it, which the cases read, and no look reads a kept frame or a title bar. That a view is told no `didChangeRoom`: the cases' mod hears the callbacks their notes name, and those of [windows](../DECKIT-31/SPEC.md) read `room` of a view's handle `null`.
 
-**Note.** What this costs an implementation: it keeps the anchors each window told and where each stands, and places every view again as an anchor, a window or the host app's window moves; it keeps, for each seat, the one view shown for it by activation, and for each view the seat that holds its keyboard; and it hears every press of every seat to put a view away.
+**Note.** What this costs an implementation: it keeps the anchors each window told and where each stands, and places every view again as an anchor, a window or a seat's camera moves; it keeps, for each seat, the one view shown for it by activation, and for each view the seat that holds its keyboard; and it hears every press of every seat to put a view away.

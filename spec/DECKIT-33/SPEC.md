@@ -5,7 +5,7 @@ Area: shell
 
 ## Summary
 
-The person finds the apps of the desktop in the **Dock**, along the desktop's left edge. This DECKIT fixes which mod is an **app**, by the manifest fields the shell adds, `activationPolicy`, `icon` and `keywords`; the Dock's **items**, the apps the person keeps there, in the Dock's order, and then the apps that run; the Dock at the first start, as the host names it or as it ships its apps; how keeping an app, taking it out and a drag change that order, which stands as the host app quits and starts; the marks of an item; what a click on an item and the choices of its menu do, the instance's `reopen()` among them; and `mods.list()`, `mods.pinned()`, `mods.setPinned(id, pinned)` and `mods.open(id)`, members of [the handle `shell`](../DECKIT-29/SPEC.md) through which a mod granted `deckit.mods` reads the Dock, keeps an app there or takes it out, and opens an app as the person opens it.
+The person finds the apps of the desktop in the **Dock**, along the left edge of the camera. This DECKIT fixes which mod is an **app**, by the manifest fields the shell adds, `activationPolicy`, `icon` and `keywords`; the Dock's **items**, the apps the person keeps there, in the Dock's order, and then the apps that run; the Dock at the first start, as the host names it or as it ships its apps; how keeping an app, taking it out and a drag change that order, which stands as the host app quits and starts; the marks of an item; what a click on an item and the choices of its menu do, the instance's `reopen()` among them; and `mods.list()`, `mods.pinned()`, `mods.setPinned(id, pinned)` and `mods.open(id)`, members of [the handle `shell`](../DECKIT-29/SPEC.md) through which a mod granted `deckit.mods` reads the Dock, keeps an app there or takes it out, and opens an app as the person opens it.
 
 ## Motivation
 
@@ -43,7 +43,7 @@ An **app** is a mod the system took whose `activationPolicy` reads `"regular"`. 
 
 ### The Dock and its items
 
-The Dock is on the desktop, along its left edge, and comes out from the band 6 wide there that [windows](../DECKIT-31/SPEC.md) leaves out of the zoom area. The mods **kept** in the Dock stand in one order, the **Dock's order**. The Dock's items are these, each app once, in this order:
+The Dock stands along the left edge of the camera, and comes out from the band 6 wide there that [windows](../DECKIT-31/SPEC.md) leaves out of the zoom area. The mods **kept** in the Dock stand in one order, the **Dock's order**. The Dock's items are these, each app once, in this order:
 
 1. the apps kept in the Dock, in the Dock's order, whether they run or not;
 2. then the apps that run and are not kept, in the order they launched, one that launched again after the others.
@@ -121,7 +121,7 @@ Each is refused as [the shell](../DECKIT-29/SPEC.md) refuses a request, first, e
 - The handle `shell`, a request through it, its cut and `ENDED`, and the instance's `attach` and `detach`: [the shell](../DECKIT-29/SPEC.md).
 - A field a layer adds, and `name`: [the bundle](../DECKIT-2/SPEC.md). `deckit.mods`: [the permissions](../DECKIT-3/SPEC.md). The catalog's order, `remove` and `erase`: [the catalog](../DECKIT-4/SPEC.md). A run's states, `launch`, `quit`, a background mod and its run launched again: [the lifecycle](../DECKIT-5/SPEC.md).
 - A layer a host stacks, what it is handed, and what a layer keeps of a mod, named under `kept`: [the embedding](../DECKIT-22/SPEC.md).
-- The desktop, its zoom area, the order of the windows, `makeKeyAndOrderFront()`, a minimized window and the overlay windows: [windows](../DECKIT-31/SPEC.md).
+- The desktop, the camera and its zoom area, a window made key out of reach, the order of the windows, `makeKeyAndOrderFront()`, a minimized window and the overlay windows: [windows](../DECKIT-31/SPEC.md).
 - Input, a request of one mod to another, who may activate, a mod held back and the attention it asks for, the key window, the active mod and the title: [activation](../DECKIT-32/SPEC.md).
 - The host key `dock`, the input `dock`, the look `dock`, and the base `shell`'s Dock and the person's hand on it: [the case format](../DECKIT-1/SPEC.md).
 
