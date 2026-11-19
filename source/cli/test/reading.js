@@ -78,7 +78,7 @@ const SETTINGS = `window "Settings" settings
 
 async function run({ check, reader, other, window, editor, settings, showsFor, inPage, page, field, folder, watch }) {
     const desktop = reader.as('read', 'desktop').split('\n');
-    const [, size] = /^desktop (\d+x\d+) mark \d+$/.exec(desktop[0]) ?? [];
+    const [, size] = /^desktop at -?\d+,-?\d+ (\d+x\d+) mark \d+$/.exec(desktop[0]) ?? [];
     const items = Number(/^dock \((\d+) items\)$/.exec(desktop.find((line) => line.startsWith('dock ')))?.[1]);
     const seats = desktop.filter((line) => line.startsWith('seat '));
     const windows = desktop.filter((line) => WINDOW.test(line));
