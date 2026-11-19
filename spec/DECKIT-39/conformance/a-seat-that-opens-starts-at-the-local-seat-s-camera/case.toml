@@ -1,0 +1,62 @@
+case = 29
+name = "a-seat-that-opens-starts-at-the-local-seat-s-camera"
+note = "Each mod's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event <mod>:go tells it. mod-b opens no window and has reopen(), which opens https://said.test/reopen/mod-b outside the app and opens the window again. The desktop is the base shell's, 1280 by 800, and each seat's camera is 1280 by 800 at 0,0 as it opens. ada sits at s1, scrolls 1000 down on the desktop and clicks mod-b's item: again opens at 283, 1107, and ada leaves, so no seat holds it. The person clicks mod-b's item: again becomes the local seat's key window out of reach, and its camera moves to 0, 787. bob sits: the desktop it reads is at 0,787."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-b"]
+users = [{ id = "ada", name = "Ada Lovelace" }, { id = "bob", name = "Bob Kahn" }]
+keys = [{ principal = "ada", key = "first" }, { principal = "bob", key = "second" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "scroll", x = 100, y = 50, dx = 0, dy = 1000 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", ref = "dock.mod-b", button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", ref = "dock.mod-b", button = 0, count = 1 }
+
+[[step]]
+input = "detach"
+party = "p"
+
+[[step]]
+input = "dock"
+mod = "mod-b"
+action = "click"
+
+[[step]]
+input = "attach"
+party = "q"
+principal = "bob"
+key = "second"
+
+[[step]]
+input = "ask"
+party = "q"
+method = "seat/read"
+params = { of = "desktop" }
+part = "text"
+
+[step.expect]
+answers = "desktop at 0,787 1280x800 mark \u001A\nseat local \u001A\nseat \u001A (you)\ndock (1 items)\n  item \u001A\nwindow w1 \u001A"

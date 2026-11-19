@@ -1,0 +1,47 @@
+case = 29
+name = "a-window-made-key-out-of-reach-moves-the-seat-s-camera-to-it"
+note = "Each mod's code opens the windows the case says, each filled by a text field, and opens https://said.test/<name>/<event>/<what> outside the app for what the window's content hears: mousedown and mouseup with <button>/<detail>/<modifiers>, mousemove with <buttons>, wheel with <deltaX>/<deltaY>, keydown and keyup with <code>/<key>/<modifiers>/<repeat>, compositionstart and compositionupdate with the text composed, compositionend with <the text>/<the field's value>, and inserted with the text of each input event of the type insertText. The desktop is the base shell's, 1280 by 800, and each seat's camera is 1280 by 800 at 0,0 as it opens. mod-a opens main, the window 1 at 283, 107, 720 by 480, and ada sits at s1, where main is not key. It scrolls 1000 down on the desktop, its camera then at 0, 1000, and clicks mod-a's item, which makes main its key window out of reach: its camera moves the least way that brings main whole into its zoom area, to 0,107."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "scroll", x = 100, y = 50, dx = 0, dy = 1000 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", ref = "dock.mod-a", button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", ref = "dock.mod-a", button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "desktop" }
+part = "text"
+
+[step.expect]
+answers = "desktop at 0,107 1280x800 mark \u001A\nseat local \u001A\nseat s1 \u001A\ndock (1 items)\n  item \u001A\nwindow w1 \u001A"
