@@ -19,7 +19,8 @@ export const setup = CHANNEL.pageToMain(
 // edge, 'top' in the strip, or with `edge` null as a view, as they lie from the bottom, the material
 // drawn under each at its frame, rounded by `radius`;
 // `seats`, `[{ id, name, colour, at, buttons, shown, under, named, typing }]`, every
-// seat at the desktop: its user's name, its colour's name, where its pointer is on the stage, or null before it was
+// seat at the desktop: its user's name, its colour's name, where its pointer is on the stage, or the mark at the
+// stage's edge toward it where it is outside the camera shown (model/marks.js cursorOn), or null before it was
 // anywhere, the buttons it holds, whether it is the one whose view
 // the host window shows, what its cursor is drawn under, `[{ x, y, width, height, radius }]` on the stage, the rects
 // that cover it there, each with the radius of its corners, or null for a cursor that is not seen at all
@@ -40,7 +41,7 @@ export const setup = CHANNEL.pageToMain(
 export const state = CHANNEL.mainToPage('deckit-shell:desktop-state');
 // What the pointer of a seat that is not the one shown just did, each event as it comes, between two states:
 // `{ id, type, x, y, buttons, under, named, glide }`, `type` 'move', 'down', 'up' or 'scroll', or 'rest' once it did
-// nothing for as long as the seat's name shows, the point on the stage, the buttons held after it, what the cursor is
+// nothing for as long as the seat's name shows, the point on the stage or the mark at its edge, the buttons held after it, what the cursor is
 // drawn under there, as the state says it, whether the seat's name shows beside it, whether the cursor glides there
 // or is there at once
 // (model/marks.js glides), and for a scroll `dx`, `dy`.

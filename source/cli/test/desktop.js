@@ -3480,6 +3480,14 @@ async function cameraChecks({ LAYOUT, createDesktop }, check) {
         resized.x === away.x && resized.y === 528 && resized.width === 250 && resized.height === 220,
         { away, resized, camera: await cameraNow() }
     );
+    const other = desk.sit('s1');
+    desk.enter(other, { event: 'pointer', type: 'move', x: 5000, y: 300, buttons: [] });
+    const mark = desk.told().at(-1);
+    check(
+        "another seat's pointer outside the camera shown is told as a mark at its edge toward it, under nothing",
+        mark.id === 's1' && mark.x === 1200 - 16 && mark.y === 0 && JSON.stringify(mark.under) === '[]',
+        mark
+    );
 }
 
 async function cursorChecks({ LAYOUT, createDesktop }, check) {
@@ -3839,6 +3847,31 @@ async function marksChecks({ MARKS, LAYOUT, DOCK, createDesktop }, check) {
                 { ...view.frame, radius: 12 },
             ]) && answers.plain[0].radius === 0,
         answers
+    );
+    const seen = { x: 0, y: 100, width: 400, height: 300 };
+    const marks = {
+        inside: MARKS.cursorOn(seen, { x: 60, y: 140 }, [lower, upper], [lower, upper]),
+        after: MARKS.cursorOn(seen, { x: 1000, y: 1000 }, [lower], [lower]),
+        before: MARKS.cursorOn(seen, { x: -50, y: 20 }, [lower], [lower]),
+        left: MARKS.cursorOn(seen, { x: -50, y: 250 }, [lower], [lower]),
+        nowhere: MARKS.cursorOn(seen, null, [lower], [lower]),
+    };
+    check(
+        'a cursor in the camera shown is drawn at its point on that screen, under what covers it there, and one ' +
+            "outside it as a mark at the camera's edge toward it, room left for the mark, under nothing",
+        written(marks.inside) ===
+            written({
+                at: { x: 60, y: 40 },
+                under: [
+                    { x: 0, y: -100, width: 100, height: 100, radius: 16 },
+                    { x: 50, y: -100, width: 100, height: 100, radius: 16 },
+                ],
+            }) &&
+            written(marks.after) === written({ at: { x: 400 - MARKS.MARK, y: 300 - MARKS.MARK }, under: [] }) &&
+            written(marks.before) === written({ at: { x: 0, y: 0 }, under: [] }) &&
+            written(marks.left) === written({ at: { x: 0, y: 150 }, under: [] }) &&
+            written(marks.nowhere) === written({ at: null, under: [] }),
+        marks
     );
 
     const desk = desktopOver(createDesktop, {});

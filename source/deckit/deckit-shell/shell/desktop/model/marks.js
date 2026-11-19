@@ -1,4 +1,5 @@
 // What marks a seat on the screen of the seat that views it, as plain data.
+import * as CAMERA from './camera.js';
 
 // How long the name beside a seat's cursor shows after its pointer's last act, ms.
 const NAME = 1500;
@@ -30,6 +31,28 @@ function underOf(point, own, viewed) {
         .map(({ frame: { x, y, width, height }, radius = 0 }) => ({ x, y, width, height, radius }));
 }
 
+// How far a seat's cursor is drawn across and down from its point, px: the room a mark at a screen's edge leaves it.
+const MARK = 16;
+
+// Where the cursor of a seat whose pointer is at `point` of the plane is drawn on the screen `camera` shows, and what
+// covers it there: `{ at, under }`, `at` from the screen's top left and `under` as underOf answers it of `own` and
+// `viewed`, each rect on that screen. A pointer outside the camera is drawn as a mark at the camera's edge toward it,
+// the nearest point of the camera that leaves the mark MARK across and down in it, under nothing; one nowhere yet is
+// at null, under nothing.
+function cursorOn(camera, point, own, viewed) {
+    if (!point) return { at: null, under: [] };
+    if (!CAMERA.reaches(camera, point)) {
+        const along = (at, from, length) => Math.min(Math.max(at - from, 0), Math.max(0, length - MARK));
+        return {
+            at: { x: along(point.x, camera.x, camera.width), y: along(point.y, camera.y, camera.height) },
+            under: [],
+        };
+    }
+    const under = underOf(point, own, viewed);
+    const { x, y } = CAMERA.onScreen(camera, point);
+    return { at: { x, y }, under: under && under.map((rect) => CAMERA.onScreen(camera, rect)) };
+}
+
 // How long the name beside a seat's cursor still shows, ms: for NAME from its pointer's last act, a move, a press, a
 // let go or a scroll, at `acted` on the clock that reads `now`, or null for a pointer that did nothing yet. At 0 the
 // name is folded and the arrow is drawn alone.
@@ -59,4 +82,4 @@ function glides(place) {
     return place === 'ref';
 }
 
-export { NAME, RING, topAt, underOf, nameLeft, ringOf, glides };
+export { NAME, RING, MARK, topAt, underOf, cursorOn, nameLeft, ringOf, glides };

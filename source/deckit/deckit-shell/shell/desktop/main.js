@@ -1217,10 +1217,11 @@ export function createDesktop({
     }
 
     // The desktop's page is told what the pointer of `seat` did where it is, and how its cursor is drawn there: under
-    // what covers what it is over (MARKS.underOf), with its name or without.
+    // what covers what it is over, or as a mark at the edge of the camera shown where it is outside it
+    // (MARKS.cursorOn), with its name or without.
     function tellSeat(seat, hand, type, more) {
-        const { x, y } = CAMERA.onScreen(shownCamera(), hand.pointer);
-        const under = MARKS.underOf(hand.pointer, stackOf(seat), viewedStack())?.map(onShown) ?? null;
+        const { at, under } = MARKS.cursorOn(shownCamera(), hand.pointer, stackOf(seat), viewedStack());
+        const { x, y } = at;
         const named = MARKS.nameLeft(hand.acted, clock.now()) > 0;
         PROTOCOL.seat.send(desktop.page, { id: seat, type, x, y, buttons: hand.buttons, under, named, ...more });
     }
@@ -1746,11 +1747,6 @@ export function createDesktop({
     // centred on that seat's camera.
     function shownCamera() {
         return followed === null ? cameraOf(LOCAL) : CAMERA.centredOn(cameraOf(followed), stage.size());
-    }
-
-    // A point or a rect of the plane on the screen the host window shows.
-    function onShown(at) {
-        return CAMERA.onScreen(shownCamera(), at);
     }
 
     // Where the normal windows of `seat` show: its camera under the host's bar.
@@ -2337,10 +2333,14 @@ export function createDesktop({
                 id,
                 name: seated.get(id)?.user.name ?? id,
                 colour: COLOURS.of(id),
-                at: pointer && onScreen({ x: Math.round(pointer.x), y: Math.round(pointer.y) }),
+                ...MARKS.cursorOn(
+                    camera,
+                    pointer && { x: Math.round(pointer.x), y: Math.round(pointer.y) },
+                    stackOf(id),
+                    viewed
+                ),
                 buttons,
                 shown: id === seat,
-                under: MARKS.underOf(pointer, stackOf(id), viewed)?.map(onScreen) ?? null,
                 named: MARKS.nameLeft(acted, clock.now()) > 0,
                 typing: typingOf(id),
             })),
