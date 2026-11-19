@@ -86,8 +86,8 @@ export function createDesktop({
     // pointer that are held now; `key`, its key window as update() last saw it; `waits`, a promise of the turn of
     // its last event that is not done, or null; `acted`, when on the clock its pointer last did something while the
     // page drew its cursor, or null; `rests`, whether the fold of its name is due; `camera`, the top left `{ x, y }` of
-    // its camera (cameraOf); `screenSize`, the size its screen told, or null; and `pressed`, the window its last press made
-    // key, which moves no camera. The view shown for it is SHOWING's.
+    // its camera (cameraOf); `screenSize`, the size its screen told, or null; and `pressed`, the window its last press
+    // made key, which moves no camera. The view shown for it is SHOWING's.
     const hands = new Map();
     // `[{ page, seat }]`: each page whose one pointer a seat's move placed last (ROUTING.hovered).
     let pointers = [];
@@ -266,9 +266,9 @@ export function createDesktop({
 
     // A normal window opens in the camera of the seat its mod acts for, the local seat's where none: where its mod last
     // left a normal window of its name, or cascaded from that seat's key window, or its front window on screen where
-    // none is key, either where it meets the zoom area, where it left none or one of that name is open, placed at its size
-    // no smaller than its minimum, brought forward as orderFront brings it. Its `bar` is its title bar (LAYOUT.barOf):
-    // the shell draws the bar of a titled one, holding its `title`, over its content.
+    // none is key, either where it meets the zoom area, where it left none or one of that name is open, placed at its
+    // size no smaller than its minimum, brought forward as orderFront brings it. Its `bar` is its title bar
+    // (LAYOUT.barOf): the shell draws the bar of a titled one, holding its `title`, over its content.
     function open(window, { activates = true } = {}) {
         const seat = ACTIVATION.causeOf(window.mod) ?? LOCAL;
         const desktopNow = area(seat);
@@ -878,7 +878,7 @@ export function createDesktop({
         const local = seated.get(LOCAL);
         if (!local) return;
         const { x, y, ...told } = event;
-        const rect = event.page ? onDesktop.get(event.page) : cameraOf(shownSeat());
+        const rect = event.page ? onDesktop.get(event.page) : shownCamera();
         const at = event.event === 'pointer' && rect ? { x: x + rect.x, y: y + rect.y } : {};
         Promise.resolve(deckit.seats.input(local, { ...told, ...at })).catch((error) =>
             deckit.log.error("the machine's input was not taken", error)
@@ -1185,7 +1185,7 @@ export function createDesktop({
         const view = MANAGER.viewOf(shownSeat());
         const at = view.findIndex(({ id }) => id === window.id);
         if (windows.has(window.id) && (at < 0 || view.slice(at + 1).some(({ frame }) => cut(frame, ring)))) return null;
-        const shownAt = (rect) => CAMERA.onScreen(cameraOf(shownSeat()), rect);
+        const shownAt = (rect) => CAMERA.onScreen(shownCamera(), rect);
         const bars = typing.bars.flatMap((bar) => moved(bar) ?? []).map(shownAt);
         return { ring: shownAt(MARKS.ringOf(ring)), bars, caret: typing.caret, over };
     }
@@ -1213,7 +1213,7 @@ export function createDesktop({
     // The desktop's page is told what the pointer of `seat` did where it is, and how its cursor is drawn there: under
     // what covers what it is over (MARKS.underOf), with its name or without.
     function tellSeat(seat, hand, type, more) {
-        const { x, y } = CAMERA.onScreen(cameraOf(shownSeat()), hand.pointer);
+        const { x, y } = CAMERA.onScreen(shownCamera(), hand.pointer);
         const under = MARKS.underOf(hand.pointer, stackOf(seat), viewedStack());
         const named = MARKS.nameLeft(hand.acted, clock.now()) > 0;
         PROTOCOL.seat.send(desktop.page, { id: seat, type, x, y, buttons: hand.buttons, under, named, ...more });
@@ -1736,6 +1736,12 @@ export function createDesktop({
         return { x, y, ...(seat !== LOCAL && hand?.screenSize ? hand.screenSize : stage.size()) };
     }
 
+    // The camera the host window shows: the local seat's, or, while it follows a seat, one of the host window's size
+    // centred on that seat's camera.
+    function shownCamera() {
+        return followed === null ? cameraOf(LOCAL) : CAMERA.centredOn(cameraOf(followed), stage.size());
+    }
+
     // Where the normal windows of `seat` show: its camera under the host's bar.
     function area(seat = LOCAL) {
         return LAYOUT.desktopOf(cameraOf(seat), strip.height);
@@ -1869,7 +1875,7 @@ export function createDesktop({
     // over, then that page, taking the pointer only at the host's bar and the Dock, its sliver down the edge
     // and its card while it is out, the panel windows at an edge with the children their regions show, and over them
     // the views on that seat's screen, as stackedFor has them, each at its rect of the desktop less the top left of the
-    // shown seat's camera. Over all of it, the overlay of each page laid that shows
+    // camera the host window shows (shownCamera). Over all of it, the overlay of each page laid that shows
     // anything, at its page's rect, or over the whole stage for a page whose front window is a panel window, so what it
     // presents is not cut to the panel. Over those, while more than one seat is at the desktop, the cursors' surface,
     // where the desktop's page draws each seat's cursor: it covers the stage and takes the pointer nowhere, so a press,
@@ -1877,7 +1883,7 @@ export function createDesktop({
     // page alone covers it all.
     function layout() {
         const full = { x: 0, y: 0, ...stage.size() };
-        const camera = cameraOf(shownSeat());
+        const camera = shownCamera();
         inPanels.clear();
         // A dialog stands where its page shows as this layout has it: its window resized, zoomed or tiled.
         for (const [ask, page] of asking) DIALOGS.move(ask, dialogAt(page));
@@ -1887,7 +1893,7 @@ export function createDesktop({
             return;
         }
         const view = MANAGER.viewOf(shownSeat());
-        const { parts: own, children } = laidOf(view, drawnNow(view), LOCAL, shownSeat());
+        const { parts: own, children } = laidOf(view, drawnNow(view), LOCAL, shownSeat(), camera);
         // In another seat's order the desktop's page takes the machine's pointer everywhere, and what is laid over it
         // nowhere.
         const parts = followed === null ? own : LEVELS.heldAt(own, 'desktop', full);
@@ -1906,11 +1912,11 @@ export function createDesktop({
 
     // What is laid of the desktop for a seat, as layout() tells it: `view` the windows on its screen (MANAGER.viewOf),
     // `seen` what is drawn of each (drawnNow), `docked` the seat whose Dock it has, out or in and with the menu open
-    // for that seat, or null for the Dock in, and `seat` the seat whose views are laid, or null for every view.
+    // for that seat, or null for the Dock in, `seat` the seat whose views are laid, or null for every view, and `full`
+    // the camera it is laid in.
     // Answers `{ parts, children }`, `parts` the layers of each level (model/levels.js), and `children` those the
     // windows and the panel windows show (childrenIn).
-    function laidOf(view, seen, docked, seat = null) {
-        const full = cameraOf(seat ?? docked ?? LOCAL);
+    function laidOf(view, seen, docked, seat = null, full = cameraOf(seat ?? docked ?? LOCAL)) {
         const onScreen = (rect) => CAMERA.onScreen(full, rect);
         const out = hands.get(docked)?.dock ?? false;
         const inBar = panelFrames(seat);
@@ -2279,13 +2285,13 @@ export function createDesktop({
         }));
     }
 
-    // `{ windows, panels, seats, following, drop, strip, dock, down }`, as the desktop's page draws it, of the
-    // seat the host window shows, each frame and point less the top left of that seat's camera. A window's frame is key
-    // as its content is (stateOf): not while an overlay window holds the keyboard, which update() tells as it takes or
-    // gives it back.
+    // `{ windows, panels, seats, following, drop, strip, dock, down }`, as the desktop's page draws it, of the seat the
+    // host window shows, each frame and point less the top left of the camera it shows (shownCamera). A window's frame
+    // is key as its content is (stateOf): not while an overlay window holds the keyboard, which update() tells as it
+    // takes or gives it back.
     function stateOfPage() {
         const seat = shownSeat();
-        const camera = cameraOf(seat);
+        const camera = shownCamera();
         const onScreen = (at) => CAMERA.onScreen(camera, at);
         const menu = menuOf(LOCAL);
         const key = MANAGER.keyOf(seat);
