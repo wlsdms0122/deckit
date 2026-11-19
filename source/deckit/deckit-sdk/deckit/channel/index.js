@@ -7,13 +7,16 @@ const KINDS = Object.freeze(['string', 'number', 'integer', 'boolean', 'object',
 // Who may send on a channel a page sends main, besides a permission's id or a picker (pageToMain): ANY, any page, what
 // it may ask judged by what answers it; MOD, a mod's page.
 const GUARD = Object.freeze({ ANY: Symbol.for('deckit.guard.any-page'), MOD: Symbol.for('deckit.guard.mod-page') });
+// A field that lets every key the other fields do not name pass, of any kind: what answers the channel holds them.
+const REST = '...';
 
 // MARK: - Initializer
 // MARK: - Public
-// What a page asks or tells main. `fields` is what it may send, each one of KINDS, optional when it ends in `?`. A
-// page runs code main does not trust, so main holds what arrives to them; nothing else checks. `guard` is who may send it: GUARD.ANY, GUARD.MOD, a permission's id, a mod's page granted
-// it, or a picker, a function of the payload as sent that answers the id of the permission guarding that call, or null
-// for none, a mod's page. A picker answers for any value it is handed and never throws.
+// What a page asks or tells main. `fields` is what it may send, each one of KINDS, optional when it ends in `?`, and
+// REST beside them where what answers holds the rest. A page runs code main does not trust, so main holds what
+// arrives to them; nothing else checks. `guard` is who may send it: GUARD.ANY, GUARD.MOD, a permission's id, a mod's
+// page granted it, or a picker, a function of the payload as sent that answers the id of the permission guarding that
+// call, or null for none, a mod's page. A picker answers for any value it is handed and never throws.
 function pageToMain(channel, fields, { reply = false, sync = false, guard } = {}) {
     return Object.freeze({ channel, to: 'main', fields: Object.freeze({ ...fields }), reply, sync, guard });
 }
@@ -38,7 +41,7 @@ function fieldOf(payload, key) {
 function problemOf({ channel, fields }, payload) {
     if (kindOf(payload) !== 'object') return `${channel} carries an object, not ${kindOf(payload)}`;
     for (const key of Object.keys(payload)) {
-        if (!Object.hasOwn(fields, key)) return `${channel} has no field ${key}`;
+        if (!Object.hasOwn(fields, key) && !Object.hasOwn(fields, REST)) return `${channel} has no field ${key}`;
     }
     for (const [key, written] of Object.entries(fields)) {
         const optional = written.endsWith('?');
@@ -93,4 +96,4 @@ function kindOf(value) {
 
 // MARK: - Private
 
-export { GUARD, pageToMain, mainToPage, permissionOf, fieldOf, problemOf, declarationProblem, bindAll, kindOf };
+export { GUARD, REST, pageToMain, mainToPage, permissionOf, fieldOf, problemOf, declarationProblem, bindAll, kindOf };

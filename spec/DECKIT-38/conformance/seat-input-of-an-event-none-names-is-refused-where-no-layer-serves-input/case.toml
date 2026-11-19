@@ -1,6 +1,6 @@
-case = 25
-name = "seat-input-of-an-event-that-is-none-is-refused"
-note = "seat/input is refused at call with INVALID_ARGUMENT where event names no row of its table, and before it is asked whether a layer serves input: the base stacks none."
+case = 26
+name = "seat-input-of-an-event-none-names-is-refused-where-no-layer-serves-input"
+note = "seat/input is refused at call with REFUSED where no layer serves input, before its event is held to the kinds a layer names: the base stacks none, and a party sends an event no layer names, wheel."
 
 [host]
 base = "system"
@@ -25,4 +25,4 @@ params = { event = "wheel", type = "down" }
 
 [step.expect]
 refuses = "call"
-kind = "INVALID_ARGUMENT"
+kind = "REFUSED"

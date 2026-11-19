@@ -80,6 +80,16 @@ The output `held` tells a seat that the window it held was taken:
 
 It is told from the moment a seat opens, and watched and turned off by `seat/watch` as [users and seats](../DECKIT-38/SPEC.md) fixes.
 
+### What the shell names
+
+The shell serves input, a reading and the ask, as [users and seats](../DECKIT-38/SPEC.md) fixes what a layer serves. It takes these kinds of device, and tells the output `held`, under *The holder*, from the moment a seat opens; the outputs it reads, and `changes`, which it tells too, are those of [what a seat reads](../DECKIT-40/SPEC.md).
+
+| `event` | `type` |
+|---|---|
+| `pointer` | `move`, `down`, `up`, `scroll` |
+| `key` | `down`, `up` |
+| `text` | `insert`, `compose`, `commit`, `cancel` |
+
 ### A pointer event
 
 `seat/input` with `event` `pointer` takes, beside `event` and `type`:
@@ -186,7 +196,7 @@ It guards every member of `shell.seats`.
 
 ## Interactions
 
-- A user, a seat and its id, the local seat, admission and the ask, `idleTime` and when a seat is idle, `seat/input`, `seat/watch`, `seat/output`, the tables of events and outputs, and what a layer serves: [users and seats](../DECKIT-38/SPEC.md). The shell is the layer that serves input, a reading and the ask.
+- A user, a seat and its id, the local seat, admission and the ask, `idleTime` and when a seat is idle, `seat/input`, `seat/watch`, `seat/output`, what a layer serves and names, and the refusals of a seat's requests: [users and seats](../DECKIT-38/SPEC.md). The shell is the layer that serves input, a reading and the ask.
 - The desktop, its order, the key window, the levels, the person's hand, a window's frame, zoom and tile, `didBecomeKey` and `didResignKey`: [windows](../DECKIT-31/SPEC.md).
 - The active mod, who may activate, input and a request, a mod held back and attention: [activation](../DECKIT-32/SPEC.md).
 - The Dock, its items and marks, a click, the menu and the drag of an item: [the Dock](../DECKIT-33/SPEC.md).

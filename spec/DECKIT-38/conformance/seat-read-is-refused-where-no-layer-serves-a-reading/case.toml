@@ -1,6 +1,6 @@
 case = 25
 name = "seat-read-is-refused-where-no-layer-serves-a-reading"
-note = "seat/read of an output it reads is refused at call with REFUSED where no layer serves a reading. The base stacks none, and a party reads the desktop."
+note = "seat/read of an output the shell would read is refused at call with REFUSED where no layer serves a reading. The base stacks none, and a party reads the desktop."
 
 [host]
 base = "system"

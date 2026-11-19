@@ -15,6 +15,7 @@ import * as MODS from '../mods/index.js';
 import * as COLOURS_MODEL from './model/colours.js';
 import { SEAT_COLOURS } from '../../../deckit-sdk/shell/ui/token/index.js';
 import * as ROUTING from './model/routes.js';
+import * as SERVED from './model/served.js';
 import { createReading } from './reading.js';
 
 // How many frames a second a window's motion is drawn at.
@@ -207,12 +208,12 @@ export function createDesktop({
     // The desktop in the host window, the local seat's view of it: the backdrop, the normal windows `WINDOWS` opens in
     // the seat's order, each its content between the frame under it and the buttons over it with the children its
     // regions show, and the Dock and the host's bar over them, `DOCK` giving the Dock's items, and the panel windows in
-    // that bar. Each mod's page with a
-    // window there is laid under the backdrop, at its front window, so what its overlay draws for a window lands over
-    // that window. The machine's keyboard is the local seat's: a key pressed in a page reaches the mod whose page it
-    // is, a chord the mod that took it, for the seat that pressed it. Every seat deckit opens sits here, and what a
-    // seat's devices do enters through `deckit.seats.input`, the machine's as the local seat's. A user that asks to
-    // sit waits for a seated user's answer (ask). The host window shows the local seat's view, or that of the seat
+    // that bar. Each mod's page with a window there is laid under the backdrop, at its front window, so what its
+    // overlay draws for a window lands over that window. The machine's keyboard is the local seat's: a key pressed in a
+    // page reaches the mod whose page it is, a chord the mod that took it, for the seat that pressed it. Every seat
+    // deckit opens sits here, and what a seat's devices do enters through `deckit.seats.input`, the machine's as the
+    // local seat's. The shell names to deckit the kinds of device and the outputs of model/served.js. A user that asks
+    // to sit waits for a seated user's answer (ask). The host window shows the local seat's view, or that of the seat
     // the local one follows (follow).
     function start(given) {
         WINDOWS = given.WINDOWS;
@@ -223,7 +224,14 @@ export function createDesktop({
         for (const seat of deckit.seats.list()) sit(seat);
         deckit.seats.onOpen(sit);
         deckit.seats.onClose(leave);
-        tells = deckit.seats.serve({ input: entered, read: READING.read, onAsk: ask });
+        tells = deckit.seats.serve({
+            input: entered,
+            events: SERVED.EVENTS,
+            read: READING.read,
+            reads: SERVED.READS,
+            tells: SERVED.TELLS,
+            onAsk: ask,
+        });
         if (deckit.seats.local?.source) INPUT.machine(deckit.seats.local.source);
         READ.listen(({ page }) => {
             for (const [seat, typing] of typings) if (typing.page === page) reread(seat);

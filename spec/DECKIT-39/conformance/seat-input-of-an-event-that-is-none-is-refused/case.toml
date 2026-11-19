@@ -1,9 +1,9 @@
 case = 25
-name = "seat-read-of-an-output-that-is-only-told-is-refused"
-note = "seat/read is refused at call with INVALID_ARGUMENT where of names no output that seat/read reads: held is told and never read."
+name = "seat-input-of-an-event-that-is-none-is-refused"
+note = "seat/input is refused at call with INVALID_ARGUMENT where event names no kind of device the shell names: it names pointer, key and text, and here it is wheel."
 
 [host]
-base = "system"
+base = "shell"
 api = "1.0.0"
 users = [{ id = "ada", name = "Ada Lovelace" }]
 keys = [{ principal = "ada", key = "first" }]
@@ -20,8 +20,8 @@ key = "first"
 [[step]]
 input = "ask"
 party = "p"
-method = "seat/read"
-params = { of = "held" }
+method = "seat/input"
+params = { event = "wheel", type = "down" }
 
 [step.expect]
 refuses = "call"
