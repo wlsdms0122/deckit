@@ -1,9 +1,9 @@
 case = 25
-name = "seat-read-with-a-key-its-output-is-not-asked-with-is-refused"
-note = "seat/read is refused at call with INVALID_ARGUMENT where params hold a key the output is not asked with: since is asked of changes, and here it is beside desktop."
+name = "seat-read-of-an-output-that-is-none-is-refused"
+note = "seat/read is refused at call with INVALID_ARGUMENT where of names no output the shell reads."
 
 [host]
-base = "system"
+base = "shell"
 api = "1.0.0"
 users = [{ id = "ada", name = "Ada Lovelace" }]
 keys = [{ principal = "ada", key = "first" }]
@@ -21,7 +21,7 @@ key = "first"
 input = "ask"
 party = "p"
 method = "seat/read"
-params = { of = "desktop", since = 1 }
+params = { of = "nope" }
 
 [step.expect]
 refuses = "call"

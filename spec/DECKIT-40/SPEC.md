@@ -15,7 +15,7 @@ A seat perceives the desktop by **reading** it: `seat/read` answers the desktop,
 
 ### The request
 
-`seat/read` takes `of`, one of `desktop`, `window`, `node`, `changes` and `picture`, as [users and seats](../DECKIT-38/SPEC.md) lists the outputs, and beside it the keys of that output's row here. The first three are the **readings**, and take the same keys:
+`seat/read` takes `of`, one of `desktop`, `window`, `node`, `changes` and `picture`, the outputs the shell reads as [users and seats](../DECKIT-38/SPEC.md) has a layer name them, and beside it the keys of that output's row here. Of these the shell tells `changes` alone, under *Changes and the mark*, and not from the moment a seat opens. The first three are the **readings**, and take the same keys:
 
 | key | value | read by |
 |---|---|---|
@@ -280,7 +280,7 @@ An element's table is `{ depth, role, name, length, states, items, inView, below
 
 ## Interactions
 
-- `seat/read`, the table of outputs, watching, `seat/output` and the refusal of `params`: [users and seats](../DECKIT-38/SPEC.md). The shell is the layer that serves a reading.
+- `seat/read`, the outputs a layer names, watching, `seat/output` and the refusal of `params`: [users and seats](../DECKIT-38/SPEC.md). The shell is the layer that serves a reading.
 - Each seat's order, key window, minimized windows and marks, the holder of a window, a seat's colour, and the event that points at a `ref`: [seats at the desktop](../DECKIT-39/SPEC.md).
 - A window's id, frame, title, title bar and its buttons, tiles, panel windows and their edges: [windows](../DECKIT-31/SPEC.md). The Dock's items, their order and marks, and its menu: [the Dock](../DECKIT-33/SPEC.md). The key window and the active mod: [activation](../DECKIT-32/SPEC.md).
 - A region and the page laid into it: [regions and drops](../DECKIT-36/SPEC.md). A web page: [web pages](../DECKIT-25/SPEC.md).

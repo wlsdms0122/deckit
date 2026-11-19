@@ -1,9 +1,9 @@
 case = 25
-name = "seat-watch-of-an-output-that-is-not-told-is-refused"
-note = "seat/watch is refused at call with INVALID_ARGUMENT where of names no output that is told: desktop is read and never told."
+name = "seat-read-of-an-output-that-is-only-told-is-refused"
+note = "seat/read is refused at call with INVALID_ARGUMENT where of names no output the shell reads: held it tells and never reads."
 
 [host]
-base = "system"
+base = "shell"
 api = "1.0.0"
 users = [{ id = "ada", name = "Ada Lovelace" }]
 keys = [{ principal = "ada", key = "first" }]
@@ -20,8 +20,8 @@ key = "first"
 [[step]]
 input = "ask"
 party = "p"
-method = "seat/watch"
-params = { of = "desktop", on = true }
+method = "seat/read"
+params = { of = "held" }
 
 [step.expect]
 refuses = "call"

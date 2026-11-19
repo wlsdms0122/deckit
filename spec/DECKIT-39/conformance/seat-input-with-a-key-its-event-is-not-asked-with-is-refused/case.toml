@@ -1,9 +1,9 @@
 case = 25
-name = "seat-input-of-a-type-that-is-none-of-its-event-s-is-refused"
-note = "seat/input is refused at call with INVALID_ARGUMENT where type is none of the event's: a key event is down or up, and here it is press."
+name = "seat-input-with-a-key-its-event-is-not-asked-with-is-refused"
+note = "seat/input is refused at call with INVALID_ARGUMENT where params hold a key the event is not asked with: x is a pointer's, and here it is beside a text event."
 
 [host]
-base = "system"
+base = "shell"
 api = "1.0.0"
 users = [{ id = "ada", name = "Ada Lovelace" }]
 keys = [{ principal = "ada", key = "first" }]
@@ -21,7 +21,7 @@ key = "first"
 input = "ask"
 party = "p"
 method = "seat/input"
-params = { event = "key", type = "press", code = "KeyA", key = "a" }
+params = { event = "text", type = "insert", text = "a", x = 1 }
 
 [step.expect]
 refuses = "call"

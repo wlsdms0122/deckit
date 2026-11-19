@@ -1,6 +1,6 @@
 case = 25
 name = "seat-watch-of-an-output-that-is-none-is-refused"
-note = "seat/watch is refused at call with INVALID_ARGUMENT where of names no output."
+note = "seat/watch is refused at call with INVALID_ARGUMENT where of names no output a layer tells: the base stacks none."
 
 [host]
 base = "system"
