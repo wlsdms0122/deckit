@@ -1,0 +1,52 @@
+case = 26
+name = "while-following-a-panel-window-stands-in-the-bar-of-the-camera-shown"
+note = "mod-a's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event mod-a:go tells it, a refusal opening https://said.test/<name>/threw/<kind>. The desktop is the base shell's, 1280 by 800, under a bar 52 high across the top of each camera, and each seat's camera is 1280 by 800 at 0,0 as it opens. mod-a, granted deckit.panel-windows, opens p 120 by 32 at the level panel in attach, which stands in the bar 8 in from its right end and centred on its height, at 1152, 10 in the local seat's camera. ada sits at s1, the seat 2, tells its screen 800 by 600 and scrolls 1000 down, its camera then at 0, 1000, 800 by 600, and the host app's window follows it: it shows a camera of its own size, 1280 by 800, centred on that camera's centre, 400, 1300, so at -240, 900, and p stands in the bar across its top, at 912, 910."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+bar = 52
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "screen", type = "resize", width = 800, height = 600 }
+
+[step.expect]
+answers = { x = 0, y = 0, width = 800, height = 600 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "scroll", x = 100, y = 300, dx = 0, dy = 1000 }
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.follow"
+handle = "shell"
+args = ["2"]
+
+[step.expect]
+answers = true
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "p", level = "panel", frame = { x = 912, y = 910, width = 120, height = 32 }, key = false, minimized = false }]
