@@ -74,4 +74,4 @@ params = { of = "node", ref = "2.1" }
 part = "text"
 
 [step.expect]
-answers = "group \"Seats\" 2.1 at 990,40 280x70\n  button \"Deckit conformance\" [not pressed] 2.2\n    text \"Deckit conformance\"\n  button \"Ada Lovelace\" [not pressed] 2.3\n    text \"Ada Lovelace\""
+answers = "group \"Seats\" 2.1 at 990,40 280x80\n  button \"Deckit conformance\" [not pressed] 2.2\n    text \"Deckit conformance\"\n  button \"Ada Lovelace\" [not pressed] 2.3\n    text \"Ada Lovelace\""
