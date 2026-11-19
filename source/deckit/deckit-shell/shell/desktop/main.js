@@ -1236,14 +1236,14 @@ export function createDesktop({
         if (isDrawn(seat, hand)) tellSeat(seat, hand, 'rest', { glide: false });
     }
 
-    // What stands on the screen `lens` (screenOf, shownScreen), `[{ id, frame, radius }]` from the back, as the
+    // What stands on the screen `seatScreen` (screenOf, shownScreen), `[{ id, frame, radius }]` from the back, as the
     // stage's levels lie (model/levels.js): its seat's windows in its order; what the desktop's page draws over them in
     // its camera, the band of the host's bar and the Dock, out or in as the seat `docked` has it; the panel windows at
     // an edge; then the views there as they lie. What a page presents over itself, and the menu of a Dock's item, is in
     // none: a cursor is drawn over a menu.
-    function stackOf(lens, docked = lens.seat) {
-        const { seat, camera } = lens;
-        const frames = panelFrames(lens);
+    function stackOf(seatScreen, docked = seatScreen.seat) {
+        const { seat, camera } = seatScreen;
+        const frames = panelFrames(seatScreen);
         const views = frames.filter(({ window }) => ANCHORED.isView(window));
         const panes = [...frames.filter(({ window }) => !ANCHORED.isView(window)), ...stackedFor(seat, views)];
         const out = hands.get(docked)?.dock ?? false;
@@ -1771,14 +1771,14 @@ export function createDesktop({
         return LAYOUT.desktopOf(camera, strip.height);
     }
 
-    // The panel windows that stand on the screen `lens` (screenOf, shownScreen), or with none on some seat's screen,
-    // in the order they opened, each `{ window, frame }`: one at an edge at its frame there, on every screen, a view
-    // where ANCHORED places it, under its anchor or at its place, on the screens it is shown for (SHOWING). A view
-    // whose anchor is gone, or is another mod's, stands nowhere and is left out. Each frame is in the camera of `lens`,
-    // the host window's for none.
-    function panelFrames(lens = null) {
-        const seat = lens?.seat ?? null;
-        const { edged, frames } = standing(lens?.camera ?? shownCamera());
+    // The panel windows that stand on the screen `seatScreen` (screenOf, shownScreen), or with none on some seat's
+    // screen, in the order they opened, each `{ window, frame }`: one at an edge at its frame there, on every screen, a
+    // view where ANCHORED places it, under its anchor or at its place, on the screens it is shown for (SHOWING). A
+    // view whose anchor is gone, or is another mod's, stands nowhere and is left out. Each frame is in the camera of
+    // `seatScreen`, the host window's for none.
+    function panelFrames(seatScreen = null) {
+        const seat = seatScreen?.seat ?? null;
+        const { edged, frames } = standing(seatScreen?.camera ?? shownCamera());
         const on = ({ id }) => (seat === null ? SHOWING.isShown(id) : SHOWING.isOn(seat, id));
         return [...panels.values()].flatMap((window) => {
             const frame = edged.get(window.id) ?? (on(window) ? frames.get(window.id) : null);
@@ -1943,16 +1943,16 @@ export function createDesktop({
 
     // What is laid of the desktop for a seat, as layout() tells it: `view` the windows on its screen (MANAGER.viewOf),
     // `seen` what is drawn of each (drawnNow), `docked` the seat whose Dock it has, out or in and with the menu open
-    // for that seat, or null for the Dock in, and `lens` the screen it is laid on (screenOf, shownScreen), its seat's
-    // views laid in its camera, or null for every view in the host window's camera.
+    // for that seat, or null for the Dock in, and `seatScreen` the screen it is laid on (screenOf, shownScreen), its
+    // seat's views laid in its camera, or null for every view in the host window's camera.
     // Answers `{ parts, children }`, `parts` the layers of each level (model/levels.js), and `children` those the
     // windows and the panel windows show (childrenIn).
-    function laidOf(view, seen, docked, lens = null) {
-        const seat = lens?.seat ?? null;
-        const full = lens?.camera ?? shownCamera();
+    function laidOf(view, seen, docked, seatScreen = null) {
+        const seat = seatScreen?.seat ?? null;
+        const full = seatScreen?.camera ?? shownCamera();
         const onScreen = (rect) => CAMERA.onScreen(full, rect);
         const out = hands.get(docked)?.dock ?? false;
-        const inBar = panelFrames(lens);
+        const inBar = panelFrames(seatScreen);
         const children = childrenIn([
             ...seen.filter(({ leaving }) => !leaving),
             ...inBar.map(({ window, frame }) => ({ id: window.id, frame })),
@@ -2323,8 +2323,8 @@ export function createDesktop({
     // is key as its content is (stateOf): not while an overlay window holds the keyboard, which update() tells as it
     // takes or gives it back.
     function stateOfPage() {
-        const lens = shownScreen();
-        const { seat, camera } = lens;
+        const seatScreen = shownScreen();
+        const { seat, camera } = seatScreen;
         const onScreen = (at) => CAMERA.onScreen(camera, at);
         const menu = menuOf(LOCAL, camera);
         const key = MANAGER.keyOf(seat);
@@ -2349,7 +2349,7 @@ export function createDesktop({
                     parts: DIALOG_MODEL.partsOf(dialog),
                 })),
             })),
-            panels: stackedFor(seat, panelFrames(lens)).map(({ window, frame }) => ({
+            panels: stackedFor(seat, panelFrames(seatScreen)).map(({ window, frame }) => ({
                 id: window.id,
                 edge: window.edge,
                 frame: onScreen(frame),
