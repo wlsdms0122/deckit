@@ -246,6 +246,10 @@ async function take(step, app, paths, served, delegate, answers, downloads, part
         return app.ask({ ...asked, delegate: delegate ?? {} });
     }
     if (what === 'appearance') return app.ask({ input: what, appearance: step.appearance });
+    if (what === 'desktop' && step.kind === 'input') {
+        const { at, by } = step;
+        return app.ask({ input: what, at, by: { x: by.x ?? 0, y: by.y ?? 0 } });
+    }
     if (what === 'drop') {
         const { name, folders, at } = step;
         return app.ask({ input: what, mod, name, paths: folders.map((one) => paths[one]), at });
@@ -434,9 +438,9 @@ function fileAt(folder, at) {
 // folder `home`, and what the host keeps for them before its first start, registered by the host app's own core at
 // `core`: `register()`, the users, then the keys and then the seats' settings `host` names, each key the public half of
 // a pair made here under its name, which comes to null, or to the refusal of the first one refused; `attach`, `ask`,
-// `detach`, `told` and `admitted`, each what that step comes to; and `close()`, every transport connection closed. A party keeps
-// each message the host sends it that answers nothing it asked, and answers each request among them with a null at
-// once. After what a party does, the host app settles of the run each principal proved last hosts (host.js).
+// `detach`, `told` and `admitted`, each what that step comes to; and `close()`, every transport connection closed. A
+// party keeps each message the host sends it that answers nothing it asked, and answers each request among them with a
+// null at once. After what a party does, the host app settles of the run each principal proved last hosts (host.js).
 function createParties({ host, core, home, app }) {
     const pairs = new Map(); // a key's name -> its pair, made as it is first named
     const parties = new Map(); // a party's name -> { connection, principal, messages, closed, admission }

@@ -1,0 +1,27 @@
+case = 30
+name = "a-scroll-on-the-desktop-moves-the-camera"
+note = "Each mod's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event <mod>:go tells it. mod-b has reopen(), which opens https://said.test/reopen/mod-b outside the app and opens the window again. The desktop is the base shell's, 1280 by 800, its camera at 0,0 as the host app starts, and mod-b opens no window. The person scrolls 1000 down at 100, 300, where nothing lies, the camera then at 0, 1000 and its zoom area { x = 6, y = 1000, width = 1274, height = 800 }, and clicks mod-b's item: reopen() opens again centred in that zoom area, at 283, 1107."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-b"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "desktop"
+at = { x = 100, y = 300 }
+by = { x = 0, y = 1000 }
+
+[[step]]
+input = "dock"
+mod = "mod-b"
+action = "click"
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-b", name = "again", level = "normal", frame = { x = 283, y = 1107, width = 720, height = 480 }, key = true, minimized = false }]

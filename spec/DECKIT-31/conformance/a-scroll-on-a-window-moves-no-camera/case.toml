@@ -1,0 +1,28 @@
+case = 30
+name = "a-scroll-on-a-window-moves-no-camera"
+note = "mod-a's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event mod-a:go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the desktop of the base shell, 1280 by 800, its camera at 0,0 as the host app starts and its zoom area { x = 6, y = 0, width = 1274, height = 800 }. mod-a opens main in attach, at 283, 107, 720 by 480. The person scrolls 1000 down at 400, 300, on main, and mod-a opens again, not key since no input reached mod-a: the camera has not moved, so again opens 24 right of and 24 down from main, which meets the zoom area, at 307, 131, where a camera at 0, 1000 would have it centred at 283, 1107."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "desktop"
+at = { x = 400, y = 300 }
+by = { x = 0, y = 1000 }
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "events.emit"
+args = ["go", { open = { name = "again" } }]
+
+[[step]]
+look = "windows"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "again", level = "normal", frame = { x = 307, y = 131, width = 720, height = 480 }, key = false, minimized = false }]

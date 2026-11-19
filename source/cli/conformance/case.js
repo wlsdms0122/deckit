@@ -6,7 +6,7 @@ const TOML = require('./toml.js');
 const { holdsStandIn } = require('./match.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 29;
+const FORMAT = 30;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -65,6 +65,17 @@ const is = {
         value.split('.').every((part) => BigInt(part) <= BigInt(Number.MAX_SAFE_INTEGER)),
     bundles: (value) => Array.isArray(value) && value.every((one) => typeof one === 'string' && BUNDLE.test(one)),
     member: (value) => typeof value === 'string' && MEMBER.test(value),
+    // An offset `{ x, y }`, each an integer, either left out for 0.
+    offset: (value) =>
+        TOML.isTable(value) &&
+        Object.keys(value).every((key) => key === 'x' || key === 'y') &&
+        Object.values(value).every(Number.isInteger),
+    // A point `{ x, y }`, both integers and both there.
+    point: (value) =>
+        TOML.isTable(value) &&
+        ['x', 'y'].every((key) => key in value) &&
+        Object.keys(value).every((key) => key === 'x' || key === 'y') &&
+        Object.values(value).every(Number.isInteger),
     // A keystroke: `code` a string, not empty, and each modifier a boolean, left out where it is not held.
     keystroke: (value) =>
         TOML.isTable(value) &&
@@ -157,13 +168,7 @@ const INPUTS = {
         name: [is.string, false],
         action: [(value) => ACTIONS.includes(value), true],
         edge: [(value) => EDGES.includes(value), false],
-        by: [
-            (value) =>
-                is.table(value) &&
-                Object.keys(value).every((key) => key === 'x' || key === 'y') &&
-                Object.values(value).every(is.integer),
-            false,
-        ],
+        by: [is.offset, false],
     },
     dock: {
         mod: [is.string, true],
@@ -175,15 +180,9 @@ const INPUTS = {
         mod: [is.string, true],
         name: [is.string, true],
         folders: [(value) => is.bundles(value) && value.length > 0, true],
-        at: [
-            (value) =>
-                is.table(value) &&
-                ['x', 'y'].every((key) => key in value) &&
-                Object.keys(value).every((key) => key === 'x' || key === 'y') &&
-                Object.values(value).every(is.integer),
-            true,
-        ],
+        at: [is.point, true],
     },
+    desktop: { at: [is.point, true], by: [is.offset, true] },
     attach: {
         party: [is.name, true],
         principal: [is.string, true],
@@ -264,6 +263,8 @@ const ADDED = {
     told: 25,
     admitted: 26,
 };
+// The format that added an input, where it is not the one ADDED names for a look of its name.
+const INPUTS_ADDED = { desktop: 30 };
 // The format that added a key of an input or a look, where it is a later one than the step's.
 const KEYS_ADDED = {
     of: 4,
@@ -309,6 +310,7 @@ const ANSWERLESS = [
     'dock',
     'appearance',
     'drop',
+    'desktop',
     'detach',
 ];
 // The inputs a case hands only while the host app is started.
@@ -322,6 +324,7 @@ const WHILE_STARTED = [
     'dock',
     'appearance',
     'drop',
+    'desktop',
     'attach',
     'ask',
     'detach',
@@ -529,8 +532,8 @@ function stepOf(step, number, format, refuse) {
     const kind = 'input' in step ? 'input' : 'look';
     const shapes = kind === 'input' ? INPUTS : LOOKS;
     const shape = shapes[step[kind]];
-    if (!shape || (ADDED[step[kind]] ?? 1) > format)
-        refuse(`${at}: ${kind} ${JSON.stringify(step[kind])} is none the format has`);
+    const added = (kind === 'input' ? INPUTS_ADDED[step[kind]] : null) ?? ADDED[step[kind]] ?? 1;
+    if (!shape || added > format) refuse(`${at}: ${kind} ${JSON.stringify(step[kind])} is none the format has`);
     const checks = Object.fromEntries(Object.entries(shape).map(([key, [check]]) => [key, check]));
     keys(step, { [kind]: is.string, ...checks, expect: is.table }, `${at}: `, refuse);
     for (const [key, [, required]] of Object.entries(shape))
@@ -561,13 +564,13 @@ function stepOf(step, number, format, refuse) {
     return { number, ...step, kind, what: step[kind], expect };
 }
 
-// `start` first, again only after a `quit`, calls, presses, hands, a look changed and looks only while the app is started, nothing
-// after a start that is refused, a call's `of` an earlier call or show of its mod, an activate's an earlier show of
-// it, a call's `answered` an earlier call, no `of` beside `handed`, nor `handle` beside either, `delegated` beside none
-// of the three, at most one of `site`, `url` and `file`, a hand's `edge` beside a resize alone and `by` beside a
-// move or a resize alone, a Dock's `to` beside a drag alone, an attach's `party` one no earlier attach wrote, any
-// other step's `party` one an earlier attach wrote, no `part` beside an attach that waits, and an admitted's `party`
-// one of an attach that waits.
+// `start` first, again only after a `quit`, calls, presses, hands, a look changed and looks only while the app is
+// started, nothing after a start that is refused, a call's `of` an earlier call or show of its mod, an activate's an
+// earlier show of it, a call's `answered` an earlier call, no `of` beside `handed`, nor `handle` beside either,
+// `delegated` beside none of the three, at most one of `site`, `url` and `file`, a hand's `edge` beside a resize alone
+// and `by` beside a move or a resize alone, a Dock's `to` beside a drag alone, an attach's `party` one no earlier
+// attach wrote, any other step's `party` one an earlier attach wrote, no `part` beside an attach that waits, and an
+// admitted's `party` one of an attach that waits.
 function order(steps, refuse) {
     let up = false;
     const parties = new Set();

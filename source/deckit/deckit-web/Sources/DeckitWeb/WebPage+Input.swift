@@ -40,8 +40,8 @@ extension WebPage {
     }
 
     // The mouse's button pressed (`leftMouseDown`), the page given the keyboard first as its window gives a press,
-    // unless its keyboard is reserved, moved held (`leftMouseDragged`) or let go (`leftMouseUp`) at `point`, from the page's top left, or the mouse
-    // moved there (`mouseMoved`), which its window hands on.
+    // unless its keyboard is reserved, moved held (`leftMouseDragged`) or let go (`leftMouseUp`) at `point`, from the
+    // page's top left, or the mouse moved there (`mouseMoved`), which its window hands on.
     func sendMouse(_ type: NSEvent.EventType, at point: CGPoint, through input: InputMonitor) throws {
         let window = try shownWindow()
         guard let event = NSEvent.mouseEvent(
