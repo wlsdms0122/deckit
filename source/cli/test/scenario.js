@@ -199,11 +199,11 @@ async function atRest(probe, ms = 3000) {
 
 // The status bar as it stands: `barPage()` is the document of its capsule, and `capsuleNow()` answers `{ fixed, bar,
 // name, clock, joined, items }`, where the fixed items a new machine starts with stand in the capsule, the
-// Notifications item and the clock as one, `{ x, width }`, the rect its band is laid at on the stage, what its toolbar is called, and the clock's item
-// and the joining mod's, `{ id, name, region, x, y, width, height }` each as its button is drawn in the capsule,
-// `region` the one it stands in, `fixed` or `scrolled`, or null, and every item so, in the order they are drawn.
-// `countedWide(text)` is how wide an item of a glyph and the count `text` is laid: its text as wide as the capsule's
-// document draws it.
+// Notifications item and the clock as one, `{ x, width }`, the rect its band is laid at on the stage, what its toolbar
+// is called, and the clock's item and the joining mod's, `{ id, name, region, x, y, width, height }` each as its button
+// is drawn in the capsule, `region` the one it stands in, `fixed` or `scrolled`, or null, and every item so, in the
+// order they are drawn. `countedWide(text)` is how wide an item of a glyph and the count `text` is laid: its text as
+// wide as the capsule's document draws it.
 function statusBar({ pages, desktopLaid }) {
     const barPage = async () => {
         for (const each of await pages('about:blank'))
@@ -937,8 +937,8 @@ async function walk({
         await until(async () => !(await settingsOverlay.evaluate(menus)), 2000);
         // A switch's knob slides by the `move` spring: its running transition takes the token's length and curve and
         // settles at the end. With reduced motion (the token's still lengths, as the system's setting lays them) it is
-        // there at once. Its state is set on the switch itself, so no setting changes. The engine writes a curve back to a
-        // hundredth.
+        // there at once. Its state is set on the switch itself, so no setting changes. The engine writes a curve back
+        // to a hundredth.
         const knobMotion = async (still) => {
             const started = await settings?.evaluate(`(() => {
                 const root = document.documentElement;
@@ -3200,7 +3200,8 @@ async function walk({
                 ranNoted && emptied,
                 JSON.stringify({ noted: await mark(joinsPage, 'noted'), rows: await rowsNow(), bell: await bell() })
             );
-            // A second press on the item puts it away; Escape does, and a press on a normal window, by the shell's rule.
+            // A second press on the item puts it away; Escape does, and a press on a normal window, by the shell's
+            // rule.
             await pressItem('notifications');
             const centerAway = await until(async () => !(await centerNow()), 4000);
             await pressItem('notifications');
@@ -3591,7 +3592,15 @@ async function run(app, named = []) {
                 seatsView: local.seatsView,
                 reads: runs('reading'),
                 anchors,
-                dock: { now: local.dockNow, inDesktop: local.inDesktop, mouseAt: local.mouseAt },
+                dock: {
+                    now: local.dockNow,
+                    inDesktop: local.inDesktop,
+                    mouseAt: local.mouseAt,
+                    opens: async (id) => {
+                        await open('mods');
+                        await local.openFromMods(id);
+                    },
+                },
                 bar: runs('desktop')
                     ? {
                           ...statusBar({ pages: app.pages, desktopLaid }),
