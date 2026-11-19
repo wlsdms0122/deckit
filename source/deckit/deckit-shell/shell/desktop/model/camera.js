@@ -23,6 +23,15 @@ function panned(camera, dx, dy) {
     return { ...camera, x: Math.round(camera.x + dx), y: Math.round(camera.y + dy) };
 }
 
+// The camera a scroll of `dx`, `dy` at `point` of the plane leaves, a scroll that reaches the desktop where no window,
+// the Dock or a view lies: `camera` panned by it, or `camera` itself for one outside it, in the band `bar` high across
+// its top, where the bar lies, or that moves nothing.
+function scrolled(camera, point, { dx = 0, dy = 0 }, bar) {
+    if (!reaches(camera, point) || point.y < camera.y + bar) return camera;
+    if (![dx, dy].every(Number.isFinite) || (!dx && !dy)) return camera;
+    return panned(camera, dx, dy);
+}
+
 // Whether `point` of the plane is in `camera`: one outside it reaches nothing.
 function reaches({ x, y, width, height }, point) {
     return point.x >= x && point.y >= y && point.x < x + width && point.y < y + height;
@@ -89,4 +98,4 @@ function laidOn(camera, layers) {
     });
 }
 
-export { opened, isScreen, sized, panned, reaches, meets, brought, centredOn, onScreen, onPlane, laidOn };
+export { opened, isScreen, sized, panned, scrolled, reaches, meets, brought, centredOn, onScreen, onPlane, laidOn };

@@ -976,8 +976,8 @@ export function createDesktop({
         return Object.assign(new Error(message), { stage: 'call', kind });
     }
 
-    // A pointer event the environment carried: the pointer is there, and a press in a window's page is the seat's
-    // press on that window.
+    // A pointer event the environment carried: the pointer is there, a press in a window's page is the seat's press on
+    // that window, and a scroll on the backdrop, the desktop where nothing else takes the pointer, pans its camera.
     function arrived(seat, hand, event) {
         if (Number.isFinite(event.x)) hand.pointer = { x: event.x, y: event.y };
         if (ROUTING.hovers(event, hand.buttons))
@@ -988,6 +988,8 @@ export function createDesktop({
             return { over: null };
         }
         if (event.type === 'down') pressedDown(seat, hand, event.page);
+        if (event.type === 'scroll' && event.page && event.page === desktop.surfaces.get(PAGE.BACKDROP))
+            scrolled(seat, hand, event);
         // A press on the Dock or its menu is forwarded by the desktop's page (listen), and gesture puts the menu away
         // or keeps it; a press anywhere else, the host's bar in that page too, puts it away.
         const onDock =
@@ -1073,10 +1075,11 @@ export function createDesktop({
 
     // A scroll of `seat` on the desktop, where no window, the Dock, the bar or a view lies, moves its camera by its
     // `dx`, `dy`, and the desktop's page hears none.
-    function scrolled(seat, hand, { x, y, dx = 0, dy = 0 }) {
-        if (within({ ...cameraOf(seat), height: strip.height }, { x, y })) return;
-        if (![dx, dy].every(Number.isFinite) || (!dx && !dy)) return;
-        hand.camera = (({ x, y }) => ({ x, y }))(CAMERA.panned(cameraOf(seat), dx, dy));
+    function scrolled(seat, hand, { x, y, dx, dy }) {
+        const camera = cameraOf(seat);
+        const next = CAMERA.scrolled(camera, { x, y }, { dx, dy }, strip.height);
+        if (next === camera) return;
+        hand.camera = { x: next.x, y: next.y };
         update();
     }
 

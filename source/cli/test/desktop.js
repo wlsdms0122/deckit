@@ -291,6 +291,18 @@ async function main() {
         JSON.stringify(panned) === JSON.stringify({ x: 0, y: 100, width: 1280, height: 800 }),
         panned
     );
+    const scrolls = [
+        CAMERA.scrolled(camera, { x: 100, y: 300 }, { dx: 20, dy: -40 }, 28),
+        CAMERA.scrolled(camera, { x: 100, y: 10 }, { dx: 20, dy: -40 }, 28),
+        CAMERA.scrolled(camera, { x: 100, y: 900 }, { dx: 20, dy: -40 }, 28),
+        CAMERA.scrolled(camera, { x: 100, y: 300 }, { dx: 0, dy: 0 }, 28),
+    ];
+    check(
+        "a scroll on the desktop pans the camera, and one in the bar's band, outside the camera or of nothing does not",
+        JSON.stringify(scrolls[0]) === JSON.stringify({ x: 20, y: -40, width: 1280, height: 800 }) &&
+            scrolls.slice(1).every((one) => one === camera),
+        scrolls
+    );
     const resizedCamera = CAMERA.sized(panned, { width: 1000, height: 600 });
     check(
         "a screen's resize sizes its camera and keeps its top left",
@@ -990,6 +1002,7 @@ async function main() {
     const { createSeats } = await import(url('deckit-shell', 'shell', 'seats', 'main.js'));
     await memberChecks({ ROSTER, createSeats, createDesktop }, check);
     await cursorChecks({ LAYOUT, createDesktop }, check);
+    await cameraChecks({ LAYOUT, createDesktop }, check);
     const MARKS = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'marks.js'));
     await typingChecks({ MARKS, LAYOUT, createDesktop }, check);
     await marksChecks({ MARKS, LAYOUT, DOCK, createDesktop }, check);
@@ -3406,6 +3419,45 @@ async function memberChecks({ ROSTER, createSeats, createDesktop }, check) {
 
 // The cursors' surface: laid over every level of the stage and over what the pages present, while more than one seat
 // is at the desktop, taking the pointer nowhere.
+// The camera at the desktop's edge: the machine's scroll, carried in the page it was delivered to.
+async function cameraChecks({ LAYOUT, createDesktop }, check) {
+    const desk = desktopOver(createDesktop, {});
+    desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
+    desk.desktop.control.show();
+    const page = { name: 'page-a', mod: 'a' };
+    const content = { name: 'content-1', of: page };
+    desk.desktop.open({
+        id: 1,
+        mod: 'a',
+        name: 'w1',
+        level: 'normal',
+        page,
+        surface: content,
+        size: { width: 200, height: 200 },
+        minimum: { width: 0, height: 0 },
+        bar: LAYOUT.DEFAULT_BAR,
+    });
+    desk.openSurfaces(1);
+    const local = desk.seats.open[0];
+    const cameraNow = async () => (await desk.seats.served.read(local, { of: 'desktop', format: 'json' })).data.desktop;
+    const scroll = async (on, x, y) => {
+        desk.carried({ page: on, event: 'pointer', type: 'scroll', x, y, dx: 0, dy: 100, buttons: [], carried: true });
+        await new Promise((resolve) => setTimeout(resolve));
+        return cameraNow();
+    };
+    const window = desk.frameOf(1);
+    const before = await cameraNow();
+    const onWindow = await scroll(content, 10, 10);
+    const onBar = await scroll(desk.desktopPage, 600, 10);
+    const onDesktop = await scroll(desk.backdrop, 5, 700);
+    check(
+        "the machine's scroll on the backdrop pans the local seat's camera, and one in a window's page or on the " +
+            "desktop's page does not",
+        before.y === 0 && onWindow.y === 0 && onBar.y === 0 && onDesktop.y === 100 && onDesktop.x === 0,
+        { before, onWindow, onBar, onDesktop, window }
+    );
+}
+
 async function cursorChecks({ LAYOUT, createDesktop }, check) {
     const menu = { name: 'menu' };
     const full = { x: 0, y: 0, width: 1200, height: 800 };
