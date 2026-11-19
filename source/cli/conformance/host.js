@@ -312,6 +312,8 @@ try {
     const dialogs = Object.freeze({
         chooseFolders: async ({ multiple = false }) => (multiple ? setup.chosen : setup.chosen.slice(0, 1)),
     });
+    // An ask to sit shown nowhere, and answered no: the host takes no ask.
+    const admission = Object.freeze({ ask: async () => false });
     // Each path kept, and shown nowhere.
     const reveal = (file) => {
         revealed.push(file);
@@ -331,6 +333,7 @@ try {
         web: { value: web },
         open: { value: open },
         notifications: { value: notifications },
+        admission: { value: admission },
         clipboard: { value: clipboard },
         dialogs: { value: dialogs },
         reveal: { value: reveal },

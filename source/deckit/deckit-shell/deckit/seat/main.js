@@ -9,10 +9,8 @@ const LOCAL = 'local';
 // How long an admission waits for an answer, in milliseconds.
 const ASK_TIME = 60000;
 // What the shell may serve: `input(seat, event) -> result`, the entry, `event` of a kind of device `events` names
-// with its fields and `source`; `read(seat, { of, ...query })`, an output `reads` names, asked once; and `onAsk({
-// user }, { signal }) -> Promise of boolean`, whether a seated user lets `user` sit, `signal` aborted once no answer
-// is waited for.
-const SERVED = Object.freeze(['input', 'read', 'onAsk']);
+// with its fields and `source`; and `read(seat, { of, ...query })`, an output `reads` names, asked once.
+const SERVED = Object.freeze(['input', 'read']);
 // What the shell names beside what it serves: `events`, each kind of device by its name, `{ types, fields }`, served
 // with `input`; `reads`, each output read by its name, the fields it is asked with, served with `read`; and `tells`,
 // each output told by its name, `{ fields, on }`, `on` whether a seat is told it from the moment it opens.
@@ -33,8 +31,9 @@ export const OUTSIDE = Object.freeze({
 // whose devices are this machine's hardware. Main keeps each seat's clock and whose seat a sender's is, and hands what
 // a seat does and reads to what the shell serves, as plain data with the seat; it handles no input and reads nothing
 // itself. A seat's `source` names its set of devices, a word made as it opens that says who to no one: every event
-// that enters for the seat carries it. `name` is what a person reads of the local user until one is kept.
-export function createSeat({ CORE, LOG, IDENTITY, RUNNER, name }) {
+// that enters for the seat carries it. `name` is what a person reads of the local user until one is kept, and `ask` the
+// environment's, which asks whoever is at the machine whether a user may sit (environment: MAIN.admission.ask).
+export function createSeat({ CORE, LOG, IDENTITY, RUNNER, name, ask: ASK }) {
     // MARK: - Property
     // a user's id -> its seat, `{ id, user: { id, name }, local, source }`, in the order they opened
     const seats = new Map();
@@ -90,8 +89,8 @@ export function createSeat({ CORE, LOG, IDENTITY, RUNNER, name }) {
     }
 
     // The seats' settings as the core keeps them, `{ idleTime, asking }`: the seconds a seat's devices give no input
-    // for before the seat is idle, and whether a user that attaches waits until a seated user lets it sit. Each
-    // that `change` names is set and kept first; refused for what is no value of its setting.
+    // for before the seat is idle, and whether a user that attaches waits until whoever is at the machine lets it sit.
+    // Each that `change` names is set and kept first; refused for what is no value of its setting.
     async function settings(change = {}) {
         const kept = await CORE.request('seat/settings', change);
         idleTime = kept.idleTime * 1000;
@@ -107,7 +106,7 @@ export function createSeat({ CORE, LOG, IDENTITY, RUNNER, name }) {
         return need('input')(at, { ...event, source: at.source });
     }
 
-    // What the shell answers the entry, the outputs and the ask with from now on, and the names of NAMED: each of
+    // What the shell answers the entry and the outputs with from now on, and the names of NAMED: each of
     // SERVED is handed over once, together or by the part of the shell that answers it, with what it names, and each
     // name is named once. Answers `{ tell(seat, output) }`, what the shell tells a seat: `output` is `{ of, ... }` with
     // what that output tells, and reaches a seat that watches it.
@@ -145,8 +144,8 @@ export function createSeat({ CORE, LOG, IDENTITY, RUNNER, name }) {
     }
 
     // A party's proof handed to the core, which seats its user at once or, as the seats' settings have it, has it
-    // ask to sit. `asking()` is told once the admission waits for that answer, which is no where nothing serves the
-    // ask, none came in time, or the party left, as `whenEnds(listener)` hears. Resolves with `{ effects, seat }`
+    // ask to sit. `asking()` is told once the admission waits for that answer, which is no where none came in time,
+    // or the party left, as `whenEnds(listener)` hears. Resolves with `{ effects, seat }`
     // once the user sits; rejects with what the core refused.
     async function admit(proof, { asking, whenEnds }) {
         const effectsOf = ({ effects = [] }) => effects;
@@ -201,16 +200,15 @@ export function createSeat({ CORE, LOG, IDENTITY, RUNNER, name }) {
         return served[answer];
     }
 
-    // Whether a seated user lets `user` sit, as what the shell serves answers: no once ASK_TIME has passed or the
-    // party left, and for an ask that throws.
+    // Whether whoever is at the machine lets `user` sit: no once ASK_TIME has passed or the party left, and for an ask
+    // that throws.
     function ask(user, whenEnds) {
-        if (!served.onAsk) return Promise.resolve(false);
         const waiting = new AbortController();
         return new Promise((resolve) => {
             const timer = setTimeout(resolve, ASK_TIME, false);
             whenEnds(() => resolve(false));
             Promise.resolve()
-                .then(() => served.onAsk({ user }, { signal: waiting.signal }))
+                .then(() => ASK({ user }, { signal: waiting.signal }))
                 .then(
                     (allow) => resolve(allow === true),
                     (error) => {

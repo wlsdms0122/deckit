@@ -3,8 +3,8 @@ import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 // What an environment gives deckit, as plain data, on main's side (`MAIN`) and on a page's (`PAGE`): what carries
 // messages between main and a page and what it tells of a page, and in main how deckit reaches the core, the files and
 // the log, the pages a mod runs in, the app starting and quitting, what deckit does through the system for a mod
-// (opening, notifications, the clipboard), and what only the environment knows: the person's home folder and what runs
-// deckit. An environment gives at least this, and each is handed what it is checked against alone (`checked`). Each
+// (opening, notifications, the clipboard), what it asks whoever is at the machine, and what only the environment knows:
+// the person's home folder and what runs deckit. An environment gives at least this, and each is handed what it is checked against alone (`checked`). Each
 // leaf says what a member is: `function`, `object`, `string`, or `array`, a list read.
 // MARK: - Property
 /**
@@ -72,6 +72,12 @@ const MAIN = Object.freeze({
         // show({ title, body, silent }, { onClick }) -> Promise: true once shown, false where the system has none;
         // rejects with why when the system says it did not show it. `onClick()` hears a click on it
         show: 'function',
+    },
+    admission: {
+        // ask({ user: { id, name } }, { signal }) -> Promise of boolean: whoever is at the machine asked, as the machine
+        // shows what is its own, whether `user` may sit; the ask is put away once `signal` is aborted. False where the
+        // machine shows it nothing
+        ask: 'function',
     },
     // The clipboard's text: readText() -> string, writeText(text)
     clipboard: { readText: 'function', writeText: 'function' },

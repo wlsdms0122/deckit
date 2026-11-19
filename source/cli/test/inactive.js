@@ -2,7 +2,8 @@
 // menu bar, keyboard or pointer. It has no Dock icon or menu bar of its own, and the system, which opened it in the
 // background, leaves the app in front where it is as its windows ask to come forward. The test drives it through its
 // main process and WebKit's module, which need none of that. It raises none of the system's notifications either: the
-// system answers that it has none, so one asked of it is not shown.
+// system answers that it has none, so one asked of it is not shown. It shows no message box: each is held in
+// `globalThis.deckitTestBoxes`, `{ message, buttons, answer(index) }`, until the test answers it or it is put away.
 if (process.type === 'browser') {
     const { app } = require('electron');
     const keepOut = () => app.setActivationPolicy('accessory');
@@ -21,4 +22,21 @@ if (process.type === 'browser') {
     const { Notification } = require('electron');
     Notification.isSupported = () => false;
     Notification.prototype.show = () => {};
+    const { dialog } = require('electron');
+    const boxes = (globalThis.deckitTestBoxes = []);
+    dialog.showMessageBox = (...given) => {
+        const { message, buttons = [], cancelId = 0, signal } = given.at(-1);
+        return new Promise((resolve) => {
+            const box = {
+                message,
+                buttons,
+                answer: (response) => {
+                    if (boxes.includes(box)) boxes.splice(boxes.indexOf(box), 1);
+                    resolve({ response, checkboxChecked: false });
+                },
+            };
+            boxes.push(box);
+            signal?.addEventListener('abort', () => box.answer(cancelId));
+        });
+    };
 }

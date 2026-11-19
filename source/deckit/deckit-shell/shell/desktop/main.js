@@ -215,9 +215,8 @@ export function createDesktop({
     // overlay draws for a window lands over that window. The machine's keyboard is the local seat's: a key pressed in a
     // page reaches the mod whose page it is, a chord the mod that took it, for the seat that pressed it. Every seat
     // deckit opens sits here, and what a seat's devices do enters through `deckit.seats.input`, the machine's as the
-    // local seat's. The shell names to deckit the kinds of device and the outputs of model/served.js. A user that asks
-    // to sit waits for a seated user's answer (ask). The host window shows the local seat's view, or that of the seat
-    // the local one follows (follow).
+    // local seat's. The shell names to deckit the kinds of device and the outputs of model/served.js. The host window
+    // shows the local seat's view, or that of the seat the local one follows (follow).
     function start(given) {
         WINDOWS = given.WINDOWS;
         DOCK = given.DOCK;
@@ -233,7 +232,6 @@ export function createDesktop({
             read: READING.read,
             reads: SERVED.READS,
             tells: SERVED.TELLS,
-            onAsk: ask,
         });
         if (deckit.seats.local?.source) INPUT.machine(deckit.seats.local.source);
         READ.listen(({ page }) => {
