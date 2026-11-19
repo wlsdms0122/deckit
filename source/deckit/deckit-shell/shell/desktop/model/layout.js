@@ -37,9 +37,10 @@ const SNAP = 8;
 
 // MARK: - Initializer
 // MARK: - Public
-// The desktop in a stage of `size` with `strip` px at its top for the host's bar: where windows are.
-function desktopOf(size, strip) {
-    return { x: 0, y: strip, width: size.width, height: Math.max(0, size.height - strip) };
+// Where normal windows show in a camera, a rect of the desktop (model/camera.js), or a stage of a size at 0,0, with
+// `strip` px at its top for the host's bar: the camera under the bar.
+function desktopOf({ x = 0, y = 0, width, height }, strip) {
+    return { x, y: y + strip, width, height: Math.max(0, height - strip) };
 }
 
 // Where a zoomed window goes: the desktop but the Dock's sliver.

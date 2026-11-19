@@ -1,6 +1,7 @@
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
 import * as DECLARED from './protocol.js';
 import * as LAYOUT from './model/layout.js';
+import * as CAMERA from './model/camera.js';
 import * as ANCHORED from './model/anchored.js';
 import * as LEVELS from './model/levels.js';
 import * as MARKS from './model/marks.js';
@@ -84,8 +85,9 @@ export function createDesktop({
     // keyboard, or null for the window's content, the local seat's being the machine's; `buttons`, those of its
     // pointer that are held now; `key`, its key window as update() last saw it; `waits`, a promise of the turn of
     // its last event that is not done, or null; `acted`, when on the clock its pointer last did something while the
-    // page drew its cursor, or null; and `rests`, whether the fold of its name is due. The view shown for it is
-    // SHOWING's.
+    // page drew its cursor, or null; `rests`, whether the fold of its name is due; `camera`, the top left `{ x, y }` of
+    // its camera (cameraOf); `screenSize`, the size its screen told, or null; and `pressed`, the window its last press made
+    // key, which moves no camera. The view shown for it is SHOWING's.
     const hands = new Map();
     // `[{ page, seat }]`: each page whose one pointer a seat's move placed last (ROUTING.hovered).
     let pointers = [];
@@ -192,6 +194,7 @@ export function createDesktop({
             dockMenu: menuOf,
             tells: () => tells,
             area,
+            cameraOf,
             panelFrames,
             panelHolderOf,
             laidFor,
@@ -261,14 +264,19 @@ export function createDesktop({
         });
     }
 
-    // A normal window opens where its mod last left a normal window of its name, or cascaded from the key window, or
-    // the front window on screen while none is key, where it left none or one of that name is open, placed at its size
+    // A normal window opens in the camera of the seat its mod acts for, the local seat's where none: where its mod last
+    // left a normal window of its name, or cascaded from that seat's key window, or its front window on screen where
+    // none is key, either where it meets the zoom area, where it left none or one of that name is open, placed at its size
     // no smaller than its minimum, brought forward as orderFront brings it. Its `bar` is its title bar (LAYOUT.barOf):
     // the shell draws the bar of a titled one, holding its `title`, over its content.
     function open(window, { activates = true } = {}) {
-        const desktopNow = area();
-        const key = keyWindow(LOCAL);
-        const after = key ? MANAGER.frameOf(key.id) : (MANAGER.viewOf(LOCAL).at(-1)?.frame ?? null);
+        const seat = ACTIVATION.causeOf(window.mod) ?? LOCAL;
+        const desktopNow = area(seat);
+        const zoomArea = LAYOUT.zoomedIn(desktopNow);
+        const key = keyWindow(seat);
+        const keyFrame = key && MANAGER.frameOf(key.id);
+        const front = MANAGER.viewOf(seat).findLast(({ frame }) => CAMERA.meets(zoomArea, frame))?.frame ?? null;
+        const after = keyFrame && CAMERA.meets(zoomArea, keyFrame) ? keyFrame : front;
         const twin = [...windows.values()].some(({ mod, name }) => mod === window.mod && name === window.name);
         const restored = (!twin && keptFrameOf(window)) || null;
         const minimum = LAYOUT.minimumOf(window.minimum, window.bar);
@@ -436,6 +444,7 @@ export function createDesktop({
         pressers.set(window.id, seat);
         const hand = hands.get(seat);
         if (hand) hand.wanted = made === WM.HELD ? window.id : null;
+        if (hand) hand.pressed = window.id;
         update();
         return made;
     }
@@ -446,7 +455,7 @@ export function createDesktop({
     }
 
     function zoom(seat, window) {
-        MANAGER.zoom(seat, window.id, LAYOUT.zoomedIn(area()));
+        MANAGER.zoom(seat, window.id, LAYOUT.zoomedIn(area(seat)));
         update();
     }
 
@@ -454,7 +463,7 @@ export function createDesktop({
     // kept for its return, and what the person left it at stays that frame.
     function tile(seat, window, name) {
         if (!window.bar.enabled.zoom || !windows.has(window.id)) return;
-        MANAGER.tile(seat, window.id, name, LAYOUT.tileOf(name, LAYOUT.zoomedIn(area())));
+        MANAGER.tile(seat, window.id, name, LAYOUT.tileOf(name, LAYOUT.zoomedIn(area(seat))));
         update();
     }
 
@@ -508,13 +517,13 @@ export function createDesktop({
             moving.pointer = { x: from.x + at.x + dx, y: from.y + at.y + dy };
             MANAGER.untile(seat, window.id, moving.from);
         }
-        const zoomArea = LAYOUT.zoomedIn(area());
+        const zoomArea = LAYOUT.zoomedIn(area(seat));
         const others = MANAGER.viewOf(seat)
             .filter(({ id }) => id !== window.id)
             .map(({ frame }) => frame);
         const goes = { ...moving.from, x: moving.from.x + dx, y: moving.from.y + dy };
         const snapped = LAYOUT.snapped(goes, ['top', 'bottom', 'left', 'right'], others, zoomArea);
-        const frame = LAYOUT.underBar(snapped, area(), { moved: true });
+        const frame = LAYOUT.underBar(snapped, area(seat), { moved: true });
         const drop = window.bar.enabled.zoom ? LAYOUT.dropAt(moving.pointer, zoomArea) : null;
         handHeld.add(window.id);
         if (phase !== 'ended') {
@@ -524,7 +533,7 @@ export function createDesktop({
         }
         endDrag(seat);
         if (drop) MANAGER.tile(seat, window.id, drop, LAYOUT.tileOf(drop, zoomArea));
-        else MANAGER.setFrame(seat, window.id, LAYOUT.kept(frame, area(), window.bar.height));
+        else MANAGER.setFrame(seat, window.id, LAYOUT.kept(frame, area(seat), window.bar.height));
         remember(window);
         update();
     }
@@ -719,20 +728,37 @@ export function createDesktop({
             waits: null,
             acted: null,
             rests: false,
+            camera: CAMERA.opened(hands.get(LOCAL)?.camera ?? { x: 0, y: 0 }),
+            screenSize: null,
+            pressed: null,
         });
         update();
     }
 
     // The views put away as what they stand by changes: one whose anchor went, for every seat it was shown for by
-    // activation, and a seat's as a window becomes its key window.
+    // activation, and a seat's as a window becomes its key window. A window that becomes a seat's key window, but by
+    // its press, while its frame is out of reach of that seat's camera moves the camera to it (CAMERA.brought).
     function settleViews() {
         const { frames } = standing();
         for (const { id, anchor } of panels.values()) if (anchor && !frames.has(id)) SHOWING.unanchored(id);
         for (const [seat, hand] of hands) {
             const key = MANAGER.keyOf(seat);
             if (key !== null && key !== hand.key) SHOWING.putAway(seat);
+            if (key !== null && key !== hand.key && key !== hand.pressed) bringInto(seat, hand, key);
             hand.key = key;
+            hand.pressed = null;
         }
+    }
+
+    // The camera of `seat` moves to the window `id` where its frame is out of reach there.
+    function bringInto(seat, hand, id) {
+        const frame = MANAGER.frameOf(id);
+        const desktopNow = area(seat);
+        if (!frame || !windows.has(id)) return;
+        const kept = LAYOUT.kept(frame, desktopNow, windows.get(id).bar.height);
+        if (kept.x === frame.x && kept.y === frame.y) return;
+        const { x, y } = CAMERA.brought(cameraOf(seat), frame, LAYOUT.zoomedIn(desktopNow));
+        hand.camera = { x, y };
     }
 
     // The seat whose view the host window shows.
@@ -847,12 +873,12 @@ export function createDesktop({
     }
 
     // What the machine's devices did, as the environment tells it, in the page it was delivered to: the local seat's
-    // input, a pointer's point from the desktop's top left where that page is laid here, and no point where it is not.
+    // input, a pointer's point of the desktop where that page is laid here, and no point where it is not.
     function carried(event) {
         const local = seated.get(LOCAL);
         if (!local) return;
         const { x, y, ...told } = event;
-        const rect = event.page ? onDesktop.get(event.page) : { x: 0, y: 0 };
+        const rect = event.page ? onDesktop.get(event.page) : cameraOf(shownSeat());
         const at = event.event === 'pointer' && rect ? { x: x + rect.x, y: y + rect.y } : {};
         Promise.resolve(deckit.seats.input(local, { ...told, ...at })).catch((error) =>
             deckit.log.error("the machine's input was not taken", error)
@@ -869,8 +895,9 @@ export function createDesktop({
     // host window is hidden, where no page takes input: that is refused HIDDEN. A seat's events keep their order: one
     // placed by a ref takes time, and what enters meanwhile waits its turn (ROUTING.waits).
     function entered(seat, event) {
-        const route = { place, keyboard }[ROUTING.routeOf(event)];
-        if (!route) throw refusal('INVALID_ARGUMENT', "what a seat's devices do is a pointer, key or text event");
+        const route = { place, keyboard, sizing }[ROUTING.routeOf(event)];
+        if (!route)
+            throw refusal('INVALID_ARGUMENT', "what a seat's devices do is a pointer, key, text or screen event");
         const turn = () => {
             const hand = hands.get(seat.id);
             if (!hand) throw refusal('NOT_FOUND', 'the seat is not at the desktop');
@@ -898,6 +925,16 @@ export function createDesktop({
             throw refusal('INVALID_ARGUMENT', 'a button and a count are integers of 0 or more');
         if (named === 'ref') return placed(seat, hand, event);
         return { ...pointed(seat, hand, event), at: { x: event.x, y: event.y } };
+    }
+
+    // The route of a screen event: the size of the seat's screen, and so of its camera, which it answers. The local
+    // seat's screen is the host window, which no event sizes.
+    function sizing(seat, hand, { type, width, height }) {
+        if (type !== 'resize' || !CAMERA.isScreen({ width, height }))
+            throw refusal('INVALID_ARGUMENT', "a screen's resize is a width and a height of 1 or more");
+        if (seat !== LOCAL) hand.screenSize = { width, height };
+        update();
+        return cameraOf(seat);
     }
 
     // The route of a key or of text: to what holds the seat's keyboard.
@@ -977,11 +1014,12 @@ export function createDesktop({
             throw refusal('INVALID_ARGUMENT', 'a pointer event is a move, down, up or scroll at a point');
         hand.pointer = point;
         moved(seat, hand, event, how);
-        const [sliver, card] = DOCK_MODEL.inputOf(area(), true, DOCK.items());
+        const [sliver, card] = DOCK_MODEL.inputOf(area(seat), true, DOCK.items());
         const out = () => within(sliver, point) || (hand.dock && within(card, point)) || hand.menu !== null;
         hand.dock = out();
         const lone = ROUTING.hovers(event, hand.buttons);
-        const hit = type === 'move' && !lone ? null : stage.hit(laidFor(seat), point);
+        const reaches = CAMERA.reaches(cameraOf(seat), point);
+        const hit = (type === 'move' && !lone) || !reaches ? null : stage.hit(laidFor(seat), point);
         const part = hit && partAt(hit, seat);
         if (lone) pointedAlone(seat, part || !hit || !windowAt(hit.page) ? null : hit.page, event.source);
         if (type === 'down' && !DOCK_PARTS.includes(part?.part)) {
@@ -993,7 +1031,7 @@ export function createDesktop({
             if (!held) return { over: null };
             if (held.part) gesture(seat, type, point, part);
             else {
-                const frame = frameOn(held.id);
+                const frame = frameOn(held.id, seat);
                 if (type === 'up' || !frame) hand.down = null;
                 const at = frame && { x: point.x - frame.x - held.inside.x, y: point.y - frame.y - held.inside.y };
                 if (at) INPUT.put(held.page, { ...event, ...at });
@@ -1016,11 +1054,12 @@ export function createDesktop({
         if (!window) {
             if (type === 'down') hand.wanted = null;
             if (type === 'down') backToKey(hand);
+            if (type === 'scroll' && desktop.page) scrolled(seat, hand, event);
             return { over: desktop.page ? 'desktop' : null };
         }
         let answer = { over: window.id };
         if (type === 'down') {
-            const frame = frameOn(window.id);
+            const frame = frameOn(window.id, seat);
             const inside = { x: point.x - hit.x - frame.x, y: point.y - hit.y - frame.y };
             hand.down = { id: window.id, page: hit.page, inside };
             if (panels.has(window.id)) answer = { ...answer, ...pressPanel(seat, window) };
@@ -1030,6 +1069,15 @@ export function createDesktop({
         INPUT.put(hit.page, { ...event, x: hit.x, y: hit.y });
         reread(seat);
         return answer;
+    }
+
+    // A scroll of `seat` on the desktop, where no window, the Dock, the bar or a view lies, moves its camera by its
+    // `dx`, `dy`, and the desktop's page hears none.
+    function scrolled(seat, hand, { x, y, dx = 0, dy = 0 }) {
+        if (within({ ...cameraOf(seat), height: strip.height }, { x, y })) return;
+        if (![dx, dy].every(Number.isFinite) || (!dx && !dy)) return;
+        hand.camera = (({ x, y }) => ({ x, y }))(CAMERA.panned(cameraOf(seat), dx, dy));
+        update();
     }
 
     // The one pointer of each page goes where a move of `seat` with no button held went, into `page` or into none:
@@ -1118,7 +1166,7 @@ export function createDesktop({
         tellPage();
     }
 
-    // Where `seat` types as the host window shows it, `{ ring, bars, caret, over }` on the desktop, or null: the ring
+    // Where `seat` types as the host window shows it, `{ ring, bars, caret, over }` on its screen, or null: the ring
     // round what has the focus (MARKS.ringOf; the reader answers no radius of its corners) and what shows in its page
     // of the rects the reader answered, from where the page lies in its window, and nothing where a window in front
     // of that one for the shown seat covers a part of what has the focus. `over` is whether it is drawn over
@@ -1137,8 +1185,9 @@ export function createDesktop({
         const view = MANAGER.viewOf(shownSeat());
         const at = view.findIndex(({ id }) => id === window.id);
         if (windows.has(window.id) && (at < 0 || view.slice(at + 1).some(({ frame }) => cut(frame, ring)))) return null;
-        const bars = typing.bars.flatMap((bar) => moved(bar) ?? []);
-        return { ring: MARKS.ringOf(ring), bars, caret: typing.caret, over };
+        const shownAt = (rect) => CAMERA.onScreen(cameraOf(shownSeat()), rect);
+        const bars = typing.bars.flatMap((bar) => moved(bar) ?? []).map(shownAt);
+        return { ring: shownAt(MARKS.ringOf(ring)), bars, caret: typing.caret, over };
     }
 
     // What the pointer of `seat` just did where it is: the buttons it holds are kept, and the desktop's page is told of
@@ -1164,7 +1213,7 @@ export function createDesktop({
     // The desktop's page is told what the pointer of `seat` did where it is, and how its cursor is drawn there: under
     // what covers what it is over (MARKS.underOf), with its name or without.
     function tellSeat(seat, hand, type, more) {
-        const { x, y } = hand.pointer;
+        const { x, y } = CAMERA.onScreen(cameraOf(shownSeat()), hand.pointer);
         const under = MARKS.underOf(hand.pointer, stackOf(seat), viewedStack());
         const named = MARKS.nameLeft(hand.acted, clock.now()) > 0;
         PROTOCOL.seat.send(desktop.page, { id: seat, type, x, y, buttons: hand.buttons, under, named, ...more });
@@ -1191,8 +1240,8 @@ export function createDesktop({
         const panes = [...frames.filter(({ window }) => !ANCHORED.isView(window)), ...stackedFor(seat, views)];
         return [
             ...MANAGER.viewOf(seat).map(({ id, frame }) => ({ id, frame, radius: LAYOUT.RADIUS })),
-            { id: 'band', frame: { x: 0, y: 0, width: stage.size().width, height: strip.height }, radius: 0 },
-            { id: 'dock', ...DOCK_MODEL.coverOf(area(), hands.get(docked)?.dock ?? false, DOCK.items()) },
+            { id: 'band', frame: { ...cameraOf(seat), height: strip.height }, radius: 0 },
+            { id: 'dock', ...DOCK_MODEL.coverOf(area(seat), hands.get(docked)?.dock ?? false, DOCK.items()) },
             ...panes.map(({ window, frame }) => ({ id: window.id, frame, radius: radiusOf(window, frame) })),
         ];
     }
@@ -1314,9 +1363,11 @@ export function createDesktop({
     function partAt({ page, x, y }, seat = null) {
         const holds = (rect) => within(rect, { x, y });
         if (page === desktop.page) {
+            const on = seat ?? shownSeat();
+            const point = CAMERA.onPlane(cameraOf(on), { x, y });
             const menu = menuOf(seat);
-            if (menu && holds(menu.frame)) return { id: DOCK_MODEL.entryAt(menu, { x, y }), part: 'dock-menu' };
-            const id = DOCK_MODEL.itemAt(area(), DOCK.items(), { x, y });
+            if (menu && within(menu.frame, point)) return { id: DOCK_MODEL.entryAt(menu, point), part: 'dock-menu' };
+            const id = DOCK_MODEL.itemAt(area(on), DOCK.items(), point);
             return id === null ? null : { id, part: 'dock' };
         }
         for (const [id, { bar }] of windows) {
@@ -1375,7 +1426,7 @@ export function createDesktop({
             return;
         }
         if (held?.part === 'dock') {
-            const order = DOCK_MODEL.orderOf(area(), DOCK.items(), held.id, point);
+            const order = DOCK_MODEL.orderOf(area(seat), DOCK.items(), held.id, point);
             held.drags ||= order !== null && DOCK_MODEL.drags(held.from, point);
             if (held.drags && order && type === 'up') DOCK.hand.reorder(order);
             else if (held.drags) DOCK.hand.drag(type === 'up' ? null : held.id, order ?? []);
@@ -1404,7 +1455,7 @@ export function createDesktop({
     // the Dock no more.
     function menuOf(seat) {
         const id = hands.get(seat)?.menu ?? null;
-        return id === null ? null : DOCK_MODEL.menuOf(area(), DOCK.items(), id);
+        return id === null ? null : DOCK_MODEL.menuOf(area(seat), DOCK.items(), id);
     }
 
     // The menu open for the seat of `hand` is put away.
@@ -1535,9 +1586,10 @@ export function createDesktop({
             .map(({ frame: other }) => other);
         const minimum = LAYOUT.minimumOf(window.minimum, window.bar);
         const sides = edge ? edge.split('-') : [];
-        const met = sides.length ? LAYOUT.snapped(frame, sides, others, LAYOUT.zoomedIn(area()), minimum) : frame;
-        const next = LAYOUT.underBar(met, area(), { moved: false });
-        MANAGER.setFrame(seat, window.id, phase === 'ended' ? LAYOUT.kept(next, area(), window.bar.height) : next);
+        const desktopNow = area(seat);
+        const met = sides.length ? LAYOUT.snapped(frame, sides, others, LAYOUT.zoomedIn(desktopNow), minimum) : frame;
+        const next = LAYOUT.underBar(met, desktopNow, { moved: false });
+        MANAGER.setFrame(seat, window.id, phase === 'ended' ? LAYOUT.kept(next, desktopNow, window.bar.height) : next);
         if (phase === 'ended') {
             handHeld.delete(window.id);
             remember(window);
@@ -1676,17 +1728,25 @@ export function createDesktop({
         return sources.get(source) ?? LOCAL;
     }
 
-    // Where windows go: the stage below the host's bar.
-    function area() {
-        return LAYOUT.desktopOf(stage.size(), strip.height);
+    // The camera of `seat`, a rect of the desktop (model/camera.js): at the top left its hand keeps, as large as its
+    // screen, the host window's for the local seat and for a seat that told none.
+    function cameraOf(seat) {
+        const hand = hands.get(seat);
+        const { x, y } = hand?.camera ?? { x: 0, y: 0 };
+        return { x, y, ...(seat !== LOCAL && hand?.screenSize ? hand.screenSize : stage.size()) };
+    }
+
+    // Where the normal windows of `seat` show: its camera under the host's bar.
+    function area(seat = LOCAL) {
+        return LAYOUT.desktopOf(cameraOf(seat), strip.height);
     }
 
     // The panel windows that stand on the screen of `seat`, or with none on some seat's, in the order they opened,
     // each `{ window, frame }`: one at an edge at its frame there, on every screen, a view where ANCHORED places it,
     // under its anchor or at its place, on the screens it is shown for (SHOWING). A view whose anchor is gone, or is
-    // another mod's, stands nowhere and is left out.
+    // another mod's, stands nowhere and is left out. Each frame is in the camera of `seat`, the local seat's for none.
     function panelFrames(seat = null) {
-        const { edged, frames } = standing();
+        const { edged, frames } = standing(seat ?? LOCAL);
         const on = ({ id }) => (seat === null ? SHOWING.isShown(id) : SHOWING.isOn(seat, id));
         return [...panels.values()].flatMap((window) => {
             const frame = edged.get(window.id) ?? (on(window) ? frames.get(window.id) : null);
@@ -1694,20 +1754,24 @@ export function createDesktop({
         });
     }
 
-    // The stage and the desktop under the host's bar, as ANCHORED places a view by them.
-    function bounds() {
-        return { stage: stage.size(), desktop: area() };
+    // The screen of `seat` and its desktop under the host's bar, from the screen's top left, as ANCHORED places a view
+    // by them.
+    function bounds(seat = LOCAL) {
+        const { width, height } = cameraOf(seat);
+        return { stage: { width, height }, desktop: LAYOUT.desktopOf({ width, height }, strip.height) };
     }
 
     // The windows and the panel windows, in the order they opened, each as ANCHORED.standingOf takes it, and `edged`,
-    // the frame of each panel window at an edge by its id (LAYOUT.panelsIn). The content of a panel window at an edge
-    // is at its frame; a normal window's is where it rests, while some seat has it on screen.
-    function openedNow() {
+    // the frame of each panel window at an edge by its id (LAYOUT.panelsIn), on the screen of `seat` from its top left.
+    // The content of a panel window at an edge is at its frame; a normal window's is where it rests, while some seat
+    // has it on screen.
+    function openedNow(seat = LOCAL) {
         const told = (id) => anchors.get(id) ?? [];
+        const camera = cameraOf(seat);
         const atEdge = [...panels.values()].filter((window) => !ANCHORED.isView(window));
         const frames = LAYOUT.panelsIn(
             atEdge.map(({ edge, size }) => ({ edge, size })),
-            { ...stage.size(), bar: strip.height }
+            { width: camera.width, bar: strip.height }
         );
         const edged = new Map(atEdge.map(({ id }, at) => [id, frames[at]]));
         const alone = (id, mod, content) => ({
@@ -1723,16 +1787,22 @@ export function createDesktop({
             const { id, mod, bar, anchor = null, place = null, size } = window;
             if (ANCHORED.isView(window)) return { id, mod, anchors: told(id), content: null, anchor, place, size };
             if (panels.has(id)) return alone(id, mod, edged.get(id));
-            return alone(id, mod, MANAGER.isShown(id) ? LAYOUT.contentOf(MANAGER.frameOf(id), bar) : null);
+            const content = MANAGER.isShown(id) && LAYOUT.contentOf(MANAGER.frameOf(id), bar);
+            return alone(id, mod, content ? CAMERA.onScreen(camera, content) : null);
         });
         return { edged, opened: opened.sort((one, other) => one.id - other.id) };
     }
 
-    // What stands by anchors and at places now (ANCHORED.standingOf): `anchors`, every anchor of a window whose content
-    // is on the stage, at its rect there, and `frames`, the frame of each view that stands; with `edged`.
-    function standing() {
-        const { edged, opened } = openedNow();
-        return { edged, ...ANCHORED.standingOf(bounds(), opened) };
+    // What stands by anchors and at places now on the screen of `seat` (ANCHORED.standingOf), as rects of the desktop
+    // in its camera: `anchors`, every anchor of a window whose content is on the stage, at its rect there, and
+    // `frames`, the frame of each view that stands; with `edged`.
+    function standing(seat = LOCAL) {
+        const camera = cameraOf(seat);
+        const lift = (frames) => new Map([...frames].map(([id, frame]) => [id, CAMERA.onPlane(camera, frame)]));
+        const { edged, opened } = openedNow(seat);
+        const { anchors: standingNow, frames } = ANCHORED.standingOf(bounds(seat), opened);
+        const anchorsNow = standingNow.map((anchor) => ({ ...anchor, rect: CAMERA.onPlane(camera, anchor.rect) }));
+        return { edged: lift(edged), anchors: anchorsNow, frames: lift(frames) };
     }
 
     // Whether `name` is a place of the stage a view stands at.
@@ -1770,30 +1840,19 @@ export function createDesktop({
         hand.keys = null;
     }
 
-    // Where a window or a panel window is on the desktop now, or null for one that is gone.
-    function frameOn(id) {
-        return (windows.has(id) ? MANAGER.frameOf(id) : panelFrameOf(id)) ?? null;
+    // Where a window or a panel window is on the desktop now, a panel window in the camera of `seat`, or null for one
+    // that is gone.
+    function frameOn(id, seat = null) {
+        return (windows.has(id) ? MANAGER.frameOf(id) : panelFrameOf(id, seat)) ?? null;
     }
 
-    function panelFrameOf(id) {
-        return panelFrames().find(({ window }) => window.id === id)?.frame ?? null;
+    function panelFrameOf(id, seat = null) {
+        return panelFrames(seat).find(({ window }) => window.id === id)?.frame ?? null;
     }
 
-    // The desktop changed size: a zoomed window fills it again, a tiled one takes its tile in it, and any other is
-    // moved where its title bar can be reached, each drawn there at once as the desktop is. A desktop with no room yet,
-    // its stage in no window, moves none.
+    // The host window changed size, and so the local seat's camera: every frame stays where it is, a tiled or zoomed
+    // window too, and what is laid is drawn at once.
     function resized() {
-        const desktopNow = area();
-        const zoomArea = LAYOUT.zoomedIn(desktopNow);
-        MANAGER.fitZoomed(zoomArea, (name) => LAYOUT.tileOf(name, zoomArea));
-        if (desktopNow.width && desktopNow.height) {
-            for (const id of windows.keys()) {
-                const frame = MANAGER.frameOf(id);
-                const kept = LAYOUT.kept(frame, desktopNow, windows.get(id).bar.height);
-                const fitted = MANAGER.isZoomed(id) || MANAGER.tileNameOf(id) !== null;
-                if (!fitted && (kept.x !== frame.x || kept.y !== frame.y)) MANAGER.setFrame(null, id, kept);
-            }
-        }
         atOnce = true;
         update();
         atOnce = false;
@@ -1809,7 +1868,8 @@ export function createDesktop({
     // window in the local seat's order with the children its regions show, the materials the desktop's page draws glass
     // over, then that page, taking the pointer only at the host's bar and the Dock, its sliver down the edge
     // and its card while it is out, the panel windows at an edge with the children their regions show, and over them
-    // the views on that seat's screen, as stackedFor has them. Over all of it, the overlay of each page laid that shows
+    // the views on that seat's screen, as stackedFor has them, each at its rect of the desktop less the top left of the
+    // shown seat's camera. Over all of it, the overlay of each page laid that shows
     // anything, at its page's rect, or over the whole stage for a page whose front window is a panel window, so what it
     // presents is not cut to the panel. Over those, while more than one seat is at the desktop, the cursors' surface,
     // where the desktop's page draws each seat's cursor: it covers the stage and takes the pointer nowhere, so a press,
@@ -1817,6 +1877,7 @@ export function createDesktop({
     // page alone covers it all.
     function layout() {
         const full = { x: 0, y: 0, ...stage.size() };
+        const camera = cameraOf(shownSeat());
         inPanels.clear();
         // A dialog stands where its page shows as this layout has it: its window resized, zoomed or tiled.
         for (const [ask, page] of asking) DIALOGS.move(ask, dialogAt(page));
@@ -1839,7 +1900,7 @@ export function createDesktop({
         const laid = whole(parts);
         onDesktop.clear();
         for (const { page, rect } of laid) if (rect) onDesktop.set(page, rect);
-        stage.lay(laid);
+        stage.lay(CAMERA.laidOn(camera, laid));
         REGION.show(stage, shown ? [...new Set(children.map(({ page }) => page))] : []);
     }
 
@@ -1849,7 +1910,8 @@ export function createDesktop({
     // Answers `{ parts, children }`, `parts` the layers of each level (model/levels.js), and `children` those the
     // windows and the panel windows show (childrenIn).
     function laidOf(view, seen, docked, seat = null) {
-        const full = { x: 0, y: 0, ...stage.size() };
+        const full = cameraOf(seat ?? docked ?? LOCAL);
+        const onScreen = (rect) => CAMERA.onScreen(full, rect);
         const out = hands.get(docked)?.dock ?? false;
         const inBar = panelFrames(seat);
         const children = childrenIn([
@@ -1899,7 +1961,7 @@ export function createDesktop({
                 pages: [
                     ...[...pages].map((page) => ({
                         page,
-                        rect: front.get(page) ?? area(),
+                        rect: front.get(page) ?? area(seat ?? docked ?? LOCAL),
                         ...(ofPanels.has(page) ? { spread: full } : {}),
                         input: [],
                     })),
@@ -1970,7 +2032,9 @@ export function createDesktop({
                         rect: full,
                         input: [
                             ...(strip.height ? [{ x: 0, y: 0, width: full.width, height: strip.height }] : []),
-                            ...DOCK_MODEL.inputOf(area(), out, DOCK.items(), menuOf(docked)),
+                            ...DOCK_MODEL.inputOf(area(seat ?? docked ?? LOCAL), out, DOCK.items(), menuOf(docked)).map(
+                                onScreen
+                            ),
                         ],
                     },
                 ],
@@ -2164,7 +2228,7 @@ export function createDesktop({
 
     // Where the Dock's item of `window`'s mod stands, or null where it has none.
     function dockTileOf(window) {
-        return DOCK_MODEL.tileOf(area(), DOCK.items(), window.mod);
+        return DOCK_MODEL.tileOf(area(shownSeat()), DOCK.items(), window.mod);
     }
 
     // A material the desktop's page told, `{ material, rect, cornerRadius }`, or none.
@@ -2216,10 +2280,14 @@ export function createDesktop({
     }
 
     // `{ windows, panels, seats, following, drop, strip, dock, down }`, as the desktop's page draws it, of the
-    // seat the host window shows. A window's frame is key as its content is (stateOf): not while an overlay window
-    // holds the keyboard, which update() tells as it takes or gives it back.
+    // seat the host window shows, each frame and point less the top left of that seat's camera. A window's frame is key
+    // as its content is (stateOf): not while an overlay window holds the keyboard, which update() tells as it takes or
+    // gives it back.
     function stateOfPage() {
         const seat = shownSeat();
+        const camera = cameraOf(seat);
+        const onScreen = (at) => CAMERA.onScreen(camera, at);
+        const menu = menuOf(LOCAL);
         const key = MANAGER.keyOf(seat);
         const { moving, dropping } = hands.get(seat) ?? {};
         const active = windows.get(key)?.mod ?? null;
@@ -2227,7 +2295,7 @@ export function createDesktop({
         return {
             windows: MANAGER.viewOf(seat).map(({ id, frame }) => ({
                 id,
-                frame,
+                frame: onScreen(frame),
                 key: id === key && !away(seat),
                 holder: COLOURS.of(MANAGER.holderOf(id)),
                 bar: windows.get(id).bar,
@@ -2245,14 +2313,14 @@ export function createDesktop({
             panels: stackedFor(seat, panelFrames(seat)).map(({ window, frame }) => ({
                 id: window.id,
                 edge: window.edge,
-                frame,
+                frame: onScreen(frame),
                 radius: radiusOf(window, frame),
             })),
             seats: [...hands].map(([id, { pointer, buttons, acted }]) => ({
                 id,
                 name: seated.get(id)?.user.name ?? id,
                 colour: COLOURS.of(id),
-                at: pointer && { x: Math.round(pointer.x), y: Math.round(pointer.y) },
+                at: pointer && onScreen({ x: Math.round(pointer.x), y: Math.round(pointer.y) }),
                 buttons,
                 shown: id === seat,
                 under: MARKS.underOf(pointer, stackOf(id), viewed),
@@ -2264,14 +2332,21 @@ export function createDesktop({
                     ? null
                     : { id: seat, name: seated.get(seat)?.user.name ?? seat, colour: COLOURS.of(seat) },
             drop:
-                moving && dropping ? { tile: dropping, frame: LAYOUT.tileOf(dropping, LAYOUT.zoomedIn(area())) } : null,
+                moving && dropping
+                    ? { tile: dropping, frame: onScreen(LAYOUT.tileOf(dropping, LAYOUT.zoomedIn(area(seat)))) }
+                    : null,
             strip,
             dock: {
                 items: DOCK.items(),
                 active,
                 attention: ACTIVATION.attentionOf(seat),
                 held: DOCK.dragged(),
-                menu: menuOf(LOCAL),
+                menu: menu && {
+                    ...menu,
+                    frame: onScreen(menu.frame),
+                    entries: menu.entries.map((entry) => ({ ...entry, rect: onScreen(entry.rect) })),
+                    rules: menu.rules.map(onScreen),
+                },
             },
             down: down && { name: deckit.config.name, why: down },
         };

@@ -227,7 +227,8 @@ async function run({
     const [first, ...lines] = String(reading?.text).split('\n');
     check(
         'outside: a reading is answered by the shell, as text or as data, and what is malformed is refused',
-        first === `desktop ${asData?.data?.desktop.width}x${asData?.data?.desktop.height} mark ${reading.mark}` &&
+        first ===
+            `desktop at ${asData?.data?.desktop.x},${asData?.data?.desktop.y} ${asData?.data?.desktop.width}x${asData?.data?.desktop.height} mark ${reading.mark}` &&
             lines.some((line) =>
                 new RegExp(`^seat ${seat.id} "Outside Party" [a-z]+ at 40,30( key w\\d+)? \\(you\\)$`).test(line)
             ) &&

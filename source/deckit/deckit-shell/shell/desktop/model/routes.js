@@ -1,8 +1,9 @@
 // How what a seat's devices did finds where it goes, as plain data: the route of each kind of event, how a pointer
 // event names its place, and what waits for what.
 
-// The route of each kind of event: `place`, where the seat's pointer is, or `keyboard`, what holds the seat's keyboard.
-const ROUTES = Object.freeze({ pointer: 'place', key: 'keyboard', text: 'keyboard' });
+// The route of each kind of event: `place`, where the seat's pointer is, `keyboard`, what holds the seat's keyboard, or
+// `sizing`, the seat's screen and its camera.
+const ROUTES = Object.freeze({ pointer: 'place', key: 'keyboard', text: 'keyboard', ['screen']: 'sizing' });
 
 // The route of `event`, or null for one of no kind.
 function routeOf(event) {

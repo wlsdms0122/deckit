@@ -5,13 +5,14 @@
 // mod its input reaches and those asked along the chain, until its next input, and the mods that ask for its attention;
 // and where windows go (model/layout): a new one cascaded from the key window or centred, a restored one kept
 // reachable, a resize held to the minimum, a drag kept under the host's strip as it goes, zoom to the desktop but the
-// Dock's sliver, and the frame's parts; and the desktop (desktop/main) over stand-ins for what connect answers, the
+// Dock's sliver, and the frame's parts; a seat's camera (model/camera): where it opens, its size, a pan, the points it
+// reaches, the move to a window made key and what is laid on its screen; and the desktop (desktop/main) over stand-ins for what connect answers, the
 // shell's pages and a stage: the pages laid in the local seat's order, no window key at start, the keyboard and the
 // host's title following its key window, a window brought forward in front and key, the host window coming up, only by
 // a mod that may activate, and right behind the key window, its mod asking for attention, by one that may not, a window
 // ordered front or opened without taking the keyboard, the shell's keys, a frame restored and remembered by the
 // window's name, a mod's windows brought in front for a seat from the Dock, the Dock's pointer room, a zoomed window
-// following the desktop's size and any other kept reachable as it shrinks, and a titled window's content under the
+// and any other keeping its frame as the host window changes size, and a titled window's content under the
 // title bar the shell draws, its title told and its drag, and the panel windows in the host's bar: placed right to left
 // in the order they opened, laid over the desktop's page, told no title bar, never key, pressed with the key window
 // left key, whatever edge it names; and the anchors a window's mod tells, with the panel
@@ -27,6 +28,7 @@ async function main() {
     const WM = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'window-manager.js'));
     const ACTIVATION = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'activation.js'));
     const LAYOUT = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'layout.js'));
+    const CAMERA = await import(url('deckit-shell', 'shell', 'desktop', 'model', 'camera.js'));
     const DOCK = await import(url('deckit-shell', 'shell', 'dock', 'model', 'dock.js'));
     const { createDesktop } = await import(url('deckit-shell', 'shell', 'desktop', 'main.js'));
     const failed = [];
@@ -267,6 +269,113 @@ async function main() {
         "the desktop is the stage under the host's strip",
         JSON.stringify(desktop) === JSON.stringify({ x: 0, y: 40, width: 1000, height: 660 }),
         desktop
+    );
+    const inCamera = LAYOUT.desktopOf({ x: 50, y: -200, width: 1000, height: 700 }, 40);
+    check(
+        "the desktop of a camera is the camera under the host's strip",
+        JSON.stringify(inCamera) === JSON.stringify({ x: 50, y: -160, width: 1000, height: 660 }),
+        inCamera
+    );
+
+    // A seat's camera, a rect of the desktop plane (model/camera).
+    const camera = { x: 0, y: 0, width: 1280, height: 800 };
+    const later = CAMERA.opened({ x: 30, y: 700, width: 1280, height: 800 });
+    check(
+        "a seat's camera opens at the local seat's camera's top left",
+        JSON.stringify(later) === JSON.stringify({ x: 30, y: 700 }),
+        later
+    );
+    const panned = CAMERA.panned(camera, 0, 100);
+    check(
+        'a scroll on the desktop moves the camera by its dx, dy',
+        JSON.stringify(panned) === JSON.stringify({ x: 0, y: 100, width: 1280, height: 800 }),
+        panned
+    );
+    const resizedCamera = CAMERA.sized(panned, { width: 1000, height: 600 });
+    check(
+        "a screen's resize sizes its camera and keeps its top left",
+        JSON.stringify(resizedCamera) === JSON.stringify({ x: 0, y: 100, width: 1000, height: 600 }),
+        resizedCamera
+    );
+    check(
+        "a screen's size is whole numbers of 1 or more",
+        CAMERA.isScreen({ width: 1, height: 600 }) &&
+            ![{ width: 0, height: 600 }, { width: 10.5, height: 6 }, { width: 10 }, { width: '10', height: 6 }].some(
+                CAMERA.isScreen
+            ),
+        ''
+    );
+    check(
+        'a point outside a camera reaches nothing, one in it does',
+        CAMERA.reaches(panned, { x: 100, y: 150 }) &&
+            !CAMERA.reaches(panned, { x: 100, y: 50 }) &&
+            !CAMERA.reaches(panned, { x: 1280, y: 150 }),
+        ''
+    );
+    check(
+        'a frame meets a camera where some of it is in it',
+        CAMERA.meets(panned, { x: 283, y: 50, width: 720, height: 51 }) &&
+            !CAMERA.meets(panned, { x: 283, y: 900, width: 720, height: 480 }) &&
+            !CAMERA.meets(panned, { x: -720, y: 150, width: 720, height: 480 }),
+        ''
+    );
+    const away = { x: 0, y: 1000, width: 1280, height: 800 };
+    const zoomOf = (one) => LAYOUT.zoomedIn(LAYOUT.desktopOf(one, 0));
+    const main = { x: 283, y: 107, width: 720, height: 480 };
+    const toMain = CAMERA.brought(away, main, zoomOf(away));
+    check(
+        'a window made key out of reach moves the camera the least way that brings it whole into the zoom area',
+        JSON.stringify(toMain) === JSON.stringify({ x: 0, y: 107, width: 1280, height: 800 }),
+        toMain
+    );
+    const below = CAMERA.brought(camera, { x: -100, y: 700, width: 300, height: 400 }, zoomOf(camera));
+    check(
+        'the camera moves across and down each on its own, to the frame left of it and below it',
+        JSON.stringify(below) === JSON.stringify({ x: -106, y: 300, width: 1280, height: 800 }),
+        below
+    );
+    const longer = CAMERA.brought(camera, { x: 2000, y: 2000, width: 2000, height: 300 }, zoomOf(camera));
+    check(
+        "along a way the frame is longer than the zoom area, its left goes to the zoom area's",
+        JSON.stringify(longer) === JSON.stringify({ x: 1994, y: 1500, width: 1280, height: 800 }),
+        longer
+    );
+    const still = CAMERA.brought(camera, main, zoomOf(camera));
+    check('a frame whole in the zoom area moves no camera', JSON.stringify(still) === JSON.stringify(camera), still);
+    const followed = CAMERA.centredOn({ x: 100, y: 100, width: 1000, height: 600 }, { width: 1280, height: 800 });
+    check(
+        "a camera of the host window's size is centred on the camera of the seat it follows",
+        JSON.stringify(followed) === JSON.stringify({ x: -40, y: 0, width: 1280, height: 800 }),
+        followed
+    );
+    const laid = CAMERA.laidOn(panned, [
+        { page: 1, rect: { x: 283, y: 107, width: 720, height: 480 }, clip: { x: 283, y: 107, width: 10, height: 10 } },
+        { page: 2, rect: { ...panned }, spread: { ...panned }, input: [{ x: 0, y: 0, width: 6, height: 800 }] },
+    ]);
+    check(
+        "what is laid at the plane's rects is laid on a screen less its camera's top left, input as it is",
+        JSON.stringify(laid) ===
+            JSON.stringify([
+                {
+                    page: 1,
+                    rect: { x: 283, y: 7, width: 720, height: 480 },
+                    clip: { x: 283, y: 7, width: 10, height: 10 },
+                },
+                {
+                    page: 2,
+                    rect: { x: 0, y: 0, width: 1280, height: 800 },
+                    spread: { x: 0, y: 0, width: 1280, height: 800 },
+                    input: [{ x: 0, y: 0, width: 6, height: 800 }],
+                },
+            ]),
+        laid
+    );
+    const onScreen = CAMERA.onScreen(panned, { x: 100, y: 150 });
+    const onPlane = CAMERA.onPlane(panned, onScreen);
+    check(
+        "a point of the plane is on a screen less its camera's top left, and back",
+        onScreen.y === 50 && onPlane.y === 150 && onPlane.x === 100,
+        [onScreen, onPlane]
     );
     const size = { width: 400, height: 300 };
     const centred = LAYOUT.placed({ size, desktop });
@@ -611,22 +720,20 @@ async function main() {
     check("the desktop's page telling no material takes them off", materials().length === 0, materials());
 
     desk.desktop.zoom(two);
+    const zoomedFrame = desk.frameOf(2);
     desk.resize({ width: 1400, height: 900 });
     check(
-        'a zoomed window fills the desktop again as it changes size',
-        JSON.stringify(desk.frameOf(2)) ===
-            JSON.stringify({ x: DOCK.SLIVER, y: 28, width: 1400 - DOCK.SLIVER, height: 900 - 28 }),
+        "a zoomed window keeps its frame as the host window, the local seat's camera, changes size",
+        JSON.stringify(desk.frameOf(2)) === JSON.stringify(zoomedFrame),
         desk.frameOf(2)
     );
 
     desk.pageFrames(3, { x: 1300, y: 700, width: 300, height: 200 });
     desk.resize({ width: 800, height: 500 });
-    const smaller = LAYOUT.desktopOf({ width: 800, height: 500 }, 28);
     check(
-        'as the desktop shrinks, a window not zoomed is moved where its title bar can be reached, and a zoomed one fills it',
-        JSON.stringify(desk.frameOf(3)) ===
-            JSON.stringify(LAYOUT.kept({ x: 1300, y: 700, width: 300, height: 200 }, smaller)) &&
-            JSON.stringify(desk.frameOf(2)) === JSON.stringify(LAYOUT.zoomedIn(smaller)),
+        'as the host window shrinks, a frame out of reach stays where it is, and a zoomed one too',
+        JSON.stringify(desk.frameOf(3)) === JSON.stringify({ x: 1300, y: 700, width: 300, height: 200 }) &&
+            JSON.stringify(desk.frameOf(2)) === JSON.stringify(zoomedFrame),
         [desk.frameOf(3), desk.frameOf(2)]
     );
 
@@ -1559,14 +1666,11 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
             same(manager.standardFrameOf(1), own),
         { tiled, filled, back: manager.frameOf(1), kept: manager.standardFrameOf(1) }
     );
-    const wider = { ...area, width: 1395 };
-    manager.fitZoomed(wider, (name) => LAYOUT.tileOf(name, wider));
-    const refit = manager.frameOf(1);
     manager.untile('me', 1);
     check(
-        'a tiled window takes its tile again as the zoom area changes size, and leaves it for the frame it had',
-        same(refit, LAYOUT.tileOf('top-right', wider)) && same(manager.frameOf(1), own) && !manager.tileNameOf(1),
-        { refit, back: manager.frameOf(1) }
+        'a tiled window leaves its tile for the frame it had',
+        same(manager.frameOf(1), own) && !manager.tileNameOf(1),
+        { back: manager.frameOf(1) }
     );
 
     const from = { x: 0, y: 0, width: 400, height: 300, opacity: 1 };
@@ -4137,7 +4241,7 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
 
     const first = await served.read(me, { of: 'desktop' });
     const golden = [
-        `desktop 1200x800 mark ${first.mark}`,
+        `desktop at 0,0 1200x800 mark ${first.mark}`,
         'seat local "Local" blue key w2',
         'seat s1 "s1" green at 200,400 key w1 (you)',
         'dock (2 items)',
