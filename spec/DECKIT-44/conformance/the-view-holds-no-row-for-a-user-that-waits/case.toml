@@ -1,14 +1,12 @@
-case = 28
-name = "allow-in-an-ask-s-row-seats-its-user"
-note = "The host ships the status bar and the seats mod by their ids, on the base shell, 1280 by 800, under a bar 32 high. With asking true, ada sits at s1 as mod-a, granted deckit.seats, allows her ask. bob attaches and waits. ada presses the item and then Allow in the row of bob's ask: bob sits at s2."
+case = 31
+name = "the-view-holds-no-row-for-a-user-that-waits"
+note = "The host ships the status bar and the seats mod by their ids, on the base shell, 1280 by 800, under a bar 32 high. With asking true, ada is answered yes at the machine and sits at s1. bob attaches and waits. ada presses the item and reads the view: the rows of the local seat and of ada, and none for bob, whose ask is the machine's."
 
 [host]
 base = "shell"
 api = "1.0.0"
 owners = ["deckit/commands"]
 mods = ["status-bar", "seats"]
-ship = ["mod-a"]
-system = ["mod-a"]
 bar = 32
 users = [{ id = "ada", name = "Ada Lovelace" }, { id = "bob", name = "Bob Hope" }]
 keys = [{ principal = "ada", key = "first" }, { principal = "bob", key = "second" }]
@@ -25,11 +23,9 @@ key = "first"
 waits = true
 
 [[step]]
-input = "call"
-mod = "mod-a"
-member = "seats.answer"
-handle = "shell"
-args = ["2", true]
+input = "answer"
+party = "p"
+allow = true
 
 [[step]]
 look = "admitted"
@@ -50,7 +46,7 @@ waits = true
 input = "ask"
 party = "p"
 method = "seat/read"
-params = { of = "window", window = "w2" }
+params = { of = "window", window = "w1" }
 
 [[step]]
 input = "ask"
@@ -68,24 +64,14 @@ params = { event = "pointer", type = "up", ref = "1.2", button = 0 }
 input = "ask"
 party = "p"
 method = "seat/read"
-params = { of = "window", window = "w3" }
+params = { of = "window", window = "w2" }
 
 [[step]]
 input = "ask"
 party = "p"
-method = "seat/input"
-params = { event = "pointer", type = "down", ref = "2.4", button = 0 }
-
-[[step]]
-input = "ask"
-party = "p"
-method = "seat/input"
-params = { event = "pointer", type = "up", ref = "2.4", button = 0 }
-
-[[step]]
-look = "admitted"
-party = "q"
-part = "seat"
+method = "seat/read"
+params = { of = "node", ref = "2.1" }
+part = "text"
 
 [step.expect]
-answers = { id = "s2", local = false, user = { id = "bob", name = "Bob Hope" } }
+answers = "group \"Seats\" 2.1 at 990,40 280x70\n  button \"Deckit conformance\" [not pressed] 2.2\n    text \"Deckit conformance\"\n  button \"Ada Lovelace\" [not pressed] 2.3\n    text \"Ada Lovelace\""
