@@ -360,6 +360,18 @@ async function main() {
         JSON.stringify(followed) === JSON.stringify({ x: -40, y: 0, width: 1280, height: 800 }),
         followed
     );
+    const own = { seat: 'local', camera: { x: 5, y: 6, width: 1280, height: 800 } };
+    const other = { seat: 's1', camera: { x: 100, y: 100, width: 1000, height: 600 } };
+    const shownOwn = CAMERA.shownBy(own, null, { width: 1280, height: 800 });
+    const shownOther = CAMERA.shownBy(own, other, { width: 1280, height: 800 });
+    check(
+        "the host window shows the local seat's screen, and while it follows a seat that seat's order through a camera " +
+            "of the host window's size centred on that seat's camera",
+        JSON.stringify(shownOwn) === JSON.stringify(own) &&
+            JSON.stringify(shownOther) ===
+                JSON.stringify({ seat: 's1', camera: { x: -40, y: 0, width: 1280, height: 800 } }),
+        [shownOwn, shownOther]
+    );
     const laid = CAMERA.laidOn(panned, [
         { page: 1, rect: { x: 283, y: 107, width: 720, height: 480 }, clip: { x: 283, y: 107, width: 10, height: 10 } },
         { page: 2, rect: { ...panned }, spread: { ...panned }, input: [{ x: 0, y: 0, width: 6, height: 800 }] },
@@ -3591,7 +3603,7 @@ async function followChecks({ LAYOUT, createDesktop }, check) {
     desk.desktop.control.hand.move(1, 100 - desk.frameOf(1).x, 300 - desk.frameOf(1).y);
     desk.desktop.control.hand.move(2, 500 - desk.frameOf(2).x, 300 - desk.frameOf(2).y);
     const other = desk.sit('s1');
-    desk.sit('s2');
+    const third = desk.sit('s2');
     const middle = ({ x, y, width, height }) => ({ x: x + width / 2, y: y + height / 2 });
     const pointer = (type, at) => ({ event: 'pointer', type, ...at, button: 0, count: 1 });
     const inWindow = (id) => middle(desk.desktop.control.windows().find((one) => one.id === id).frame);
@@ -3665,7 +3677,22 @@ async function followChecks({ LAYOUT, createDesktop }, check) {
     await machine({ event: 'key', type: 'down', code: 'KeyA', key: 'a' });
     await machine({ event: 'key', type: 'up', code: 'KeyA', key: 'a' });
     const byKey = view();
+    desk.enter(other, { event: 'screen', type: 'resize', width: 800, height: 600 });
+    desk.enter(third, pointer('move', { x: 900, y: 150 }));
     follow('s1');
+    const bar = desk.page().strip.height;
+    const [band, dock] = desk
+        .page()
+        .seats.find(({ id }) => id === 's2')
+        .under.slice(-2);
+    check(
+        "while it follows a seat whose screen is smaller, the band and the Dock a cursor is cut against are of the host's " +
+            "camera centred on that seat's: across the host window's top, and at its left edge halfway down",
+        JSON.stringify(band) === JSON.stringify({ x: 0, y: 0, width: 1200, height: bar, radius: 0 }) &&
+            dock.x < 0 &&
+            dock.y + dock.height / 2 === (bar + 800) / 2,
+        [band, dock]
+    );
     desk.leave(other);
     check('a key ends it, and so does the seat it follows leaving', byKey === own && view() === own, [byKey, view()]);
 }

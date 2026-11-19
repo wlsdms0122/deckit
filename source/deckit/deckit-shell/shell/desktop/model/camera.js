@@ -73,6 +73,13 @@ function centredOn(camera, { width, height }) {
     };
 }
 
+// The screen the host app's window shows, `{ seat, camera }`, the seat whose order it shows and the camera that is laid
+// in: `own`, the local seat's screen, or, while the local seat follows a seat, a camera of `size`, the host window's,
+// centred on the camera of `followed`, that seat's screen, in that seat's order.
+function shownBy(own, followed, size) {
+    return followed ? { seat: followed.seat, camera: centredOn(followed.camera, size) } : own;
+}
+
 // A point or a rect of the plane as it is on the screen `camera` shows, from the screen's top left.
 function onScreen(camera, at) {
     return { ...at, x: at.x - camera.x, y: at.y - camera.y };
@@ -98,4 +105,18 @@ function laidOn(camera, layers) {
     });
 }
 
-export { opened, isScreen, sized, panned, scrolled, reaches, meets, brought, centredOn, onScreen, onPlane, laidOn };
+export {
+    opened,
+    isScreen,
+    sized,
+    panned,
+    scrolled,
+    reaches,
+    meets,
+    brought,
+    centredOn,
+    shownBy,
+    onScreen,
+    onPlane,
+    laidOn,
+};
