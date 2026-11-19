@@ -761,9 +761,10 @@ async function run({
     // kept item to the first place shows it lifted there and leaves it there. An attached seat opens the menu of
     // another such item, which the page does not draw, reads it and chooses Keep in Dock; quits that app from its menu
     // and opens it again from its item; and drags the first kept item to the last place. The local seat's Dock shows
-    // each, and the seat reads the same order.
+    // each, and the seat reads the same order. The two items are the region parent's and the window user's, which is
+    // opened from the Mods mod first where it does not run.
     async function dockChecks({ seatA }) {
-        const { now, inDesktop, mouseAt } = dock;
+        const { now, inDesktop, mouseAt, opens } = dock;
         const drawn = () =>
             inDesktop(`(() => {
                 const at = (node) => {
@@ -800,7 +801,8 @@ async function run({
             await pointer('pointerenter');
             return stands(({ out, left }) => out && left === 0);
         };
-        const start = await drawn();
+        if (!(await now()).find(({ id }) => id === 'window-user')?.running) await opens('window-user');
+        const start = await stands(({ running }) => running.length >= 2, 10000);
         const [mine, theirs] = ids(start.running);
 
         // The context press comes with the pointer, the Dock sliding out yet: it is on the item drawn under it.
@@ -1043,11 +1045,12 @@ async function run({
         );
     }
 
-    // The person fixes an item, in the narrow room `room` wide where the item scrolls: the local seat's context press on
-    // it opens a menu of one entry in the frame's overlay, and Keep in Bar stands it whole in the fixed region left of
-    // the clock, where no turn of the wheel moves it. The frame's mod run again has it fixed still. Don't Keep in Bar
-    // lets it scroll again. A seat does the same at the surface: button 2 on the item as it reads it, then the entry
-    // as it reads it in the frame's overlay, and the one bar every screen shows has it fixed, and scrolling again.
+    // The person fixes an item, in the narrow room `room` wide where the item scrolls: the local seat's context press
+    // on it opens a menu of one entry in the frame's overlay, and Keep in Bar stands it whole in the fixed region left
+    // of the clock, where no turn of the wheel moves it. The frame's mod run again has it fixed still. Don't Keep in
+    // Bar lets it scroll again. A seat does the same at the surface: button 2 on the item as it reads it, then the
+    // entry as it reads it in the frame's overlay, and the one bar every screen shows has it fixed, and scrolling
+    // again.
     async function fixChecks({ seatA, send, room, band, over, turn, widthIn, star }) {
         const { capsuleNow, barPage, frame, overlay } = bar;
         const ENTRY = `.deckit-menu[data-state="open"] [role="menuitem"]`;
