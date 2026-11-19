@@ -1,6 +1,6 @@
 case = 31
-name = "a-user-is-refused-where-the-host-answers-no-ask"
-note = "With asking true, a user is refused where the host answers no ask: authenticate is refused at call with REFUSED, and the host closes the transport connection. The base system answers no ask to sit."
+name = "a-user-is-refused-where-the-host-takes-no-ask"
+note = "With asking true, a user is refused where the host takes no ask: authenticate is refused at call with REFUSED, and the host closes the transport connection. The base system takes no ask to sit."
 
 [host]
 base = "system"

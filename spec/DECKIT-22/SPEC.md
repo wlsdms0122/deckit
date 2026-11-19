@@ -64,7 +64,7 @@ A layer a host stacks names the permission that guards each request it handles, 
 
 **A press.** A press of a notification of the machine is one the host hands the system, as [notifications of the machine](../DECKIT-21/SPEC.md) fix it.
 
-**The ask to sit.** As a user waits under the setting `asking`, the system hands the host the user, as `{ id, name }`, and the host asks whoever is at the machine whether it may sit, as what the machine shows of itself, and answers yes or no, as [users and seats](../DECKIT-38/SPEC.md) fix admission. What the machine shows of the ask is the machine's. A host may answer no ask, as one with nothing to show it on, and the user is then refused.
+**The ask to sit.** As a user waits under the setting `asking`, the system hands the host the user, as `{ id, name }`, and the host asks whoever is at the machine whether it may sit, as what the machine shows of itself, and answers yes or no, as [users and seats](../DECKIT-38/SPEC.md) fix admission. What the machine shows of the ask is the machine's. A host may take no ask, as one with nothing to show it on, and the user is then refused.
 
 ### What the host tells a mod of itself
 

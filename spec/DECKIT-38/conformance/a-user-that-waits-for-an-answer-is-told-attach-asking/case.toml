@@ -1,6 +1,6 @@
 case = 26
 name = "a-user-that-waits-for-an-answer-is-told-attach-asking"
-note = "With asking true, the host sends a party whose proof verifies the notification attach/asking, which holds no params, before authenticate is answered. The host set asking before the first start, and ada attaches on a base that answers no ask, so it is refused after it is told."
+note = "With asking true, the host sends a party whose proof verifies the notification attach/asking, which holds no params, before authenticate is answered. The host set asking before the first start, and ada attaches on a base that takes no ask, so it is refused after it is told."
 
 [host]
 base = "system"
