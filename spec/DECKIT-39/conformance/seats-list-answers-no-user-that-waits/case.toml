@@ -1,6 +1,6 @@
 case = 26
-name = "seats-asks-answers-the-users-that-wait-in-the-order-they-asked"
-note = "seats.asks answers the users that wait for an answer, in the order they asked, each with the id of its ask and the user's name. With asking true, ada and then bob attach and wait: mod-a reads two asks, whose ids go on the count the local seat's id began, and seats.list answers the local seat alone, since neither sits."
+name = "seats-list-answers-no-user-that-waits"
+note = "A mod granted deckit.seats reads who sits and no ask: the ask is the machine's. With asking true, ada and then bob attach and wait: seats.list answers the local seat alone, since neither sits."
 
 [host]
 base = "shell"
@@ -27,15 +27,6 @@ party = "q"
 principal = "bob"
 key = "second"
 waits = true
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "seats.asks"
-handle = "shell"
-
-[step.expect]
-answers = [{ id = "2", name = "Ada Lovelace" }, { id = "3", name = "Bob Kahn" }]
 
 [[step]]
 input = "call"

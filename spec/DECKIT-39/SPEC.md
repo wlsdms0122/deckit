@@ -5,7 +5,7 @@ Area: shell
 
 ## Summary
 
-The shell serves the seats of [users and seats](../DECKIT-38/SPEC.md): every seat has the desktop for itself. This DECKIT fixes what of the desktop each seat has of its own and what every seat shares, each seat's screen and camera and the event `screen` that sizes them, the seat a mod acts for, which seat **holds** a window's keyboard and how an idle holder gives it up, what `seat/input` takes and answers for a pointer, a key and a text event, the output `held`, the colour a seat is told apart by, and the member `seats` of the handle `shell` with its permission `deckit.seats`, by which a mod reads who sits and who asks to, answers an ask, and has the host app's window follow a seat.
+The shell serves the seats of [users and seats](../DECKIT-38/SPEC.md): every seat has the desktop for itself. This DECKIT fixes what of the desktop each seat has of its own and what every seat shares, each seat's screen and camera and the event `screen` that sizes them, the seat a mod acts for, which seat **holds** a window's keyboard and how an idle holder gives it up, what `seat/input` takes and answers for a pointer, a key and a text event, the output `held`, the colour a seat is told apart by, and the member `seats` of the handle `shell` with its permission `deckit.seats`, by which a mod reads who sits and has the host app's window follow a seat.
 
 ## Motivation
 
@@ -15,7 +15,7 @@ The shell serves the seats of [users and seats](../DECKIT-38/SPEC.md): every sea
 - Two seats press the same window. One implementation hands the keyboard to the last press, and what the first seat types is cut in the middle of a word; another keeps it with the first for ever, though that seat left its devices an hour ago.
 - A party sends a press at a point. One implementation answers nothing, another which window took it, and a party that cannot see the screen has no way to tell whether the keys it sends next go where it pressed.
 
-A user's run is handed nothing but the requests of a seat, so nothing a mod or a host has in the live set could give a seat its own key window, and no mod could seat a user that asks: the shell alone knows the desktop's order.
+A user's run is handed nothing but the requests of a seat, so nothing a mod or a host has in the live set could give a seat its own key window: the shell alone knows the desktop's order.
 
 ## Rules
 
@@ -91,7 +91,7 @@ It is told from the moment a seat opens, and watched and turned off by `seat/wat
 
 ### What the shell names
 
-The shell serves input, a reading and the ask, as [users and seats](../DECKIT-38/SPEC.md) fixes what a layer serves. It takes these kinds of device, and tells the output `held`, under *The holder*, from the moment a seat opens; the outputs it reads, and `changes`, which it tells too, are those of [what a seat reads](../DECKIT-40/SPEC.md).
+The shell serves input and a reading, as [users and seats](../DECKIT-38/SPEC.md) fixes what a layer serves. It takes these kinds of device, and tells the output `held`, under *The holder*, from the moment a seat opens; the outputs it reads, and `changes`, which it tells too, are those of [what a seat reads](../DECKIT-40/SPEC.md).
 
 | `event` | `type` |
 |---|---|
@@ -171,20 +171,18 @@ Each seat is told apart by a **colour**, one of six names, in this order: `blue`
 | member | takes | answers |
 |---|---|---|
 | `seats.list()` | nothing | an array, the open seats in the order they opened: each `{ id, name, colour, idle, following }` |
-| `seats.asks()` | nothing | an array, the users that wait for an answer under [admission](../DECKIT-38/SPEC.md), in the order they asked: each `{ id, name }` |
-| `seats.answer(ask, allow)` | an ask's `id`, and a boolean | `true` where an ask of that id waited, which is answered `allow`; `false` otherwise, and nothing is done |
 | `seats.follow(seat)` | a seat's `id`, or null | whether the host app's window follows that seat now, under *Following* |
-| `seats.onChange(listener)` | a function | a function that ends the registration; `listener` is called with nothing as what `list()` or `asks()` answers changes |
+| `seats.onChange(listener)` | a function | a function that ends the registration; `listener` is called with nothing as what `list()` answers changes |
 
-In what `list()` answers, `name` is the name of the seat's user, `colour` the seat's colour, `idle` whether the seat is idle, and `following` whether the host app's window follows it. In what `asks()` answers, `name` is the name of the user that asks.
+In what `list()` answers, `name` is the name of the seat's user, `colour` the seat's colour, `idle` whether the seat is idle, and `following` whether the host app's window follows it.
 
-An `id` here is the shell's own, a string, and not the seat's id of [users and seats](../DECKIT-38/SPEC.md): the shell gives one to each seat as it opens and to each ask as it begins to wait, the count of the ids it gave since the host app started, from 1, written in decimal digits. A seat or an ask keeps its id until the seat closes or the ask is answered or its party left, and no id is given twice in a start. An id says nothing of what it names: none tells one seat from another by its form.
+An `id` here is the shell's own, a string, and not the seat's id of [users and seats](../DECKIT-38/SPEC.md): the shell gives one to each seat as it opens, the count of the ids it gave since the host app started, from 1, written in decimal digits. A seat keeps its id until it closes, and no id is given twice in a start. An id says nothing of what it names: none tells one seat from another by its form.
 
-`seats.answer` answers the ask whichever seat's press made the mod call it, and `seats.follow` likewise: no member is handed a seat, and no member says which seat acts.
+`seats.follow` does the same whichever seat's press made the mod call it: no member is handed the seat that acts, and no member says which seat acts.
 
-A request is refused at `call` with kind `NOT_PERMITTED` for a mod not granted `deckit.seats`, then with kind `INVALID_ARGUMENT` where `ask` is no string, `allow` no boolean, or `seat` neither a string nor null. `onChange` throws at `call` with kind `NOT_PERMITTED` for such a mod, then with kind `INVALID_ARGUMENT` handed what is no function. Through a cut handle each is refused with kind `ENDED`, as [the shell](../DECKIT-29/SPEC.md) refuses a member of one.
+A request is refused at `call` with kind `NOT_PERMITTED` for a mod not granted `deckit.seats`, then with kind `INVALID_ARGUMENT` where `seat` is neither a string nor null. `onChange` throws at `call` with kind `NOT_PERMITTED` for such a mod, then with kind `INVALID_ARGUMENT` handed what is no function. Through a cut handle each is refused with kind `ENDED`, as [the shell](../DECKIT-29/SPEC.md) refuses a member of one.
 
-**Note.** Who may answer an ask and who may have the window follow is not settled. As it stands, whoever sits at any seat does both through a mod granted `deckit.seats`, and the permission is the whole of the rule. A later DECKIT that parts what a seat may do moves this decision, and nothing here should be read as deciding that every seat may.
+**Note.** Who may have the window follow is not settled. As it stands, whoever sits at any seat has it follow through a mod granted `deckit.seats`, and the permission is the whole of the rule. A later DECKIT that parts what a seat may do moves this decision, and nothing here should be read as deciding that every seat may.
 
 ### Following
 
@@ -204,13 +202,13 @@ While the window follows a seat, the machine's own pointer and keyboard reach no
 
 | id | name | description | privileged |
 |---|---|---|---|
-| `deckit.seats` | Seats | It can see who sits at the desktop and who asks to, answer one that asks, and show the view of one that sits. | yes |
+| `deckit.seats` | Seats | It can see who sits at the desktop, and show the view of one that sits. | yes |
 
 It guards every member of `shell.seats`.
 
 ## Interactions
 
-- A user, a seat and its id, the local seat, admission and the ask, `idleTime` and when a seat is idle, `seat/input`, `seat/watch`, `seat/output`, what a layer serves and names, and the refusals of a seat's requests: [users and seats](../DECKIT-38/SPEC.md). The shell is the layer that serves input, a reading and the ask.
+- A user, a seat and its id, the local seat, admission, `idleTime` and when a seat is idle, `seat/input`, `seat/watch`, `seat/output`, what a layer serves and names, and the refusals of a seat's requests: [users and seats](../DECKIT-38/SPEC.md). The shell is the layer that serves input and a reading.
 - The desktop, its order, the key window, the levels, the person's hand, a window's frame, zoom and tile, `didBecomeKey` and `didResignKey`: [windows](../DECKIT-31/SPEC.md).
 - The active mod, who may activate, input and a request, a mod held back and attention: [activation](../DECKIT-32/SPEC.md).
 - The Dock, its items and marks, a click, the menu and the drag of an item: [the Dock](../DECKIT-33/SPEC.md).
@@ -231,6 +229,7 @@ It guards every member of `shell.seats`.
 - A holder that never gives up. A seat that left its devices would keep a window from every other for as long as its run goes; the idle time a host sets ends that.
 - Every rule of the desktop written again for a seat in its own DECKIT. Four DECKITs would say each thing twice; one rule reads them for each seat, as [a party from outside](../DECKIT-37/SPEC.md) reads a run for its principal.
 - A seat named in what a mod is handed, so a mod acts for the seat that asked. A mod would tell seats apart, and with them who asks; the shell keeps for which seat a mod acts.
+- `shell.seats` reading and answering the users that ask to sit. Who sits is the machine's, as [users and seats](../DECKIT-38/SPEC.md) part every state, and a mod acts in the shared state for whichever seat's input reaches it, so a seat from outside would admit or refuse another; the host asks whoever is at the machine.
 - The ids of `shell.seats` being the seats' own ids. `local` would tell a mod which seat is the machine's; an id here is a count.
 - A content's focus that follows each seat's key window. A seat's key window is its own: a press of one seat elsewhere would blur the content another seat holds, and close there what closes as it blurs, as a menu.
 - A pointer over a page for each seat. A page would hear several pointers and tell them apart, and with them the seats; a page has one, which the last move of any seat places.
