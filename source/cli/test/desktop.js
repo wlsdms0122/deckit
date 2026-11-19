@@ -389,6 +389,20 @@ async function main() {
         onScreen.y === 50 && onPlane.y === 150 && onPlane.x === 100,
         [onScreen, onPlane]
     );
+    const further = LAYOUT.desktopOf({ x: 0, y: 500, width: 1280, height: 800 }, 28);
+    const sizes = [
+        LAYOUT.sizedIn({ x: 100, y: 300, width: 200, height: 200 }, { width: 300.5, height: 250 }, further, 28),
+        LAYOUT.sizedIn({ x: 100, y: 700, width: 200, height: 200 }, { width: 300, height: 250 }, further, 28),
+    ];
+    check(
+        "a mod's resize keeps the top left, brought into reach of the camera of the seat it acts for, its size as given",
+        JSON.stringify(sizes) ===
+            JSON.stringify([
+                { x: 100, y: 528, width: 300.5, height: 250 },
+                { x: 100, y: 700, width: 300, height: 250 },
+            ]),
+        sizes
+    );
     const size = { width: 400, height: 300 };
     const centred = LAYOUT.placed({ size, desktop });
     const cascaded = LAYOUT.placed({ size, after: { x: 100, y: 100, ...size }, desktop });
@@ -3426,7 +3440,7 @@ async function cameraChecks({ LAYOUT, createDesktop }, check) {
     desk.desktop.control.show();
     const page = { name: 'page-a', mod: 'a' };
     const content = { name: 'content-1', of: page };
-    desk.desktop.open({
+    const opened = {
         id: 1,
         mod: 'a',
         name: 'w1',
@@ -3436,7 +3450,8 @@ async function cameraChecks({ LAYOUT, createDesktop }, check) {
         size: { width: 200, height: 200 },
         minimum: { width: 0, height: 0 },
         bar: LAYOUT.DEFAULT_BAR,
-    });
+    };
+    desk.desktop.open(opened);
     desk.openSurfaces(1);
     const local = desk.seats.open[0];
     const cameraNow = async () => (await desk.seats.served.read(local, { of: 'desktop', format: 'json' })).data.desktop;
@@ -3455,6 +3470,15 @@ async function cameraChecks({ LAYOUT, createDesktop }, check) {
             "desktop's page does not",
         before.y === 0 && onWindow.y === 0 && onBar.y === 0 && onDesktop.y === 100 && onDesktop.x === 0,
         { before, onWindow, onBar, onDesktop, window }
+    );
+    for (let more = 0; more < 4; more++) await scroll(desk.backdrop, 5, 700);
+    const away = desk.desktop.control.windows().find(({ id }) => id === 1).frame;
+    desk.desktop.resize(opened, { width: 250, height: 220 });
+    const resized = desk.desktop.control.windows().find(({ id }) => id === 1).frame;
+    check(
+        "a mod's resize of a window out of the local seat's camera brings it into reach there, its left kept",
+        resized.x === away.x && resized.y === 528 && resized.width === 250 && resized.height === 220,
+        { away, resized, camera: await cameraNow() }
     );
 }
 

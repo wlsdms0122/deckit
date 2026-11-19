@@ -480,10 +480,13 @@ export function createDesktop({
         if (key) tile(seat, key, name);
     }
 
+    // A mod's resize of its window: the size set, its top left where it was, brought into reach in the camera of the
+    // seat the mod acts for, the local seat's where none.
     function resize(window, { width, height }) {
         const frame = MANAGER.frameOf(window.id);
         if (!frame) return;
-        MANAGER.setFrame(null, window.id, { ...frame, width, height });
+        const seat = ACTIVATION.causeOf(window.mod) ?? LOCAL;
+        MANAGER.setFrame(seat, window.id, LAYOUT.sizedIn(frame, { width, height }, area(seat), window.bar.height));
         remember(window);
         update();
     }

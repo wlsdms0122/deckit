@@ -95,6 +95,13 @@ function kept({ x, y, width, height }, desktop, bar = TITLE_BAR.height) {
     });
 }
 
+// The frame a mod's resize sets of a window at `frame`: `size`, its top left where it was, then brought into reach of
+// `desktop`, the camera under the bar of the seat the mod acts for, as kept brings it; its size as it is.
+function sizedIn(frame, { width, height }, desktop, bar = TITLE_BAR.height) {
+    const { x, y } = kept({ ...frame, width, height }, desktop, bar);
+    return { x, y, width, height };
+}
+
 // The frames of the panel windows in the bar, each `{ size }`, in the order they opened, in a stage `width` wide with
 // the host's bar `bar` high across its top. They stand in the bar right to left from PANEL.margin in from its right
 // end, PANEL.gap apart, each no higher than the bar and centred on its height.
@@ -307,6 +314,7 @@ export {
     minimumOf,
     placed,
     kept,
+    sizedIn,
     panelsIn,
     roomsIn,
     panelRadius,
