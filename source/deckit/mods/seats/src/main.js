@@ -3,8 +3,8 @@ const { seats } = require('./seats/seats.js');
 const COMMAND = 'show';
 const INTERFACE = 'status-bar/items';
 
-// Who sits at the desktop, in the status bar: an item that is there while a seat sits beside the first or a user
-// asks to sit, and under it a view of the asks and the seats. It runs from the start; what it knows of the seats is
+// Who sits at the desktop, in the status bar: an item that is there while a seat sits beside the first, and under it
+// a view of the seats. It runs from the start; what it knows of the seats is
 // the shell's to tell (`shell.seats`), so its item stands only while a screen does.
 class Seats {
     // The status bar's exports, while it is connected.

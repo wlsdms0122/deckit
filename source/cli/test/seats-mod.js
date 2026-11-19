@@ -1,8 +1,7 @@
-// The Seats mod (mods/seats). Its model (src/seats/model/seats.js): the item from who sits and who asks, the seat that
-// came, the rows of the view, and its size. Then the mod itself over stand-ins for the handles, the kit and the
-// document: its item comes with a second seat and goes with it, is labelled with a seat that sat for a while, asks
-// for attention while a user asks, its command opens its view under its item and toggles it, an ask's row answers by
-// its two buttons, and a seat's row follows its seat. Exits 1 with a line for each check that failed.
+// The Seats mod (mods/seats). Its model (src/seats/model/seats.js): the item from who sits, the seat that came, the
+// rows of the view, and its size. Then the mod itself over stand-ins for the handles, the kit and the document: its
+// item comes with a second seat and goes with it, is labelled with a seat that sat for a while, its command opens its
+// view under its item and toggles it, and a seat's row follows its seat. Exits 1 with a line for each check that failed.
 const path = require('path');
 
 const MODS = path.join(__dirname, '..', '..', 'deckit', 'mods');
@@ -20,32 +19,22 @@ const seat = (id, name, more = {}) => ({ id, name, colour: 'blue', idle: false, 
 
 function modelChecks() {
     const { itemOf, cameOf, rowsOf, sizeOf, VIEW } = MODEL;
-    const one = { seats: [seat('1', 'Host')], asks: [] };
-    const two = { seats: [seat('1', 'Host'), seat('2', 'Ada')], asks: [] };
-    const asked = { seats: [seat('1', 'Host')], asks: [{ id: '3', name: 'Lin' }] };
+    const one = { seats: [seat('1', 'Host')] };
+    const two = { seats: [seat('1', 'Host'), seat('2', 'Ada')] };
     check(
-        'the item is there while a seat sits beside the first or an ask waits, and not for one seat alone',
+        'the item is there while a seat sits beside the first, in the plain tone, and not for one seat alone',
         itemOf(one) === null &&
-            same(itemOf(two), { name: 'Seats', icon: 'users', command: 'show', label: '', count: 1, tone: 'plain' }) &&
-            same(itemOf(asked), {
-                name: 'Seats',
-                icon: 'users',
-                command: 'show',
-                label: '',
-                count: null,
-                tone: 'attention',
-            }),
-        [itemOf(one), itemOf(two), itemOf(asked)]
+            same(itemOf(two), { name: 'Seats', icon: 'users', command: 'show', label: '', count: 1, tone: 'plain' }),
+        [itemOf(one), itemOf(two)]
     );
-    const long = { seats: [seat('1', 'Host'), seat('2', 'A'.repeat(30))], asks: [{ id: '3', name: 'Lin' }] };
+    const long = { seats: [seat('1', 'Host'), seat('2', 'A'.repeat(30))] };
     check(
         'its count is the seats beside the first, its label the seat greeted while it sits, cut to what a label holds',
         itemOf(two, '2').label === 'Ada' &&
             itemOf(two, '9').label === '' &&
             itemOf(long, '2').label === 'A'.repeat(23) + '…' &&
             itemOf(long, '2').label.length === MODEL.LETTERS &&
-            itemOf({ seats: [...two.seats, seat('4', 'Grace')], asks: [] }).count === 2 &&
-            itemOf(long).tone === 'attention',
+            itemOf({ seats: [...two.seats, seat('4', 'Grace')] }).count === 2,
         [itemOf(two, '2'), itemOf(long, '2')]
     );
     check(
@@ -53,7 +42,7 @@ function modelChecks() {
         cameOf(one, two) === '2' &&
             cameOf(two, one) === null &&
             cameOf(two, two) === null &&
-            cameOf(one, { seats: [...two.seats, seat('4', 'Grace')], asks: [] }) === '4',
+            cameOf(one, { seats: [...two.seats, seat('4', 'Grace')] }) === '4',
         [cameOf(one, two), cameOf(two, one)]
     );
     const rows = rowsOf({
@@ -62,31 +51,27 @@ function modelChecks() {
             seat('2', 'Ada', { idle: true, colour: 'green' }),
             seat('4', 'Grace', { following: true }),
         ],
-        asks: [{ id: '3', name: 'Lin' }],
     });
     check(
-        'the rows are the asks, then every seat, each called by its name and what is so of it',
+        'the rows are every seat, each called by its name and what is so of it',
         same(
-            rows.map(({ key, kind, says, label }) => [key, kind, says, label]),
+            rows.map(({ key, says, label }) => [key, says, label]),
             [
-                ['ask 3', 'ask', 'asks to sit', 'Lin asks to sit'],
-                ['seat 1', 'seat', '', 'Host'],
-                ['seat 2', 'seat', 'idle', 'Ada, idle'],
-                ['seat 4', 'seat', 'following', 'Grace, following'],
+                ['seat 1', '', 'Host'],
+                ['seat 2', 'idle', 'Ada, idle'],
+                ['seat 4', 'following', 'Grace, following'],
             ]
         ) &&
-            rows[2].colour === 'green' &&
-            rows[2].idle === true &&
-            rows[3].following === true &&
-            rows[0].id === '3',
+            rows[1].colour === 'green' &&
+            rows[1].idle === true &&
+            rows[2].following === true &&
+            rows[0].id === '1',
         rows
     );
     check(
-        'the view is as high as its rows, an ask higher than a seat, with the room between and the padding round them',
-        same(sizeOf(rows), {
-            width: VIEW.width,
-            height: 2 * VIEW.padding + VIEW.ask + 3 * VIEW.seat + 3 * VIEW.gap,
-        }) && same(sizeOf([]), { width: VIEW.width, height: 2 * VIEW.padding }),
+        'the view is as high as its rows, with the room between and the padding round them',
+        same(sizeOf(rows), { width: VIEW.width, height: 2 * VIEW.padding + 3 * VIEW.row + 2 * VIEW.gap }) &&
+            same(sizeOf([]), { width: VIEW.width, height: 2 * VIEW.padding }),
         sizeOf(rows)
     );
 }
@@ -142,19 +127,13 @@ function made(tag, options) {
 
 // The handles: the seats as the test sets them, each call the mod made of them, the bar's exports, and the windows.
 function world() {
-    const state = { seats: [seat('1', 'Host')], asks: [] };
-    const calls = { answer: [], follow: [], set: [], removed: 0, opened: [], toggled: 0, resized: [] };
+    const state = { seats: [seat('1', 'Host')] };
+    const calls = { follow: [], set: [], removed: 0, opened: [], toggled: 0, resized: [] };
     const heard = { change: null, connect: null, exports: null, styles: '' };
     const ui = {
         element: made,
         addStyle: (rules) => (heard.styles += rules),
         row: () => ({ element: made('div', { className: 'deckit-row' }) }),
-        button: ({ label, variant, onClick }) => {
-            const button = made('button', { text: label });
-            button.variant = variant;
-            button.addEventListener('click', onClick);
-            return { element: button };
-        },
         list: ({ key, create, update }) => {
             const list = made('div');
             const kept = new Map();
@@ -175,12 +154,10 @@ function world() {
         ui,
         seats: {
             list: async () => state.seats.map((each) => ({ ...each })),
-            asks: async () => state.asks.map((each) => ({ ...each })),
             onChange: (listener) => {
                 heard.change = listener;
                 return () => (heard.change = null);
             },
-            answer: async (ask, allow) => calls.answer.push([ask, allow]) > 0,
             follow: async (id) => calls.follow.push(id) > 0,
         },
         windows: {
@@ -239,12 +216,6 @@ async function modChecks() {
             calls.set.at(-1).count === 1,
         [greeting, waits, calls.set.at(-1)]
     );
-    await change({ asks: [{ id: '3', name: 'Lin' }] });
-    check(
-        'the item asks for attention while a user asks to sit',
-        calls.set.at(-1).tone === 'attention' && calls.set.at(-1).label === '',
-        calls.set.at(-1)
-    );
     const run = heard.exports.connect().runCommand;
     await run('show');
     const opened = calls.opened[0];
@@ -265,17 +236,12 @@ async function modChecks() {
         [opened, calls.toggled, refused]
     );
     const rowsNow = () => opened.content.children[0].children;
-    const [ask, host, ada] = rowsNow();
-    const [, , deny, allow] = ask.children;
+    const [host, ada] = rowsNow();
     check(
-        'the view is a group of rows: an ask first, named, with Deny and Allow, then each seat a button in its colour',
+        'the view is a group of rows, each seat a button in its colour, and nothing else',
         opened.content.attributes.role === 'group' &&
             opened.content.attributes['aria-label'] === 'Seats' &&
-            ask.attributes.role === 'group' &&
-            ask.attributes['aria-label'] === 'Lin asks to sit' &&
-            [deny.textContent, allow.textContent].join() === 'Deny,Allow' &&
-            [deny.attributes['aria-label'], allow.attributes['aria-label']].join() === 'Deny Lin,Allow Lin' &&
-            allow.variant === 'primary' &&
+            rowsNow().length === 2 &&
             host.attributes.role === 'button' &&
             host.attributes['aria-label'] === 'Host' &&
             ada.attributes['aria-label'] === 'Ada' &&
@@ -283,28 +249,15 @@ async function modChecks() {
             ada.children[1].textContent === 'Ada',
         rowsNow().map(({ attributes }) => attributes)
     );
-    allow.fire('click');
-    deny.fire('click');
-    check(
-        'a press on Allow or Deny answers the ask, for whoever pressed',
-        same(calls.answer, [
-            ['3', true],
-            ['3', false],
-        ]),
-        calls.answer
-    );
     await change({ seats: [seat('1', 'Host'), seat('2', 'Ada', { colour: 'green', idle: true })] });
-    const stood = [rowsNow()[0].children[3] === allow, rowsNow()[0].children[2] === deny, rowsNow()[2] === ada];
+    const stood = [rowsNow()[0] === host, rowsNow()[1] === ada];
     check(
-        "as a seat's state changes an ask's answers keep their elements, and the seat's row says the state",
-        same(stood, [true, true, true]) && ada.children[2].textContent === 'idle',
+        "as a seat's state changes the rows keep their elements, and the seat's row says the state",
+        same(stood, [true, true]) && ada.children[2].textContent === 'idle',
         [stood, ada.children[2]?.textContent]
     );
     ada.fire('click');
-    await change({
-        asks: [],
-        seats: [seat('1', 'Host'), seat('2', 'Ada', { colour: 'green', following: true, idle: true })],
-    });
+    await change({ seats: [seat('1', 'Host'), seat('2', 'Ada', { colour: 'green', following: true, idle: true })] });
     const followed = rowsNow()[1];
     followed.fire('click');
     let kept = false;
