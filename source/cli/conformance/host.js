@@ -468,11 +468,10 @@ async function told() {
             if (run.state === 'running') await quiet.invoke(page, {}).catch(() => {});
 }
 
-// The windows the person sees, back to front: those on the desktop, then the panel windows, in the order they opened,
-// none of them key, then those floating over every app, each `{ mod, name, level, frame, key, minimized }`, `name` null
-// for a web page's window, which has none. With `seat`, those the user at that seat sees: its own order, key window
-// and minimized windows, the panel windows on its screen, and those floating for the local seat alone, whose screen
-// the machine's is.
+// The windows the user at `seat` sees, the local seat where none, back to front: those on the desktop in its order,
+// with its key window and minimized windows, then the panel windows on its screen, in the order they opened, none of
+// them key, then those floating over every app, for the local seat alone, whose screen the machine's is. Each
+// `{ mod, name, level, frame, key, minimized }`, `name` null for a web page's window, which has none.
 function windowsSeen(seat) {
     const normal = (controls?.desktop.windows(seat) ?? []).map(({ mod, name, frame, key, minimized }) => ({
         mod,
@@ -482,7 +481,7 @@ function windowsSeen(seat) {
         key,
         minimized,
     }));
-    const inBar = (controls?.desktop.panels(seat) ?? []).map(({ mod, name, frame }) => ({
+    const inBar = (controls?.desktop.panels(seat ?? LOCAL_SEAT) ?? []).map(({ mod, name, frame }) => ({
         mod,
         name,
         level: 'panel',
