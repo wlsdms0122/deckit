@@ -37,4 +37,4 @@ method = "seat/read"
 params = { of = "desktop" }
 
 [step.expect]
-answers = { text = "desktop 1280x800 mark 8\nseat local \"Deckit conformance\" blue\nseat s1 \"Ada Lovelace\" green at 100,100\nseat s2 \"Bob Kahn\" orange (you)\ndock (1 items)\n  item \"mod-a\" [running] dock.mod-a\nwindow w1 \"mod-a\" mod-a at 283,107 720x480", mark = 8 }
+answers = { text = "desktop at 0,0 1280x800 mark 8\nseat local \"Deckit conformance\" blue\nseat s1 \"Ada Lovelace\" green at 100,100\nseat s2 \"Bob Kahn\" orange (you)\ndock (1 items)\n  item \"mod-a\" [running] dock.mod-a\nwindow w1 \"mod-a\" mod-a at 283,107 720x480", mark = 8 }

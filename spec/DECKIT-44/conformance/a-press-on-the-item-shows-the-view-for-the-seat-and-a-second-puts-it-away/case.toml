@@ -56,7 +56,7 @@ params = { of = "desktop" }
 part = "text"
 
 [step.expect]
-answers = "desktop 1280x800 mark \u001A\nseat local \"Deckit conformance\" blue\nseat s1 \"Ada Lovelace\" green at \u001A,16 (you)\ndock (0 items)\npanel w1 \"Status Bar\" status-bar top at \u001A,2 \u001Ax28\npanel w2 \"Seats\" seats at 990,40 280x80 [key s1]"
+answers = "desktop at 0,0 1280x800 mark \u001A\nseat local \"Deckit conformance\" blue\nseat s1 \"Ada Lovelace\" green at \u001A,16 (you)\ndock (0 items)\npanel w1 \"Status Bar\" status-bar top at \u001A,2 \u001Ax28\npanel w2 \"Seats\" seats at 990,40 280x80 [key s1]"
 
 [[step]]
 input = "ask"
@@ -78,4 +78,4 @@ params = { of = "desktop" }
 part = "text"
 
 [step.expect]
-answers = "desktop 1280x800 mark \u001A\nseat local \"Deckit conformance\" blue\nseat s1 \"Ada Lovelace\" green at \u001A,16 (you)\ndock (0 items)\npanel w1 \"Status Bar\" status-bar top at \u001A,2 \u001Ax28"
+answers = "desktop at 0,0 1280x800 mark \u001A\nseat local \"Deckit conformance\" blue\nseat s1 \"Ada Lovelace\" green at \u001A,16 (you)\ndock (0 items)\npanel w1 \"Status Bar\" status-bar top at \u001A,2 \u001Ax28"
