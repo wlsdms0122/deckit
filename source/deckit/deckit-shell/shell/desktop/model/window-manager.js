@@ -138,18 +138,6 @@ function createWindowManager({ isIdle = () => false, onTaken = () => {} } = {}) 
         window.zoomed = null;
     }
 
-    // Every zoomed window fills `area`, and every tiled one takes its tile's frame of `tileOf(name)`, as the desktop
-    // they fill changes size.
-    function fitZoomed(area, tileOf) {
-        for (const window of windows.values()) {
-            const tiled = window.tiled && fitted(tileOf(window.tiled.name), window.minimum);
-            if (window.zoomed) {
-                window.frame = fitted(area, window.minimum);
-                if (tiled) window.zoomed = tiled;
-            } else if (tiled) window.frame = tiled;
-        }
-    }
-
     // The windows on `seat`'s screen, back to front, without those it minimized: `[{ id, frame }]`.
     function viewOf(seat) {
         const held = seats.get(seat);
@@ -239,7 +227,6 @@ function createWindowManager({ isIdle = () => false, onTaken = () => {} } = {}) 
         zoom,
         tile,
         untile,
-        fitZoomed,
         viewOf,
         keyOf,
         orderOf,

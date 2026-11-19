@@ -5,7 +5,7 @@ Area: shell
 
 ## Summary
 
-The shell serves the seats of [users and seats](../DECKIT-38/SPEC.md): every seat has the desktop for itself. This DECKIT fixes what of the desktop each seat has of its own and what every seat shares, the seat a mod acts for, which seat **holds** a window's keyboard and how an idle holder gives it up, what `seat/input` takes and answers for a pointer, a key and a text event, the output `held`, the colour a seat is told apart by, and the member `seats` of the handle `shell` with its permission `deckit.seats`, by which a mod reads who sits and who asks to, answers an ask, and has the host app's window follow a seat.
+The shell serves the seats of [users and seats](../DECKIT-38/SPEC.md): every seat has the desktop for itself. This DECKIT fixes what of the desktop each seat has of its own and what every seat shares, each seat's screen and camera and the event `screen` that sizes them, the seat a mod acts for, which seat **holds** a window's keyboard and how an idle holder gives it up, what `seat/input` takes and answers for a pointer, a key and a text event, the output `held`, the colour a seat is told apart by, and the member `seats` of the handle `shell` with its permission `deckit.seats`, by which a mod reads who sits and who asks to, answers an ask, and has the host app's window follow a seat.
 
 ## Motivation
 
@@ -25,6 +25,7 @@ Every rule of [windows](../DECKIT-31/SPEC.md), [activation](../DECKIT-32/SPEC.md
 
 | kept for each seat | kept once, for every seat |
 |---|---|
+| its screen's size and its camera | a panel window's room and a view's size, by the host app's window |
 | the desktop's order | which windows are open, and each one's frame, zoom and tile, and the dialog a page asks in one |
 | the key window, and with it the active mod | the Dock's items and which are kept |
 | which windows it minimized | each mod's run |
@@ -34,13 +35,21 @@ Every rule of [windows](../DECKIT-31/SPEC.md), [activation](../DECKIT-32/SPEC.md
 
 So a press of a seat brings a window in front in that seat's order and makes it that seat's key window, input of a seat lets a mod activate for that seat, a mod held back for a seat asks for that seat's attention, and a shell key a seat pressed closes, minimizes or cycles by that seat's order. No other seat's order, key window or marks change by it. A window a seat closes is closed for every seat, and one a seat moves, sizes, zooms or tiles stands so for every seat.
 
+Each seat has its **screen**, on which it sees the desktop through its own **camera**, as [windows](../DECKIT-31/SPEC.md) fixes the camera the host app's window shows. The local seat's screen is the host app's window; another seat's is the size it tells under *A screen event*, and the size of the host app's window until it tells one. A seat's camera is as large as its screen, and the bar, the Dock and the zoom area are of each seat's camera, so a rule of windows that speaks of the camera speaks of one seat's:
+
+- a tile, the zoom area a window is zoomed to and an edge met are of the zoom area of the seat whose hand or key it is;
+- a frame let go is brought into reach of the camera of the seat whose hand let it go, and a window that opens, or that `resize` sizes, is placed and brought into reach in the camera of the seat its mod acts for, under *The seat a mod acts for*, and in the local seat's where it acts for none;
+- a seat's camera moves as a scroll of that seat on the desktop moves it, and as a window becomes that seat's key window while it is out of reach, and no other seat's camera moves by it.
+
+What is sized once, for every seat, is sized by the host app's window: a panel window's room in the bar, and a view's size, as [views](../DECKIT-41/SPEC.md) bound it. Where each stands is each seat's: a panel window in the bar, and a view under its anchor or at its place, stand on each seat's screen in that seat's camera.
+
 A window that opens stands in each seat's order where [windows](../DECKIT-31/SPEC.md) places a window that opens, by that seat's key window. A window its mod brings in front comes in front for each seat by that seat's own record: for a seat the mod may activate for, as [activation](../DECKIT-32/SPEC.md) brings the window of a mod that may activate, and for any other, as it brings that of a mod held back.
 
-A seat that opens has every open window in its order, in the order they opened, none minimized and none key. A seat that closes holds nothing any more: no window is key or minimized by it.
+A seat that opens has every open window in its order, in the order they opened, none minimized and none key, and its camera's top left where the local seat's camera's is then. A seat that closes holds nothing any more: no window is key or minimized by it.
 
 What the content of a window asks of its own window where [windows](../DECKIT-31/SPEC.md) gives the content the person's hand, such as the drag of its bar, is done for the seat that pressed the window last, and for the local seat where none pressed it.
 
-The local seat's desktop is what the host app's window shows, but while it follows another seat, under *Following*.
+The local seat's camera is what the host app's window shows, but while it follows another seat, under *Following*.
 
 An overlay window, which the host floats outside the desktop as [windows](../DECKIT-31/SPEC.md) fixes it, is on no seat's desktop: it stands in no seat's order, and only the machine's own devices reach it. A seat a transport connection opened neither reads it nor points at it.
 
@@ -89,6 +98,7 @@ The shell serves input, a reading and the ask, as [users and seats](../DECKIT-38
 | `pointer` | `move`, `down`, `up`, `scroll` |
 | `key` | `down`, `up` |
 | `text` | `insert`, `compose`, `commit`, `cancel` |
+| `screen` | `resize` |
 
 ### A pointer event
 
@@ -96,7 +106,7 @@ The shell serves input, a reading and the ask, as [users and seats](../DECKIT-38
 
 | key | value | read for |
 |---|---|---|
-| `x`, `y` | numbers: a point of the desktop, from its top left | every type |
+| `x`, `y` | numbers: a point of the desktop, as [windows](../DECKIT-31/SPEC.md) sets `x` and `y` | every type |
 | `ref` | a string: what a reading named, a ref as [what a seat reads](../DECKIT-40/SPEC.md) fixes one | every type |
 | `button` | an integer: 0 the main button, 1 the middle, 2 the second | `down`, `up` |
 | `buttons` | an array of such integers: the buttons held once the event is | every type |
@@ -104,7 +114,7 @@ The shell serves input, a reading and the ask, as [users and seats](../DECKIT-38
 | `count` | an integer: which press in a row this is, 1 the first | `down`, `up` |
 | `dx`, `dy` | numbers: how far a scroll goes, positive down and right | `scroll` |
 
-An integer is one as [a party from outside](../DECKIT-37/SPEC.md) fixes an integer, and a `button` or a `count` that is none is refused as [users and seats](../DECKIT-38/SPEC.md) refuses the `params` of a request. An `x`, a `y`, a `dx` and a `dy` may hold a fraction.
+An integer is one as [a party from outside](../DECKIT-37/SPEC.md) fixes an integer, and a `button`, a `count`, a `width` or a `height` that is none is refused as [users and seats](../DECKIT-38/SPEC.md) refuses the `params` of a request. An `x`, a `y`, a `dx` and a `dy` may hold a fraction.
 
 An event names its place by `x` and `y`, both, or by `ref`, never by both. It answers a table:
 
@@ -115,7 +125,7 @@ An event names its place by `x` and `y`, both, or by `ref`, never by both. It an
 | `holder` | written with `key`: the id of the seat that holds the window, or null |
 | `at` | table `{ x, y }`: the point of the desktop the event went to |
 
-A `down`, a `scroll` and a `move` with no button of the seat held reach what lies at the point in the seat's order, the windows it minimized left out. A `down` on a window is the seat's press on it, as [windows](../DECKIT-31/SPEC.md) fixes the person's hand, and input of that seat to the window's mod. A `move` with a button held and the `up` that ends it reach what the `down` reached, and answer it under `over`; an `up` with no `down` before it moves the seat's pointer alone and answers `over` null.
+A `down`, a `scroll` and a `move` with no button of the seat held reach what lies at the point in the seat's order, the windows it minimized left out, and nothing where the point is outside the seat's camera. A `down` on a window is the seat's press on it, as [windows](../DECKIT-31/SPEC.md) fixes the person's hand, and input of that seat to the window's mod. A `scroll` that reaches the desktop is the seat's scroll on it, which moves the seat's camera by `dx`, `dy`, as windows fixes the person's hand. A `move` with a button held and the `up` that ends it reach what the `down` reached, and answer it under `over`; an `up` with no `down` before it moves the seat's pointer alone and answers `over` null.
 
 Where the pointer is over a page, and whether the page is hovered, is the page's, one for every seat: a page has one pointer, and the last move of any seat places it. A `move` with no button held is heard by the page of the window it reaches as that page hears the machine's own pointer move: the pointer comes over what lies there, enters it and moves; and a page whose pointer a move of that seat placed, and that this move left, hears the pointer leave it. Such a move presses nothing: it brings no window in front, makes no window key and changes no seat's order, and it is no input to a mod, as the machine's own pointer moving is none in [activation](../DECKIT-32/SPEC.md).
 
@@ -126,6 +136,10 @@ An event at a `ref` goes to the place the ref names. Where another window covers
 A key or text event of a seat goes to the window that holds the seat's keyboard: its key window, or the view whose keyboard the seat holds, as [views](../DECKIT-41/SPEC.md) fix a view's keyboard. A panel window in the bar is never key and holds no seat's keyboard, so a seat's press there leaves its keys with the window that holds them. In that window the event goes to the page that took the seat's last press, a page laid over the content as the content itself, while that page is still laid there, and to the window's content otherwise. A dialog a page asks, read as [a window](../DECKIT-40/SPEC.md) reads it, covers the page that waits on it and, where that page is the window's content, every page laid over that content: an event that would go to a page a dialog covers goes to the dialog asked last of those that cover it, Return pressing OK or Leave, Escape Cancel or Stay, and text and Backspace editing a prompt's field, and one that would go to a page no dialog covers goes there. It is input of that seat to the window's mod.
 
 A chord the event makes is read as [the shell's keys](../DECKIT-34/SPEC.md) read one, for that seat.
+
+### A screen event
+
+`seat/input` with `event` `screen` and `type` `resize` tells the size of the seat's screen by `width` and `height`, integers 1 or more. It sets the size of the seat's camera to them, its top left where it was, and answers the camera, a table `{ x, y, width, height }`. A party tells it as its seat opens and as its screen changes size. The local seat's screen is the host app's window, which no event sizes.
 
 ### A key event and a text event
 
@@ -138,7 +152,7 @@ Each answers a table `{ to }`: the id of the window the event went to, or null w
 A `seat/input` is refused at `call` with the first of these that is so, after what [users and seats](../DECKIT-38/SPEC.md) refuses of it:
 
 1. kind `HIDDEN`, where the host app's window is hidden: no page takes input;
-2. kind `INVALID_ARGUMENT`, where a pointer event names no place, names one by both `x`, `y` and `ref`, writes an `x` or a `y` that is no finite number, or writes a `button` or a `count` below 0, which is no count;
+2. kind `INVALID_ARGUMENT`, where a pointer event names no place, names one by both `x`, `y` and `ref`, writes an `x` or a `y` that is no finite number, writes a `button` or a `count` below 0, which is no count, or where a screen event writes a `width` or a `height` below 1;
 3. kind `GONE`, where its `ref` names nothing, as [what a seat reads](../DECKIT-40/SPEC.md) fixes when a ref does: nothing a reading named, or what one named and is there no more;
 4. kind `HELD`, where it is a key or text event, and either the window the seat pressed last is held from it and that window's holder is not idle, or a view is shown for the seat by activation while another seat that is not idle holds its keyboard, as [views](../DECKIT-41/SPEC.md) fix it.
 
@@ -174,7 +188,7 @@ A request is refused at `call` with kind `NOT_PERMITTED` for a mod not granted `
 
 ### Following
 
-The host app's window shows the local seat's desktop, or **follows** one other seat: it shows that seat's desktop, in that seat's order, in the local seat's place. Following is a state of the host app's window, and of no seat: the seat followed is told nothing and nothing of its desktop changes.
+The host app's window shows the local seat's desktop, or **follows** one other seat: it shows that seat's desktop, in that seat's order, in the local seat's place, through a camera as large as the host app's window whose centre is that of the seat's camera. The local seat's own camera does not change while it follows, and is shown again as following ends. Following is a state of the host app's window, and of no seat: the seat followed is told nothing and nothing of its desktop changes.
 
 `seats.follow(seat)` begins to follow the seat of that id and answers `true`. It answers `false` and changes nothing where no seat is told under that id. With null, or with the id of the local seat, the window shows the local seat's desktop again, and it answers `false`.
 
@@ -204,12 +218,15 @@ It guards every member of `shell.seats`.
 - The handle `shell`, a request, a registration, `ENDED` and how the shell defines a permission: [the shell](../DECKIT-29/SPEC.md). A privileged permission and `NOT_PERMITTED`: [the permissions](../DECKIT-3/SPEC.md).
 - `[host] seats`, the key `seat` of the looks `windows`, `desktop` and `dock`, a party of a case and the look `told`: [the case format](../DECKIT-1/SPEC.md).
 - A reading, a ref and when it names nothing, the mark and the output `changes`: [what a seat reads](../DECKIT-40/SPEC.md).
-- `HIDDEN` and `HELD` of an input: here.
+- `HIDDEN` and `HELD` of an input, a seat's screen and its camera: here.
+- The camera, a scroll on the desktop and a window made key out of reach: [windows](../DECKIT-31/SPEC.md).
 
 ## Alternatives considered
 
 - One desktop that every seat shares whole: one order and one key window. A press of one seat would take the keyboard from under another's typing, and two users could not work in two windows at once.
 - A desktop of its own for each seat, with windows of its own. A mod would have to open a window for each seat and so know the seats; a mod does nothing for seats, and one window is under every seat that looks at it.
+- One camera for every seat, as one frame is. A seat that scrolls would move every other seat's view, and a seat with a smaller screen would see a part of what another sees; each seat looks through its own camera, and a frame stays one.
+- A camera that sizes what is sized once, a view's bounds and a panel window's room. A mod sizes its panel window by one room and a view by one size; they are the host app's window's, and each seat's camera places them.
 - A window's keyboard to the last seat that pressed it. What the holder types would be cut by a press of another; the window stays with its holder until the holder leaves it or is idle.
 - A holder that never gives up. A seat that left its devices would keep a window from every other for as long as its run goes; the idle time a host sets ends that.
 - Every rule of the desktop written again for a seat in its own DECKIT. Four DECKITs would say each thing twice; one rule reads them for each seat, as [a party from outside](../DECKIT-37/SPEC.md) reads a run for its principal.
@@ -221,6 +238,6 @@ It guards every member of `shell.seats`.
 
 ## Notes
 
-**Note.** What this costs an implementation: it keeps the desktop's order, the key window, the minimized windows and the record of activation once for each seat; lays the stage out for each seat that reads or points; keeps for each window its holder and asks the system whether that holder is idle; and tells every content what is so of its holder alone.
+**Note.** What this costs an implementation: it keeps the desktop's order, the key window, the minimized windows, the camera and the screen's size and the record of activation once for each seat; lays the stage out for each seat that reads or points; keeps for each window its holder and asks the system whether that holder is idle; and tells every content what is so of its holder alone.
 
-**Note.** No case holds these, each for its reason. That a press the host's input `window` makes opens no menu but the content's: that `press` of [the case format](../DECKIT-1/SPEC.md) is of the main button with no key held, which opens none, and a seat's press of the second button holds the rule. A seat's events done in the order sent: a party of a case asks one request and waits for its answer before the next. `ENDED` of a cut handle: no `call` of a case reaches one, as [the shell](../DECKIT-29/SPEC.md) notes. What is drawn of a seat, since no look reads the screen. A seventh seat's colour, since a case's host would attach six parties to reach it. Two inputs close together, which no rule fixes. Following ended by a press or a key of the machine's own devices: the person's press and key of the base `shell` of [the case format](../DECKIT-1/SPEC.md) come of no device of the machine. Following ended by the seat followed closing, and `seats.follow` with null: once the seat is closed no member answers whether the window follows it, and a case writes no null; `seats.follow` with null is held only as [the seats mod](../DECKIT-44/SPEC.md) asks it, a press on the row of the seat followed. The menu of an item open for one seat alone, and the Dock out for one: no look reads either. The 4 of a drag of an item by a seat: a case knows no point of an item, which is the look's. `HIDDEN`: that base shows the host app's window from its start, and no input of a case hides it. An `x` or a `y` that is no finite number, and a `button` or a `count` that is no integer: a case writes no number but an integer. An event at the `ref` of an element of a window's content: such a ref is known only from a reading, which no look answers, so the cases at a `ref` write `w1.bar`, the title bar of the window of the id 1, `dock.mod-b`, the Dock's item of the mod `mod-b`, and `dock-menu.quit` and `dock-menu.keep`, the choices of the menu open for the seat that quit the app and that keep it or take it out. A registration of `seats.onChange` ended: what the member answers is a function, and a `call` of a case calls a member of what a call answered, never the answer itself.
+**Note.** No case holds these, each for its reason. That a press the host's input `window` makes opens no menu but the content's: that `press` of [the case format](../DECKIT-1/SPEC.md) is of the main button with no key held, which opens none, and a seat's press of the second button holds the rule. A seat's events done in the order sent: a party of a case asks one request and waits for its answer before the next. `ENDED` of a cut handle: no `call` of a case reaches one, as [the shell](../DECKIT-29/SPEC.md) notes. What is drawn of a seat, since no look reads the screen. A seventh seat's colour, since a case's host would attach six parties to reach it. Two inputs close together, which no rule fixes. Following ended by a press or a key of the machine's own devices: the person's press and key of the base `shell` of [the case format](../DECKIT-1/SPEC.md) come of no device of the machine. Following ended by the seat followed closing, and `seats.follow` with null: once the seat is closed no member answers whether the window follows it, and a case writes no null; `seats.follow` with null is held only as [the seats mod](../DECKIT-44/SPEC.md) asks it, a press on the row of the seat followed. The menu of an item open for one seat alone, and the Dock out for one: no look reads either. The 4 of a drag of an item by a seat: a case knows no point of an item, which is the look's. `HIDDEN`: that base shows the host app's window from its start, and no input of a case hides it. An `x` or a `y` that is no finite number, and a `button` or a `count` that is no integer: a case writes no number but an integer. An event at the `ref` of an element of a window's content: such a ref is known only from a reading, which no look answers, so the cases at a `ref` write `w1.bar`, the title bar of the window of the id 1, `dock.mod-b`, the Dock's item of the mod `mod-b`, and `dock-menu.quit` and `dock-menu.keep`, the choices of the menu open for the seat that quit the app and that keep it or take it out. The camera the host app's window shows while it follows a seat: no look reads what the host app's window shows. A registration of `seats.onChange` ended: what the member answers is a function, and a `call` of a case calls a member of what a call answered, never the answer itself.

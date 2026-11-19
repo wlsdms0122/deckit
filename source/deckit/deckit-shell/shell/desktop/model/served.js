@@ -40,6 +40,11 @@ const EVENTS = Object.freeze({
         types: Object.freeze(['insert', 'compose', 'commit', 'cancel']),
         fields: Object.freeze({ text: 'string?' }),
     }),
+    // The size of the seat's screen, its kind a string: `check` holds the bare word to the shell's main bundle.
+    ['screen']: Object.freeze({
+        types: Object.freeze(['resize']),
+        fields: Object.freeze({ width: 'integer', height: 'integer' }),
+    }),
 });
 
 // The outputs read, each with the fields it is asked with beside `of`.

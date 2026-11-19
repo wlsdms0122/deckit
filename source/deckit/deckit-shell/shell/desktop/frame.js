@@ -4,6 +4,7 @@ import * as LAYER from '../../../deckit-sdk/shell/ui/layer/index.js';
 import * as TOKEN from '../../../deckit-sdk/shell/ui/token/index.js';
 import * as MOD_STYLE from '../../../deckit-sdk/shell/style/renderer.js';
 import * as LAYOUT from './model/layout.js';
+import * as MARKS from './model/marks.js';
 import * as MOTION from './model/motion.js';
 import * as PAGE from './model/page-name.js';
 import * as CHANNEL from '../../../deckit-sdk/deckit/channel/index.js';
@@ -16,7 +17,7 @@ import * as DECLARED from './protocol.js';
 const { SHADOW, EDGE, RADIUS, BUTTON } = LAYOUT;
 // How wide the holder's colour is drawn round a window's title bar, a seat's cursor, and the ring at its press, px.
 const HOLDER = 2;
-const CURSOR = 16;
+const CURSOR = MARKS.MARK;
 const RING = 20;
 // The path of all of the stage, however large it is, from which what covers a seat's mark is taken out.
 const EVERYWHERE = 'M0 0H16384V16384H0Z';

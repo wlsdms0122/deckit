@@ -1,0 +1,38 @@
+case = 29
+name = "a-scroll-on-the-desktop-moves-the-seat-s-camera"
+note = "Each mod's code opens the windows the case says, each filled by a text field, and opens https://said.test/<name>/<event>/<what> outside the app for what the window's content hears: mousedown and mouseup with <button>/<detail>/<modifiers>, mousemove with <buttons>, wheel with <deltaX>/<deltaY>, keydown and keyup with <code>/<key>/<modifiers>/<repeat>, compositionstart and compositionupdate with the text composed, compositionend with <the text>/<the field's value>, and inserted with the text of each input event of the type insertText. The desktop is the base shell's, 1280 by 800, and each seat's camera is 1280 by 800 at 0,0 as it opens. mod-a opens main, the window 1 at 283, 107, 720 by 480, and ada sits at s1. It sends a scroll at 100, 50, where no window lies, of 0 across and 100 down: it answers over desktop, and the desktop it reads is at 0,100, main where it was."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "scroll", x = 100, y = 50, dx = 0, dy = 100 }
+
+[step.expect]
+answers = { over = "desktop", at = { x = 100, y = 50 } }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "desktop" }
+part = "text"
+
+[step.expect]
+answers = "desktop at 0,100 1280x800 mark \u001A\nseat local \"Deckit conformance\" blue\nseat s1 \"Ada Lovelace\" green at 100,50 (you)\ndock (1 items)\n  item \"mod-a\" [running] dock.mod-a\nwindow w1 \"mod-a\" mod-a at 283,107 720x480"

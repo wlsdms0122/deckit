@@ -37,9 +37,10 @@ const SNAP = 8;
 
 // MARK: - Initializer
 // MARK: - Public
-// The desktop in a stage of `size` with `strip` px at its top for the host's bar: where windows are.
-function desktopOf(size, strip) {
-    return { x: 0, y: strip, width: size.width, height: Math.max(0, size.height - strip) };
+// Where normal windows show in a camera, a rect of the desktop (model/camera.js), or a stage of a size at 0,0, with
+// `strip` px at its top for the host's bar: the camera under the bar.
+function desktopOf({ x = 0, y = 0, width, height }, strip) {
+    return { x, y: y + strip, width, height: Math.max(0, height - strip) };
 }
 
 // Where a zoomed window goes: the desktop but the Dock's sliver.
@@ -92,6 +93,13 @@ function kept({ x, y, width, height }, desktop, bar = TITLE_BAR.height) {
         width,
         height,
     });
+}
+
+// The frame a mod's resize sets of a window at `frame`: `size`, its top left where it was, then brought into reach of
+// `desktop`, the camera under the bar of the seat the mod acts for, as kept brings it; its size as it is.
+function sizedIn(frame, { width, height }, desktop, bar = TITLE_BAR.height) {
+    const { x, y } = kept({ ...frame, width, height }, desktop, bar);
+    return { x, y, width, height };
 }
 
 // The frames of the panel windows in the bar, each `{ size }`, in the order they opened, in a stage `width` wide with
@@ -306,6 +314,7 @@ export {
     minimumOf,
     placed,
     kept,
+    sizedIn,
     panelsIn,
     roomsIn,
     panelRadius,

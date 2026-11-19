@@ -32,4 +32,4 @@ params = { of = "desktop" }
 part = "text"
 
 [step.expect]
-answers = "desktop 1280x800 mark \u001A\nseat local \"Deckit conformance\" blue key w1\nseat s1 \"Ada Lovelace\" green (you)\ndock (1 items)\n  item \"mod-a\" [running] dock.mod-a\nwindow w1 \"mod-a\" mod-a at 283,107 720x480 [key local]"
+answers = "desktop at 0,0 1280x800 mark \u001A\nseat local \"Deckit conformance\" blue key w1\nseat s1 \"Ada Lovelace\" green (you)\ndock (1 items)\n  item \"mod-a\" [running] dock.mod-a\nwindow w1 \"mod-a\" mod-a at 283,107 720x480 [key local]"

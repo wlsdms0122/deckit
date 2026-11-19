@@ -65,7 +65,7 @@ mod-id     = a mod's id
 states     = "[" state *( ", " state ) "]"
 ```
 
-A `point` is a point of the desktop from its top left and a `size` a width and a height, each number rounded to the nearest integer. A `quoted` is a string as JSON writes one: `escape` is written only for DQUOTE, `\` and a code point below U+0020, `u` with lower-case digits for those of them that have no letter. A `seat-id` is as [users and seats](../DECKIT-38/SPEC.md) fixes a seat's id and a `mod-id` as [the bundle](../DECKIT-2/SPEC.md) fixes `id`. A `window-id` is `w` and the window's id as [windows](../DECKIT-31/SPEC.md) numbers it.
+A `point` is a point of the desktop, as [windows](../DECKIT-31/SPEC.md) sets `x` and `y`, and a `size` a width and a height, each number rounded to the nearest integer. A `quoted` is a string as JSON writes one: `escape` is written only for DQUOTE, `\` and a code point below U+0020, `u` with lower-case digits for those of them that have no letter. A `seat-id` is as [users and seats](../DECKIT-38/SPEC.md) fixes a seat's id and a `mod-id` as [the bundle](../DECKIT-2/SPEC.md) fixes `id`. A `window-id` is `w` and the window's id as [windows](../DECKIT-31/SPEC.md) numbers it.
 
 ### The desktop
 
@@ -73,7 +73,7 @@ A `point` is a point of the desktop from its top left and a `size` a width and a
 desktop      = desktop-line *( LF seat-line ) LF dock-line *( LF "  " item-line )
                [ LF "  " menu-line *( LF "  " entry-line ) ]
                *( LF window-line ) *( LF panel-line )
-desktop-line = "desktop " size " mark " count
+desktop-line = "desktop at " point " " size " mark " count
 seat-line    = "seat " seat-id " " quoted " " colour [ " at " point ] [ " key " window-id ] [ " (you)" ]
 dock-line    = "dock (" count " items)"
 item-line    = "item " quoted [ " [" item-state *( ", " item-state ) "]" ] " " ref
@@ -84,11 +84,11 @@ window-line  = "window " window-id " " quoted " " mod-id " at " point " " size [
 panel-line   = "panel " window-id " " quoted " " mod-id [ " top" ] " at " point " " size [ " " states ]
 ```
 
-- **`desktop-line`**: the desktop's size, and the mark.
+- **`desktop-line`**: where the top left of the camera of the seat that asks is, and the camera's size, as [seats at the desktop](../DECKIT-39/SPEC.md) gives each seat one; and the mark.
 - **`seat-line`**, one for each seat at the desktop, in the order they opened: the seat's id, its user's name, its colour's name as [seats at the desktop](../DECKIT-39/SPEC.md) gives a seat one, `at` and where its pointer is once an event of it had a place, `key` and its key window where it has one, and `(you)` on the line of the seat that asks.
 - **`dock-line`**: how many items the Dock has, then a line for each in [the Dock](../DECKIT-33/SPEC.md)'s order: its name, which is its mod's name, or its id where the mod has none; its marks in the order `running`, `active`, `attention`, those that are so for the seat that asks; and its ref.
 - **`menu-line`**, while the menu of an item of the Dock is open for the seat that asks: the name of that item, then a line for each choice of the menu in its order, with the words the menu shows for it and its ref.
-- **`window-line`**, one for each normal window, front to back in the order of the seat that asks, those it minimized among them: the window's id; its title where its title bar is `titled` and it has one, and its mod's name otherwise, or its mod's id where the mod has no name; its mod's id; where its frame's top left is on the desktop and its frame's size; and its states, in this order: `key` and the id of the seat that holds its keyboard, where one does; `minimized`, where the seat that asks minimized it; `zoomed`; `tile` and the name of the tile it has.
+- **`window-line`**, one for each normal window whose frame meets the camera of the seat that asks, and for each that seat minimized, front to back in its order: the window's id; its title where its title bar is `titled` and it has one, and its mod's name otherwise, or its mod's id where the mod has no name; its mod's id; where its frame's top left is on the desktop and its frame's size; and its states, in this order: `key` and the id of the seat that holds its keyboard, where one does; `minimized`, where the seat that asks minimized it; `zoomed`; `tile` and the name of the tile it has.
 - **`panel-line`**, one for each panel window on the screen of the seat that asks, in the order they opened, after every normal window: as a window's line, with its mod's name for the title, `top` where it stands at that edge, as [windows](../DECKIT-31/SPEC.md) fixes a panel window's `edge`, and for states only `key` and the seat that holds its keyboard.
 
 No other window is listed.
@@ -226,7 +226,7 @@ Every reading and every answer of `changes` carries the mark as it was made.
 ```
 changes    = "changes " count " to " count *( LF change )
 change     = "+ " line / "~ " line / "- " gone
-line       = "desktop " size / seat-line / item-line / entry-line / window-line / panel-line
+line       = "desktop at " point " " size / seat-line / item-line / entry-line / window-line / panel-line
            / document-line " in " window-id / element
 gone       = "desktop" / seat-id / window-id / ref / "document " count
 ```
@@ -248,7 +248,7 @@ A seat that watches `changes`, as [users and seats](../DECKIT-38/SPEC.md) fixes 
 | `rect` | table `{ x, y, width, height }`, numbers: of that rect of the desktop |
 | `scale` | a number above 0 and at most 4: the pixels a point of the desktop is drawn with; 1 where it is left out |
 
-With none of `window`, `ref` and `rect` it is of the whole desktop. It is drawn as the screen shows it: each material the shell draws, as [windows](../DECKIT-31/SPEC.md) has one under a panel window, is in it at its shape, what lies under it there shown through it blurred. A page that waits on its dialog draws nothing new while it waits: it is in the picture as it was drawn last, and nothing of it is where it was never drawn. It answers `{ png, width, height, at }`: `png` a string, the picture as a PNG in base64; `width` and `height` its size in pixels; `at` table `{ x, y }`, the desktop's point its top left is at.
+With none of `window`, `ref` and `rect` it is of the camera of the seat that asks. It is drawn as the screen shows it: each material the shell draws, as [windows](../DECKIT-31/SPEC.md) has one under a panel window, is in it at its shape, what lies under it there shown through it blurred. A page that waits on its dialog draws nothing new while it waits: it is in the picture as it was drawn last, and nothing of it is where it was never drawn. It answers `{ png, width, height, at }`: `png` a string, the picture as a PNG in base64; `width` and `height` its size in pixels; `at` table `{ x, y }`, the desktop's point its top left is at.
 
 It is refused at `call` with kind `INVALID_ARGUMENT` where more than one of `window`, `ref` and `rect` is written, where `scale` is not above 0 or is above 4, or where a member of `rect` is no finite number or its `width` or `height` is not above 0; with kind `REFUSED` where `ref` names an element of a `web` document; and as *The request* refuses a `window` and a `ref`.
 
@@ -260,7 +260,7 @@ With `format` `json` a reading answers `{ data, mark }`, `data` a table that hol
 
 | key | value |
 |---|---|
-| `desktop` | table `{ width, height }` |
+| `desktop` | table `{ x, y, width, height }`: the camera |
 | `seats` | array of `{ id, name, colour, at, key, you }`: `at` table `{ x, y }` or null, `key` a `window-id` or null, `you` a boolean |
 | `dock` | array of `{ id, name, running, active, attention, ref }`, the three marks booleans |
 | `menu` | null, or table `{ name, entries }`, `entries` an array of `{ id, name, ref, rect }` |
@@ -281,7 +281,7 @@ An element's table is `{ depth, role, name, length, states, items, inView, below
 ## Interactions
 
 - `seat/read`, the outputs a layer names, watching, `seat/output` and the refusal of `params`: [users and seats](../DECKIT-38/SPEC.md). The shell is the layer that serves a reading.
-- Each seat's order, key window, minimized windows and marks, the holder of a window, a seat's colour, and the event that points at a `ref`: [seats at the desktop](../DECKIT-39/SPEC.md).
+- Each seat's camera, order, key window, minimized windows and marks, the holder of a window, a seat's colour, and the event that points at a `ref`: [seats at the desktop](../DECKIT-39/SPEC.md).
 - A window's id, frame, title, title bar and its buttons, tiles, panel windows and their edges: [windows](../DECKIT-31/SPEC.md). The Dock's items, their order and marks, and its menu: [the Dock](../DECKIT-33/SPEC.md). The key window and the active mod: [activation](../DECKIT-32/SPEC.md).
 - A region and the page laid into it: [regions and drops](../DECKIT-36/SPEC.md). A web page: [web pages](../DECKIT-25/SPEC.md).
 

@@ -1,0 +1,35 @@
+case = 29
+name = "a-window-outside-the-camera-of-the-seat-that-asks-is-not-listed"
+note = "Each mod's code opens the windows the case says, each filled by a text field, and opens https://said.test/<name>/<event>/<what> outside the app for what the window's content hears: mousedown and mouseup with <button>/<detail>/<modifiers>, mousemove with <buttons>, wheel with <deltaX>/<deltaY>, keydown and keyup with <code>/<key>/<modifiers>/<repeat>, compositionstart and compositionupdate with the text composed, compositionend with <the text>/<the field's value>, and inserted with the text of each input event of the type insertText. The desktop is the base shell's, 1280 by 800, and each seat's camera is 1280 by 800 at 0,0 as it opens. mod-a opens main, the window 1 at 283, 107, 720 by 480, and ada sits at s1. It scrolls 1000 down on the desktop, its camera then at 0, 1000, and reads the desktop: main's frame meets no part of the camera, and no window is listed."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "scroll", x = 100, y = 50, dx = 0, dy = 1000 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "desktop" }
+part = "text"
+
+[step.expect]
+answers = "desktop at 0,1000 1280x800 mark \u001A\nseat local \"Deckit conformance\" blue\nseat s1 \"Ada Lovelace\" green at 100,50 (you)\ndock (1 items)\n  item \"mod-a\" [running] dock.mod-a"

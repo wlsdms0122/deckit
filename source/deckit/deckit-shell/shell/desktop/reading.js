@@ -1,5 +1,6 @@
 import * as TEXT from './model/reading.js';
 import * as LAYOUT from './model/layout.js';
+import * as CAMERA from './model/camera.js';
 import * as DIALOG from './model/dialog.js';
 import { noCount } from './model/routes.js';
 import * as DOCK_MODEL from '../dock/model/dock.js';
@@ -179,7 +180,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         if (named.length > 1 || !(scale > 0 && scale <= SCALE))
             throw refusal('INVALID_ARGUMENT', `a picture is of one thing, at up to ${SCALE} pixels a point`);
         let laid = desk.laidFor(seat.id);
-        let of = { x: 0, y: 0, ...desk.stage().size() };
+        let of = desk.cameraOf(seat.id);
         if (window !== undefined) {
             const id = idOf(window);
             of = factOf(seat.id, id).frame;
@@ -314,15 +315,17 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         return { kind: 'panel', id: `w${id}`, title: nameOf(mod), mod, edge, frame: { ...panel.frame }, key };
     }
 
-    // The desktop as `seat` reads it, the windows front to back in its order.
+    // The desktop as `seat` reads it, its camera, and the windows that meet the camera or that it minimized, front to
+    // back in its order.
     function desktopOf(seat) {
         const items = desk.dock().items();
         const active = desk.windows.get(desk.MANAGER.keyOf(seat))?.mod ?? null;
         const attention = desk.ACTIVATION.attentionOf(seat);
-        const { width, height } = desk.stage().size();
+        const camera = desk.cameraOf(seat);
+        const seen = (id) => desk.MANAGER.isMinimized(seat, id) || CAMERA.meets(camera, desk.MANAGER.frameOf(id));
         const names = namesNow();
         return {
-            desktop: { width, height },
+            desktop: camera,
             seats: [...desk.hands].map(([id, { pointer }]) => ({
                 id,
                 name: desk.seated.get(id)?.user.name ?? id,
@@ -342,6 +345,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
             menu: menuOf(seat, items),
             windows: desk.MANAGER.orderOf(seat)
                 .reverse()
+                .filter(seen)
                 .map((id) => factOf(seat, id, names)),
             panels: desk.panelFrames(seat).map(({ window }) => factOf(seat, window.id, names)),
         };
@@ -361,7 +365,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
     function linesOf({ desktop, seats, dock, menu, windows, panels }, { held = false } = {}) {
         const seat = (each) => TEXT.seatLine(held ? { ...each, at: null, you: false } : each);
         return new Map([
-            ['desktop', `desktop ${desktop.width}x${desktop.height}`],
+            ['desktop', `desktop at ${desktop.x},${desktop.y} ${desktop.width}x${desktop.height}`],
             ...seats.map((each) => [each.id, seat(each)]),
             ...dock.map((item) => [item.ref, TEXT.itemLine(item)]),
             ...(menu?.entries ?? []).map((entry) => [entry.ref, TEXT.entryLine(entry)]),
@@ -478,11 +482,11 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
             const items = desk.dock().items();
             const item = desktopOf(seat).dock.find(({ id }) => id === mod);
             if (!item) return null;
-            const [sliver] = DOCK_MODEL.inputOf(desk.area(), true, items);
+            const [sliver] = DOCK_MODEL.inputOf(desk.area(seat), true, items);
             const by = { x: sliver.x + sliver.width / 2, y: sliver.y + sliver.height / 2 };
             const states = ['running', 'active', 'attention'].filter((state) => item[state]);
             const line = { role: 'item', name: item.name, states, ref };
-            return { line, rect: DOCK_MODEL.tileOf(desk.area(), items, mod), window: null, by };
+            return { line, rect: DOCK_MODEL.tileOf(desk.area(seat), items, mod), window: null, by };
         }
         const [, window, name, edge] =
             /^w(\d+)\.(close|minimize|zoom|bar|dialog\.[a-z]+|edge\.([a-z-]+))$/.exec(ref) ?? [];

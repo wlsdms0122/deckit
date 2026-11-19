@@ -68,11 +68,11 @@ function selectionLine({ start, end, line, column, length }) {
     return joined('selection', at, length ? `(${length} selected)` : null);
 }
 
-// The desktop: its size and the mark, the seats, the Dock, the menu of an item of it while one is open for the asker,
+// The desktop: where the asker's camera is and its size, and the mark, the seats, the Dock, the menu of an item of it while one is open for the asker,
 // then the windows front to back in the asker's order and the panel windows.
 function desktop({ desktop: size, mark, seats, dock, menu = null, windows, panels }) {
     return [
-        `desktop ${sizeOf(size)} mark ${mark}`,
+        `desktop at ${pointOf(size)} ${sizeOf(size)} mark ${mark}`,
         ...seats.map(seatLine),
         `dock (${dock.length} items)`,
         ...dock.map((item) => indented(1, itemLine(item))),
