@@ -1,12 +1,10 @@
-case = 26
+case = 31
 name = "a-party-that-closes-while-it-waits-is-admitted-no-more"
-note = "With asking true on the base shell, ada attaches and waits: it sits at no seat while its ask is unanswered. The party closes its transport connection: the ask waits no more, a yes answered then answers that nothing waited and seats nobody, and ada may ask again."
+note = "With asking true on the base shell, ada attaches as p and waits, and p closes its transport connection. Whoever is at the machine answers p's ask yes then, which seats nobody: ada attaches again as q, is answered yes, and sits at s1, the first seat a transport connection opened."
 
 [host]
 base = "shell"
 api = "1.0.0"
-ship = ["mod-a"]
-system = ["mod-a"]
 users = [{ id = "ada", name = "Ada Lovelace" }]
 keys = [{ principal = "ada", key = "first" }]
 seats = { asking = true }
@@ -22,54 +20,13 @@ key = "first"
 waits = true
 
 [[step]]
-input = "call"
-mod = "mod-a"
-member = "seats.list"
-handle = "shell"
-
-[step.expect]
-answers = [{ id = "1", name = "Deckit conformance", colour = "blue", idle = false, following = false }]
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "seats.asks"
-handle = "shell"
-
-[step.expect]
-answers = [{ id = "2", name = "Ada Lovelace" }]
-
-[[step]]
 input = "detach"
 party = "p"
 
 [[step]]
-input = "call"
-mod = "mod-a"
-member = "seats.asks"
-handle = "shell"
-
-[step.expect]
-answers = []
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "seats.answer"
-handle = "shell"
-args = ["2", true]
-
-[step.expect]
-answers = false
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "seats.list"
-handle = "shell"
-
-[step.expect]
-answers = [{ id = "1", name = "Deckit conformance", colour = "blue", idle = false, following = false }]
+input = "answer"
+party = "p"
+allow = true
 
 [[step]]
 input = "attach"
@@ -79,10 +36,14 @@ key = "first"
 waits = true
 
 [[step]]
-input = "call"
-mod = "mod-a"
-member = "seats.asks"
-handle = "shell"
+input = "answer"
+party = "q"
+allow = true
+
+[[step]]
+look = "admitted"
+party = "q"
+part = "seat"
 
 [step.expect]
-answers = [{ id = "3", name = "Ada Lovelace" }]
+answers = { id = "s1", local = false, user = { id = "ada", name = "Ada Lovelace" } }

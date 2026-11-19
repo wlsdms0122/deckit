@@ -1,6 +1,6 @@
 case = 26
 name = "asking-stands-as-the-host-app-starts-again"
-note = "The system keeps the settings as the host app quits and starts again. The host set asking true before the first start; after a quit and a start, ada is still refused where no layer serves the ask."
+note = "The system keeps the settings as the host app quits and starts again. The host set asking true before the first start; after a quit and a start, ada is still refused where the host answers no ask."
 
 [host]
 base = "system"

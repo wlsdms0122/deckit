@@ -1,12 +1,10 @@
-case = 26
+case = 31
 name = "an-ask-answered-no-refuses-the-user"
-note = "With asking true on the base shell, ada attaches and waits. mod-a, a system mod granted deckit.seats, reads the ask and answers it no: authenticate is refused at call with kind REFUSED, the host closes the transport connection, and the local seat is the only one."
+note = "With asking true on the base shell, ada attaches and waits, and the system asks the host whether she may sit. Whoever is at the machine answers no: authenticate is refused at call with kind REFUSED, and the host closes the transport connection."
 
 [host]
 base = "shell"
 api = "1.0.0"
-ship = ["mod-a"]
-system = ["mod-a"]
 users = [{ id = "ada", name = "Ada Lovelace" }]
 keys = [{ principal = "ada", key = "first" }]
 seats = { asking = true }
@@ -22,23 +20,9 @@ key = "first"
 waits = true
 
 [[step]]
-input = "call"
-mod = "mod-a"
-member = "seats.asks"
-handle = "shell"
-
-[step.expect]
-answers = [{ id = "2", name = "Ada Lovelace" }]
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "seats.answer"
-handle = "shell"
-args = ["2", false]
-
-[step.expect]
-answers = true
+input = "answer"
+party = "p"
+allow = false
 
 [[step]]
 look = "admitted"
@@ -55,12 +39,3 @@ part = "closed"
 
 [step.expect]
 answers = true
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "seats.list"
-handle = "shell"
-
-[step.expect]
-answers = [{ id = "1", name = "Deckit conformance", colour = "blue", idle = false, following = false }]
