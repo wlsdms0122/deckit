@@ -5,7 +5,7 @@ Area: system
 
 ## Summary
 
-A **user** is a principal that is no mod: who attaches to the system from outside it, and who is at the machine. This DECKIT fixes what a user is and how a host makes and removes one, the job a user's run holds and the permission `deckit.seat` that job alone holds, the **seat** a user sits at while its run goes, the local seat, whose each state the system keeps is, how a user is admitted to a seat and the two settings a host keeps of the seats, and the requests and the message by which a seat sends what its devices do and is handed what it perceives, which a layer over the system serves.
+A **user** is a principal that is no mod: who attaches to the system from outside it, and who is at the machine. This DECKIT fixes what a user is and how a host makes and removes one, the job a user's run holds and the permission `deckit.seat` that job alone holds, the **seat** a user sits at while its run goes, the local seat, whose each state the system keeps is, how a user is admitted to a seat, by an ask the host puts to whoever is at the machine, and the two settings a host keeps of the seats, and the requests and the message by which a seat sends what its devices do and is handed what it perceives, which a layer over the system serves.
 
 ## Motivation
 
@@ -78,9 +78,11 @@ Once a party's proof verifies, its user is **admitted**: the first of these that
 
 1. A refusal at `call` with kind `ALREADY_RUNNING`, where the user sits at a seat, or a run of it is in a state other than `notRunning`.
 2. Its result, at once, where the setting `asking` is false: the user sits.
-3. Where `asking` is true, the host first sends the party the notification `attach/asking`, which holds no `params`, and asks the layer that serves the ask, below, whether the user may sit. Answered yes, the user sits, held again to the first item as it is answered, and `authenticate` answers its result. Answered no, `authenticate` is refused at `call` with kind `REFUSED`. It is answered no, too, where no layer serves the ask, where no answer came in 60 seconds, and where the layer's answer failed.
+3. Where `asking` is true, the host first sends the party the notification `attach/asking`, which holds no `params`, and the system then asks the host whether the user may sit, as [embedding](../DECKIT-22/SPEC.md) fixes the ask to sit. Answered yes, the user sits, held again to the first item as it is answered, and `authenticate` answers its result. Answered no, `authenticate` is refused at `call` with kind `REFUSED`. It is answered no, too, where the host answers no ask, where no answer came in 60 seconds, and where the host's answer failed.
 
 After a refusal the host closes the transport connection, as after any refusal of `authenticate`. A party that closes its transport connection while it waits is admitted no more, and whatever is answered then seats nobody.
+
+The ask is the machine's, as who sits is, under *Whose a state is*: the host asks whoever is at the machine, as what the machine shows of itself. No layer serves it, no mod reads or answers it, and nothing in the shared state shows it.
 
 ### The settings
 
@@ -126,7 +128,6 @@ A layer the host stacks over the system may serve each of these, and each is ser
 |---|---|---|
 | input | the seat, and the `params` of a `seat/input` | what `seat/input` answers, or its refusal |
 | a reading | the seat, and the `params` of a `seat/read` | what `seat/read` answers, or its refusal |
-| the ask | the user that waits, as `{ id, name }` | whether it may sit, a boolean |
 
 A layer that serves input names the kinds of device it takes, each with its types and what an event of it holds besides; one that serves a reading names the outputs it reads, each with what it is asked with besides; and a layer names the outputs it tells, each with what it tells and whether a seat is told it from the moment it opens. An output is named by one layer at most.
 
@@ -154,8 +155,8 @@ A user is made, removed and read, and a setting set, with the host app started o
 - A run's states and the relaunch limit: [the lifecycle](../DECKIT-5/SPEC.md).
 - Who hears an event: [events](../DECKIT-12/SPEC.md).
 - Erasing what a principal stored: [storage](../DECKIT-13/SPEC.md).
-- A layer a host stacks, and `PERMISSION` at the start: [embedding](../DECKIT-22/SPEC.md).
-- The users and keys a case's host makes, and a party of a case: [the case format](../DECKIT-1/SPEC.md).
+- A layer a host stacks, the ask to sit the system hands a host, and `PERMISSION` at the start: [embedding](../DECKIT-22/SPEC.md).
+- The users and keys a case's host makes, a party of a case, and the input `answer` by which a case answers an ask: [the case format](../DECKIT-1/SPEC.md).
 - What of the desktop is the shared state and what is a seat's own: [seats at the desktop](../DECKIT-39/SPEC.md).
 - `REFUSED` of an admission, and `INVALID_ARGUMENT`, `REFUSED` and `NOT_FOUND` of a seat's requests and of what a host asks: here.
 
@@ -166,12 +167,13 @@ A user is made, removed and read, and a setting set, with the host app started o
 - A list of what the seats share and what is each seat's. A state the list leaves out would have no rule, and every state it names would weigh on how the next is read; three things a state can be of hold every state, the next one too.
 - The kinds of device and the outputs named here, for every layer. A layer that takes other devices or hands a seat other outputs, as one that shows no desktop, could not be stacked without this DECKIT changing; the layer that serves them names its own.
 - The local seat as a thing apart from seats. Every rule of a seat would gain a second case for the machine's own devices; the local seat is a seat whose devices are the machine's, and whoever attaches stands as the one at the machine does.
+- The ask served by a layer, as input and a reading are. A mod would read and answer it, so a seat from outside would admit or refuse another, and the shared state would answer who sits, which is the machine's.
 - Admission decided by how long the local seat gave no input. Whoever attaches while nobody is at the machine would sit unasked or never, by a clock; the setting says which, and the idle time decides nothing of it.
 
 ## Notes
 
-**Note.** What this costs an implementation: it keeps a user record with what a principal stored, launches a run for a user with a job no bundle gave, keeps a table of seats for a start, holds an `authenticate` open while an ask is answered, and carries a seat's requests to whichever layer serves them.
+**Note.** What this costs an implementation: it keeps a user record with what a principal stored, launches a run for a user with a job no bundle gave, keeps a table of seats for a start, hands the host each ask and holds an `authenticate` open while the host answers it, and carries a seat's requests to whichever layer serves them.
 
-**Note.** No case holds these, each for its reason. The 60 seconds of an ask, since a case does not wait a minute. A setting set after the start or read, a user removed or made after the start, a user under a mod's id, and the users and the seats read: [the case format](../DECKIT-1/SPEC.md) gives a case's host its users, its keys and its settings before the first start and nothing later. An ask whose answer failed: the shell of the base `shell`, the one layer of a case that serves the ask, answers yes or no and nothing else. What a seat that is idle decides: [seats at the desktop](../DECKIT-39/SPEC.md) fixes it for the shell, and its cases hold it. A user erased with what its principal stored: a case's host erases no principal that is no mod. That the local user is made under the host's name: no party reads a user it is not.
+**Note.** No case holds these, each for its reason. The 60 seconds of an ask, since a case does not wait a minute. A setting set after the start or read, a user removed or made after the start, a user under a mod's id, and the users and the seats read: [the case format](../DECKIT-1/SPEC.md) gives a case's host its users, its keys and its settings before the first start and nothing later. An ask whose answer failed: the host of a case answers no ask, on the bases `system` and `web`, or answers each by the input `answer`, yes or no and nothing else, on the base `shell`. How the machine shows the ask and how whoever is at it answers: they are the host's, and the base `shell` shows it on no screen, so no look reads it; the cases hold what the answer comes to. What a seat that is idle decides: [seats at the desktop](../DECKIT-39/SPEC.md) fixes it for the shell, and its cases hold it. A user erased with what its principal stored: a case's host erases no principal that is no mod. That the local user is made under the host's name: no party reads a user it is not.
 
 **Note.** The base `system` of a case stacks no layer that serves a seat, so its cases hold `INVALID_ARGUMENT` of `params` the one rule refuses, `REFUSED` of `seat/input` and `seat/read`, and `INVALID_ARGUMENT` of a `seat/watch` of an output none tells, and nothing a layer names, answers or tells: no `seat/output`, that of `held` from the moment a seat opens among them, and no second layer that serves what one serves already. The refusals of what the shell names are held by the cases of [seats at the desktop](../DECKIT-39/SPEC.md) and [what a seat reads](../DECKIT-40/SPEC.md).
