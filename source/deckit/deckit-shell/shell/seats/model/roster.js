@@ -1,21 +1,18 @@
 // MARK: - Property
 // MARK: - Initializer
 // MARK: - Public
-// What a mod is told of the seats, as plain data. Each seat and each ask is told under an id made here, a count as
-// text, which says nothing of the seat or the user it names: no id tells the machine's seat from another, and one
-// that left and sits again is told under a new one.
+// What a mod is told of the seats, as plain data. Each seat is told under an id made here, a count as text, which says
+// nothing of the seat or the user it names: no id tells the machine's seat from another, and one that left and sits
+// again is told under a new one.
 function createRoster() {
     const seatIds = new Map(); // a seat's id in the shell -> the id it is told under
-    const askIds = new Map(); // an ask's id in the shell -> the id it is told under
     let made = 0; // how many ids were made
 
-    // `{ seats, asks }` as a mod is told them, of `now`, the same of the shell's: `seats` each `{ id, name, colour,
-    // idle, following }` in the order they sat, `asks` each `{ id, name }` in the order they asked. What is in neither
-    // any more loses its id. An id is made as its seat or its ask is first in `now`, so the caller hands every change
-    // here for the ids to follow what happened and not who read.
+    // `{ seats }` as a mod is told them, of `now`, the same of the shell's: each `{ id, name, colour, idle, following }`
+    // in the order they sat. A seat no longer in it loses its id. An id is made as its seat is first in `now`, so the
+    // caller hands every change here for the ids to follow what happened and not who read.
     function told(now) {
         keep(seatIds, now.seats);
-        keep(askIds, now.asks);
         return {
             seats: now.seats.map(({ id, name, colour, idle, following }) => ({
                 id: seatIds.get(id),
@@ -24,17 +21,12 @@ function createRoster() {
                 idle: !!idle,
                 following: !!following,
             })),
-            asks: now.asks.map(({ id, name }) => ({ id: askIds.get(id), name })),
         };
     }
 
-    // The shell's id of the seat, and of the ask, told under `id`, or null for none that is told now.
+    // The shell's id of the seat told under `id`, or null for none that is told now.
     function seatOf(id) {
         return found(seatIds, id);
-    }
-
-    function askOf(id) {
-        return found(askIds, id);
     }
 
     // MARK: - Private
@@ -49,7 +41,7 @@ function createRoster() {
         return null;
     }
 
-    return Object.freeze({ told, seatOf, askOf });
+    return Object.freeze({ told, seatOf });
 }
 
 // MARK: - Private

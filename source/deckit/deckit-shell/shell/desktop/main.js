@@ -98,15 +98,11 @@ export function createDesktop({
     // selected in it or, `caret` true, the one its caret is at, each in the page.
     const typings = new Map();
     const unread = new Set(); // the seats whose typing is read again as the next frame is due
-    // The users that ask to sit, in the order they asked, each under a number of its own: `{ user, answer }`, `answer`
-    // what tells deckit yes or no.
-    const asks = new Map();
-    let asked = 0; // how many asked so far
     // The seat whose view the host window shows in the local seat's place, by its id, the local seat following it; or
     // null, the view the local seat's own.
     let followed = null;
     let ended = false; // whether the key that ended a follow is still down: what it would do is not done
-    const seatListeners = new Set(); // what hears who sits, who asks and who is followed change
+    const seatListeners = new Set(); // what hears who sits and who is followed change
     let seatsTold = ''; // what they were told of last, written
     // A keyboard is given up by an idle holder, which is told who took it.
     const GIVING = {
@@ -799,28 +795,8 @@ export function createDesktop({
         else update();
     }
 
-    // A user asks to sit: the ask waits, told to what hears the seats (seatsNow), until it is answered (answerAsk) or
-    // `signal` says no answer is waited for. Answers a promise of whether it may.
-    function ask({ user }, { signal }) {
-        if (signal.aborted) return Promise.resolve(false);
-        const id = ++asked;
-        const over = () => asks.delete(id) && update();
-        signal.addEventListener('abort', over);
-        return new Promise((resolve) => {
-            asks.set(id, {
-                user,
-                answer: (allow) => {
-                    over();
-                    resolve(allow);
-                },
-            });
-            update();
-        });
-    }
-
-    // Who sits and who asks to, as plain data: `seats`, each `{ id, name, colour, idle, following }` in the order they
-    // sat, `name` its user's, `colour` the name of the colour it is told apart by, `following` whether the host window
-    // shows its view; and `asks`, each `{ id, name }` in the order they asked, `name` the user's.
+    // Who sits, as plain data: `seats`, each `{ id, name, colour, idle, following }` in the order they sat, `name` its
+    // user's, `colour` the name of the colour it is told apart by, `following` whether the host window shows its view.
     function seatsNow() {
         return {
             seats: [...hands.keys()].map((id) => ({
@@ -830,7 +806,6 @@ export function createDesktop({
                 idle: seated.has(id) && deckit.seats.isIdle(seated.get(id)),
                 following: id === followed,
             })),
-            asks: [...asks].map(([id, { user }]) => ({ id, name: user.name })),
         };
     }
 
@@ -840,13 +815,6 @@ export function createDesktop({
         if (written === seatsTold) return;
         seatsTold = written;
         for (const listener of [...seatListeners]) listener();
-    }
-
-    // The ask `id` answered, whichever seat's press asked it: whether it waited.
-    function answerAsk(id, allow) {
-        const waiting = asks.get(id);
-        waiting?.answer(!!allow);
-        return !!waiting;
     }
 
     // A press down of `seat` in `page`, or in none: the view shown for it is put away unless the press spares it
@@ -2492,17 +2460,15 @@ export function createDesktop({
         remember,
         keepsFramesOf,
         forgetFramesOf,
-        // What the seats' member reads and does (shell/seats): `now()` answers who sits and who asks (seatsNow),
-        // `onChange(listener)` hears it change and answers its off, `answer(ask, allow)` answers the ask of that id
-        // and says whether it waited, and `follow(seat)` has the host window show that seat's view, or the local
-        // seat's own with null, and says whether it shows that seat's now.
+        // What the seats' member reads and does (shell/seats): `now()` answers who sits (seatsNow),
+        // `onChange(listener)` hears it change and answers its off, and `follow(seat)` has the host window show that
+        // seat's view, or the local seat's own with null, and says whether it shows that seat's now.
         seats: Object.freeze({
             now: seatsNow,
             onChange: (listener) => {
                 seatListeners.add(listener);
                 return () => seatListeners.delete(listener);
             },
-            answer: answerAsk,
             follow: (seat) => {
                 follow(seat);
                 return seat !== null && followed === seat;

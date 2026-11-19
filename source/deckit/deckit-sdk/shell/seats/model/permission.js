@@ -6,8 +6,7 @@ const PERMISSIONS = Object.freeze([
     Object.freeze({
         id: SEATS,
         name: 'Seats',
-        description:
-            'It can see who sits at the desktop and who asks to, answer one that asks, and show the view of one that sits.',
+        description: 'It can see who sits at the desktop, and show the view of one that sits.',
         privileged: true,
     }),
 ]);
