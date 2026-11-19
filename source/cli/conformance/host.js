@@ -21,7 +21,8 @@
 // changes; it reads what a page of the shell's wears, its colour scheme and the custom properties of its root. It keeps
 // what the shell lays on the desktop and in each overlay window, for the children's views laid over regions, and drops
 // files from outside the app on the page laid at a point of a window, through WebKit, as the machine drops them, never
-// in a drag of the machine's. It listens for parties as any host app does, on the socket in its folder of deckit: the
+// in a drag of the machine's, and hands a person's scroll at a point of the host window as the machine's pointer's, in
+// the page laid there. It listens for parties as any host app does, on the socket in its folder of deckit: the
 // runner is each party, and after what one did the host says once the run its principal's proof hosts has settled.
 const fs = require('fs');
 const net = require('net');
@@ -165,6 +166,29 @@ const pagesOn = (pages) =>
             value: (page) => {
                 keyboard = page;
                 return pages.focus(page);
+            },
+        },
+    });
+// The machine's input of the base shell: what hears it, each listener also told each scroll the host hands, and the
+// source the machine's own events carry.
+const listening = new Set();
+let machineSource = null;
+const inputOn = (input) =>
+    Object.create(input, {
+        listen: {
+            value: (listener) => {
+                listening.add(listener);
+                const off = input.listen(listener);
+                return () => {
+                    listening.delete(listener);
+                    off();
+                };
+            },
+        },
+        machine: {
+            value: (source) => {
+                machineSource = source;
+                return input.machine(source);
             },
         },
     });
@@ -315,6 +339,7 @@ try {
                   stage: { value: STAGE },
                   pages: { value: pagesOn(environment.pages) },
                   keys: { value: keysOn(environment.keys) },
+                  input: { value: inputOn(environment.input) },
               }
             : {}),
         // A double click on a title bar zooms the window, as the person set it to.
@@ -391,9 +416,11 @@ socket.on('data', (chunk) => {
                                 ? appear(asked)
                                 : asked.input === 'drop'
                                   ? drop(asked)
-                                  : asked.input === 'parties'
-                                    ? partiesSettled(asked)
-                                    : told().then(() => (asked.look === 'worn' ? worn(asked) : look(asked)))
+                                  : asked.input === 'desktop'
+                                    ? scroll(asked)
+                                    : asked.input === 'parties'
+                                      ? partiesSettled(asked)
+                                      : told().then(() => (asked.look === 'worn' ? worn(asked) : look(asked)))
             ).then(async (came) => {
                 // A run a page starts or ends as it takes what it was told is waited for too.
                 if (asked.input) {
@@ -410,10 +437,10 @@ socket.on('close', () => app.exit(0));
 
 // What a call comes to: what the request the mod's run makes answers, `{ refuses, kind, message }` for its refusal, or
 // `{ none }` where no run of the mod is running or its handle has no such member. `args` are the folders' paths and
-// then the values the step writes; `step` its place, `handle` the name of the handle `member` starts at, `of` the
-// place of the call whose answer it starts at instead, or whose listener's, where `handed`, `delegated` the place of the
-// call of the host's delegate whose first value it starts at instead, and `listener` whether the request is handed one
-// after its args.
+// then the values the step writes; `step` its place, `handle` the name of the handle `member` starts at, `of` the place
+// of the call whose answer it starts at instead, or whose listener's, where `handed`, `delegated` the place of the call
+// of the host's delegate whose first value it starts at instead, and `listener` whether the request is handed one after
+// its args.
 async function request({ input, mod, member, args, step, handle, of, listener, handed, delegated, ...shows }) {
     const running = runningOf(mod);
     if (!running.page) return running;
@@ -769,7 +796,20 @@ async function drop({ mod, name, paths, at }) {
     for (let waited = 0; laid.some(({ scale }) => scale) && waited < 2000; waited += 10) {
         await new Promise((resolve) => setTimeout(resolve, 10));
     }
-    const hit = [...laid]
+    const hit = pageAt(point);
+    if (!hit) return { none: 'no page takes the pointer there' };
+    try {
+        await webkit.sendDrop(hit.page.id, { files: paths, x: point.x - hit.rect.x, y: point.y - hit.rect.y });
+    } catch (error) {
+        return { none: `the page took no drop: ${error.message}` };
+    }
+    return {};
+}
+
+// The page the shell laid on the desktop that takes the pointer at `point` of the host window, the top one, with what
+// is laid of it, or undefined.
+const pageAt = (point) =>
+    [...laid]
         .reverse()
         .find(
             ({ page, rect, clip, input, hidden }) =>
@@ -779,12 +819,25 @@ async function drop({ mod, name, paths, at }) {
                 (!clip || inside(point, clip)) &&
                 (!input || input.some((one) => inside({ x: point.x - rect.x, y: point.y - rect.y }, one)))
         );
-    if (!hit) return { none: 'no page takes the pointer there' };
-    try {
-        await webkit.sendDrop(hit.page.id, { files: paths, x: point.x - hit.rect.x, y: point.y - hit.rect.y });
-    } catch (error) {
-        return { none: `the page took no drop: ${error.message}` };
+
+// What a person's scroll comes to: the machine's pointer turned by `by` at `at`, from the host window's top left, put
+// into the page the shell laid that takes the pointer there, which hears it as the machine delivers it, and told to
+// what hears the machine's input as that page's, `{}`; or `{ none }` where the point is outside the host window or no
+// page takes it.
+async function scroll({ at, by }) {
+    if (!controls) return { none: 'no desktop is shown' };
+    if (!inside(at, { x: 0, y: 0, ...SCREEN })) return { none: 'the point is not in the host window' };
+    if (!machineSource) return { none: "the machine's input has no source" };
+    // A window drawn scaled takes no input until it rests, so the hand scrolls once it does.
+    for (let waited = 0; laid.some(({ scale }) => scale) && waited < 2000; waited += 10) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
     }
+    const hit = pageAt(at);
+    if (!hit) return { none: 'no page takes the pointer there' };
+    const event = { event: 'pointer', type: 'scroll', x: at.x - hit.rect.x, y: at.y - hit.rect.y, dx: by.x, dy: by.y };
+    environment.input.put(hit.page, { ...event, source: machineSource });
+    const told = Object.freeze({ ...event, buttons: [], modifiers: [], page: hit.page, carried: true });
+    for (const listener of [...listening]) listener(told);
     return {};
 }
 
