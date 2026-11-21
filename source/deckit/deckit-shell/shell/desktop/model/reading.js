@@ -30,10 +30,14 @@ function entryLine({ name, ref }) {
 }
 
 // A window or a panel window: its id, title, mod, a panel's edge, its frame, then `key`, the seats whose keyboard it
-// holds, and how it is on the asker's screen.
-function windowLine({ kind, id, title, mod, edge = null, frame, key = [], minimized, zoomed, tile = null }) {
-    const held = key.length > 0 && ['key', ...key].join(' ');
-    const states = [held, minimized && 'minimized', zoomed && 'zoomed', tile && `tile ${tile}`];
+// holds, or null where it holds none's, and how it is on the asker's screen.
+function windowLine({ kind, id, title, mod, edge = null, frame, key = null, minimized, zoomed, tile = null }) {
+    const states = [
+        key && ['key', ...key].join(' '),
+        minimized && 'minimized',
+        zoomed && 'zoomed',
+        tile && `tile ${tile}`,
+    ];
     return joined(kind, id, quoted(title), mod, edge, `at ${pointOf(frame)}`, sizeOf(frame), bracketed(states));
 }
 

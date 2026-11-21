@@ -302,7 +302,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
                 title: (window.bar.style === 'titled' && window.title) || nameOf(window.mod),
                 mod: window.mod,
                 frame: { ...desk.MANAGER.frameOf(id) },
-                key: desk.keyboardsOf(id),
+                key: keysOf(id),
                 minimized: desk.MANAGER.isMinimized(seat, id),
                 zoomed: desk.MANAGER.isZoomed(id),
                 tile: desk.MANAGER.tileNameOf(id),
@@ -311,8 +311,15 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         const panel = desk.panelFrames(seat).find(({ window: { id: each } }) => each === id);
         if (!panel) throw refusal('NOT_FOUND', `no window ${id} is open`);
         const { mod, edge } = panel.window;
-        const key = desk.keyboardsOf(id);
+        const key = keysOf(id);
         return { kind: 'panel', id: `w${id}`, title: nameOf(mod), mod, edge, frame: { ...panel.frame }, key };
+    }
+
+    // The seats whose keyboard the window or panel window `id` holds, in the order they sat, or null where it holds
+    // none's.
+    function keysOf(id) {
+        const seats = desk.keyboardsOf(id);
+        return seats.length ? seats : null;
     }
 
     // The desktop as `seat` reads it, its camera, and the windows that meet the camera or that it minimized, front to
