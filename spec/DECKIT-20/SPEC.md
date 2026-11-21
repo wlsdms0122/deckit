@@ -35,7 +35,7 @@ What a mod may read of what a person copied, from any app, and what it may put t
 | `clipboard.readText()` | nothing | the text the clipboard holds, a string: the empty string where it holds none, or holds what is not text | `system.clipboard-read` |
 | `clipboard.writeText(text)` | `text`, a string, required | nothing, once the clipboard holds `text` in place of what it held | `system.clipboard-write` |
 
-The **clipboard** is the machine's, one for every app: the text `writeText` writes is the text the next `readText` reads, of any mod, until it is replaced, and what the machine holds as the host app starts is read as it is.
+The **clipboard** is the machine's, one for every app and every [seat](../DECKIT-39/SPEC.md): the text `writeText` writes is the text the next `readText` reads, of any mod, until it is replaced, and what the machine holds as the host app starts is read as it is.
 
 Each is refused first as [the permissions](../DECKIT-3/SPEC.md) refuse a request a permission guards, at `call` with kind `NOT_PERMITTED`, and then as [the handle](../DECKIT-7/SPEC.md) refuses a request whose arguments do not fit what it takes, at `call` with kind `INVALID_ARGUMENT`. A write refused leaves the clipboard as it was.
 
@@ -57,6 +57,7 @@ The system defines these permissions, in a table of the shape [the permissions](
 - The handle `clipboard` is a member of, what a request answers, the error it is rejected with and `INVALID_ARGUMENT`: [the handle](../DECKIT-7/SPEC.md).
 - What a mod is granted, `NOT_PERMITTED`, the shape of a table of the system's permissions and their order: [the permissions](../DECKIT-3/SPEC.md). How a permission is asked for and answered usable: [the bundle](../DECKIT-2/SPEC.md).
 - The input `call`, which has a case's mod make the requests, and the clipboard the base `system` keeps in place of the machine's: [the case format](../DECKIT-1/SPEC.md).
+- A seat's keys, whose copy and paste read and write this clipboard: [seats at the desktop](../DECKIT-39/SPEC.md).
 - What a site a mod's web page shows reads of the clipboard and writes to it, only while the mod is granted these permissions: [what a site is let have](../DECKIT-26/SPEC.md).
 
 ## Alternatives considered
@@ -69,6 +70,6 @@ The system defines these permissions, in a table of the shape [the permissions](
 
 ## Notes
 
-**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. That the clipboard is the machine's, one for every app, and what the machine holds as the host app starts: the base `system` keeps a clipboard of its own, as [the case format](../DECKIT-1/SPEC.md) fixes it, so that a case never reads or replaces the clipboard of whoever runs it, and no input of the case format copies as another app does. That `readText` answers the empty string where the clipboard holds what is not text: the base's clipboard holds text alone. That `readText` answers the empty string where the clipboard holds nothing: [the case format](../DECKIT-1/SPEC.md)'s case of the base's clipboard as a case begins holds it. That `writeText` answers nothing: the case format compares no answer of an input that answers nothing.
+**Note.** Some sentences above are held by no case under `conformance/`, each for its reason. That the clipboard is the machine's, one for every app, and what the machine holds as the host app starts: the base `system` keeps a clipboard of its own, as [the case format](../DECKIT-1/SPEC.md) fixes it, so that a case never reads or replaces the clipboard of whoever runs it, and no input of the case format copies as another app does. That it is one for every seat: [seats at the desktop](../DECKIT-39/SPEC.md) says why no case holds it. That `readText` answers the empty string where the clipboard holds what is not text: the base's clipboard holds text alone. That `readText` answers the empty string where the clipboard holds nothing: [the case format](../DECKIT-1/SPEC.md)'s case of the base's clipboard as a case begins holds it. That `writeText` answers nothing: the case format compares no answer of an input that answers nothing.
 
 **Note.** What this costs an implementation: the clipboard is read and written as each request is made, and nothing of it is kept by the system, so a text another app copies is read at once.

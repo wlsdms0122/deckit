@@ -1,0 +1,55 @@
+case = 26
+name = "a-key-of-a-seat-that-undoes-undoes-what-it-typed"
+note = "Each mod's code opens the windows the case says, each filled by a text field, and opens https://said.test/<name>/<event>/<what> outside the app for what the window's content hears: mousedown and mouseup with <button>/<detail>/<modifiers>, mousemove with <buttons>, wheel with <deltaX>/<deltaY>, keydown and keyup with <code>/<key>/<modifiers>/<repeat>, compositionstart and compositionupdate with the text composed, compositionend with <the text>/<the field's value>, inserted with the text of each input event of the type insertText, undone and redone with the field's value after each input event of the type historyUndo and historyRedo, selected with <start>/<end> of the field's selection as it is selected, and paste as it hears a paste, which it prevents, reading nothing of it. The desktop is the base shell's, 1280 by 800. ada sits at s1. It presses main, sends the text event insert with ab, and a down of KeyZ with the key z, meta held, the key that undoes on the machine of the base shell: main's field hears the undo and is empty."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "text", type = "insert", text = "ab" }
+
+[step.expect]
+answers = { to = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "key", type = "down", code = "KeyZ", key = "z", modifiers = ["meta"] }
+
+[step.expect]
+answers = { to = 1 }
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/main/mousedown/0/1/", activates = true }, { url = "https://said.test/main/mouseup/0/1/", activates = true }, { url = "https://said.test/main/inserted/ab", activates = true }, { url = "https://said.test/main/keydown/KeyZ/z/meta/false", activates = true }, { url = "https://said.test/main/undone/", activates = true }]
