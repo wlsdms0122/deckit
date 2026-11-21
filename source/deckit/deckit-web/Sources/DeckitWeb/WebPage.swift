@@ -193,20 +193,23 @@ final class WebPage: NSObject {
 
     // What a key pressed that the page did not handle does, asked of JavaScript after the page had it: whether it is
     // taken from the rest of the app. Until JavaScript answers, the app does not have it; one answered later and not
-    // taken goes to the app's menu, unless it was put for `source`, whose keys the app never has.
+    // taken goes to the app's menu. One put for `source`, whose keys the app never has, that is not taken does in this
+    // page alone what the app's menu would do for it (edit(_:)), answered at once or later.
     func unhandled(_ event: NSEvent, source: String? = nil) -> Bool {
         let answer = KeyAnswer()
-        let reply = Reply { node, arguments in
+        let reply = Reply { [weak self] node, arguments in
             guard answer.taken == nil else { return }
             let taken = try arguments.first.map { try node.bool($0) } ?? false
             answer.taken = taken
-            if !answer.asking && !taken && source == nil { NSApp.mainMenu?.performKeyEquivalent(with: event) }
+            guard !answer.asking, !taken else { return }
+            if source == nil { NSApp.mainMenu?.performKeyEquivalent(with: event) } else { self?.edit(event) }
         }
         var payload = Self.keystroke(of: event)
         payload["reply"] = reply
         if let source { payload["source"] = source }
         emitter.emit("unhandled", payload)
         answer.asking = false
+        if source != nil, answer.taken == false { edit(event) }
 
         return answer.taken ?? true
     }
@@ -350,6 +353,35 @@ final class WebPage: NSObject {
         let port = origin.port == 0 ? "" : ":\(origin.port)"
 
         return "\(origin.protocol)://\(origin.host)\(port)"
+    }
+
+    // What the app's menu does for `event` had it been the machine's key, done on this page's view: the action of the
+    // menu's item whose key equivalent it is, sent to the view, where the view takes that action. One the view does not
+    // take, as the app's own are, is done nowhere, and nothing goes to what has the window's keyboard.
+    private func edit(_ event: NSEvent) {
+        guard event.type == .keyDown,
+              let item = NSApp.mainMenu.flatMap({ Self.item(of: event, in: $0) }),
+              let action = item.action,
+              view.responds(to: action) else { return }
+        NSApp.sendAction(action, to: view, from: item)
+    }
+
+    // The item of `menu` or of a menu under it whose key equivalent `event` is.
+    private static func item(of event: NSEvent, in menu: NSMenu) -> NSMenuItem? {
+        let held: NSEvent.ModifierFlags = [.command, .control, .option, .shift]
+        let typed = (event.charactersIgnoringModifiers ?? "").lowercased()
+        guard !typed.isEmpty else { return nil }
+        for item in menu.items {
+            if let found = item.submenu.flatMap({ Self.item(of: event, in: $0) }) { return found }
+            let equivalent = item.keyEquivalent
+            guard !equivalent.isEmpty, equivalent.lowercased() == typed else { continue }
+            // An equivalent written in capitals holds shift, whatever its mask says.
+            var mask = item.keyEquivalentModifierMask.intersection(held)
+            if equivalent != equivalent.lowercased() { mask.insert(.shift) }
+            if mask == event.modifierFlags.intersection(held) { return item }
+        }
+
+        return nil
     }
 
     private static func keystroke(of event: NSEvent) -> [String: Any?] {
