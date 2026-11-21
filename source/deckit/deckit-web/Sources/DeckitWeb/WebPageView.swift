@@ -10,10 +10,11 @@ import WebKit
 
 // A web page's WKWebView, which tells when it takes the keyboard, may take it only as it is given it or pressed unless
 // it `takesKeyboard` as its document focuses an element, and not as it is pressed while its keyboard `isReserved`,
-// keeps the files of the drop last performed on it, takes the pointer only inside its `inputRegion` while it has one,
-// and hears the pointer only where it is the page under it, in a key window of an app that is not active too
-// (PointerRelay). WebKit tracks the pointer through tracking areas of its own, which each page is given behind a gate
-// (TrackingGate), so a page under another does not answer the moves too and set its own cursor.
+// keeps the files of the drop last performed on it, undoes and redoes its own edits and no other page's, takes the
+// pointer only inside its `inputRegion` while it has one, and hears the pointer only where it is the page under it, in
+// a key window of an app that is not active too (PointerRelay). WebKit tracks the pointer through tracking areas of its
+// own, which each page is given behind a gate (TrackingGate), so a page under another does not answer the moves too and
+// set its own cursor.
 @MainActor
 final class WebPageView: WKWebView {
     // MARK: - Property
@@ -29,6 +30,9 @@ final class WebPageView: WKWebView {
     private var relayed: NSTrackingArea?
     private var covered = false // whether the pointer has left it for a page laid over it
     private var gated: [ObjectIdentifier: (area: NSTrackingArea, gate: TrackingGate)] = [:] // WebKit's area -> its gate
+    // The edits WebKit registers, the view's alone: every page in a window would otherwise share the window's.
+    private let undos = UndoManager()
+    override var undoManager: UndoManager? { undos }
 
     // MARK: - Initializer
     // MARK: - Lifecycle
@@ -92,6 +96,23 @@ final class WebPageView: WKWebView {
         }
 
         return super.hitTest(point)
+    }
+
+    // The undo and the redo of the app's menu, which would otherwise be the window's, done on the view's own edits.
+    @objc func undo(_ sender: Any?) {
+        undos.undo()
+    }
+
+    @objc func redo(_ sender: Any?) {
+        undos.redo()
+    }
+
+    override func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
+        switch item.action {
+        case #selector(undo(_:)): undos.canUndo
+        case #selector(redo(_:)): undos.canRedo
+        default: super.validateUserInterfaceItem(item)
+        }
     }
 
     // A page under another hears the pointer only where it is the one under it, so the two do not each set the cursor.
