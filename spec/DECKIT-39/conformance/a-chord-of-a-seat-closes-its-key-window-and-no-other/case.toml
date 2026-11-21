@@ -1,6 +1,6 @@
 case = 26
 name = "a-chord-of-a-seat-closes-its-key-window-and-no-other"
-note = "A chord a seat's key event makes is read as the shell's keys read one, for that seat. mod-a has the windows main and second. The person presses main, the local seat's key window, and a party's seat presses second, its own, and sends the key KeyW with meta held, the chord that closes the key window: the event answers the window 2, second is closed, for every seat, and main stays open and the local seat's key window."
+note = "A chord a seat's key event makes is read as the shell's keys read one, for that seat. mod-a has the windows main and second. The person presses main, the local seat's key window, and a party's seat presses second, its own, and sends the key KeyW with meta held, the chord that closes the key window: the event answers the window 2, second is closed, for every seat, and main stays open, the local seat's key window still and, as the front window on its screen, the party's seat's too."
 
 [host]
 base = "shell"
@@ -65,4 +65,4 @@ look = "windows"
 seat = "s1"
 
 [step.expect]
-answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = false, minimized = false }]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = true, minimized = false }]
