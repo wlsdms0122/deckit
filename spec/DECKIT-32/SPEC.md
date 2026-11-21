@@ -31,7 +31,7 @@ At most one window is **key** at a time: the window whose content the keyboard g
 
 The **active mod** is the mod of the key window. Where no window is key, no mod is active.
 
-Where more than one seat is open, each seat has a key window, an active mod and a record of who may activate of its own, and a window is key for the one seat that holds it, as [seats at the desktop](../DECKIT-39/SPEC.md) reads these rules for each seat.
+Where more than one seat is open, each seat has a key window, an active mod and a record of who may activate of its own, and a window is key while it holds the keyboard of any of them, as [seats at the desktop](../DECKIT-39/SPEC.md) reads these rules for each seat.
 
 The host app's window has a **title**, the name the system lists the window by, which is the name the mod of the desktop's key window is listed by, as [the bundle](../DECKIT-2/SPEC.md) fixes `name`, or the host's name, as [the embedding](../DECKIT-22/SPEC.md) fixes it, where the desktop has no key window.
 
@@ -72,7 +72,7 @@ A mod is **held back** where its window is to come in front as the key window, a
 - `name`: [the bundle](../DECKIT-2/SPEC.md). The host's name: [the embedding](../DECKIT-22/SPEC.md).
 - Reaching a mod and a call through a connection: [the connections](../DECKIT-9/SPEC.md). `launch` and `relaunch`: [the lifecycle](../DECKIT-5/SPEC.md).
 - A chord a mod takes and when it is told, and a key a mod records: [the shell's keys](../DECKIT-34/SPEC.md). The Dock, a click on an item, `mods.open(id)` and the item marked for attention: [the Dock](../DECKIT-33/SPEC.md).
-- The desktop of each seat, and which seat holds a window: [seats at the desktop](../DECKIT-39/SPEC.md).
+- The desktop of each seat, and the seats whose keyboard a window holds: [seats at the desktop](../DECKIT-39/SPEC.md).
 - The input `key`, the look `desktop`, and the base `shell`'s keyboard and the app in front: [the case format](../DECKIT-1/SPEC.md).
 
 ## Alternatives considered
