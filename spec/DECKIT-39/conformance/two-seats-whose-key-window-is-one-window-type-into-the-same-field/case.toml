@@ -1,0 +1,79 @@
+case = 26
+name = "two-seats-whose-key-window-is-one-window-type-into-the-same-field"
+note = "Each mod's code opens the windows the case says, each filled by a text field, and opens https://said.test/<name>/<event>/<what> outside the app for what the window's content hears: mousedown and mouseup with <button>/<detail>/<modifiers>, mousemove with <buttons>, wheel with <deltaX>/<deltaY>, keydown and keyup with <code>/<key>/<modifiers>/<repeat>, compositionstart and compositionupdate with the text composed, compositionend with <the text>/<the field's value>, and inserted with the text of each input event of the type insertText. The desktop is the base shell's, 1280 by 800. ada sits at s1 and bob at s2. Each presses main at 600, 300, in its field: main is the key window of both. ada sends the text event insert of a and bob that of b: each answers to the window 1, and main's one field hears both."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }, { id = "bob", name = "Bob Kahn" }]
+keys = [{ principal = "ada", key = "first" }, { principal = "bob", key = "second" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "attach"
+party = "q"
+principal = "bob"
+key = "second"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
+
+[step.expect]
+answers = { over = 1, key = true, at = { x = 600, y = 300 } }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "q"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
+
+[step.expect]
+answers = { over = 1, key = true, at = { x = 600, y = 300 } }
+
+[[step]]
+input = "ask"
+party = "q"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "text", type = "insert", text = "a" }
+
+[step.expect]
+answers = { to = 1 }
+
+[[step]]
+input = "ask"
+party = "q"
+method = "seat/input"
+params = { event = "text", type = "insert", text = "b" }
+
+[step.expect]
+answers = { to = 1 }
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/main/mousedown/0/1/", activates = true }, { url = "https://said.test/main/mouseup/0/1/", activates = true }, { url = "https://said.test/main/mousedown/0/1/", activates = true }, { url = "https://said.test/main/mouseup/0/1/", activates = true }, { url = "https://said.test/main/inserted/a", activates = true }, { url = "https://said.test/main/inserted/b", activates = true }]

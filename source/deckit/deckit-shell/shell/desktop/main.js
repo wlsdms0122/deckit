@@ -40,8 +40,8 @@ const REREAD = 16;
 // `placeOf`, `onPlaced`), `host` the app's answers, `REGION` the regions mods give their children, `PAGES` the shell's
 // pages, `OVERLAY` their overlays, `KEY` the keys of the app, `makeStage()` a stage to lay them on (environment:
 // SHELL.stage), `actionOnDoubleClick()` what the person set a double click on a title bar to do (environment: SHELL),
-// `input` what tells the machine's input and puts a seat's in a page, `reserve` what keeps a page from the machine's
-// keyboard (environment: SHELL `input`, `keys.reserve`), `read` what reads a page (environment: SHELL `read`), and
+// `input` what tells the machine's input and puts a seat's in a page (environment: SHELL `input`), `read` what reads
+// a page (environment: SHELL `read`), and
 // `clock` what tells time: `now()` in ms, `later(next)`, next called once the next frame is due, and `after(next, ms)`,
 // next called once `ms` passed.
 export function createDesktop({
@@ -52,7 +52,6 @@ export function createDesktop({
     makeStage,
     actionOnDoubleClick,
     input: INPUT,
-    reserve,
     read: READ,
     deckit,
     state: STATE,
@@ -77,8 +76,7 @@ export function createDesktop({
     // where its pointer is on the desktop, or null; `down`, where its press went until it lets go, a page of the window
     // `id` with `inside`, the page's top left from that window's frame, or a `part` of the window `id` with its `grip`,
     // the Dock's item `id`, its `part` 'dock', pressed at `from` and dragged once `drags`, or the entry `id` of an
-    // item's menu, its `part` 'dock-menu'; `wanted`, the window it pressed
-    // last that another seat holds, or null; `dock`, whether the Dock is out for it, as the desktop's page tells of the
+    // item's menu, its `part` 'dock-menu'; `dock`, whether the Dock is out for it, as the desktop's page tells of the
     // seat it shows and as its pointer says of any other; `menu`, the id of the Dock's item whose menu is open for it,
     // or null; and `keys`, `{ id, page }`, the page
     // of the window `id` that took its last press there, where its keys and text go while that window holds its
@@ -104,16 +102,10 @@ export function createDesktop({
     let ended = false; // whether the key that ended a follow is still down: what it would do is not done
     const seatListeners = new Set(); // what hears who sits and who is followed change
     let seatsTold = ''; // what they were told of last, written
-    // A keyboard is given up by an idle holder, which is told who took it.
-    const GIVING = {
-        isIdle: (seat) => seated.has(seat) && deckit.seats.isIdle(seated.get(seat)),
-        onTaken: (holder, window, by) =>
-            seated.has(holder) && tells?.tell(seated.get(holder), { of: 'held', window, holder: by }),
-    };
-    const MANAGER = WM.createWindowManager(GIVING);
+    const MANAGER = WM.createWindowManager();
     const ACTIVATION = ACTIVATION_MODEL.createActivation();
-    // On which seats' screens each view is, and which seat holds its keyboard.
-    const SHOWING = SHOWING_MODEL.createShowing(GIVING);
+    // On which seats' screens each view is, and the seats whose keyboard it holds.
+    const SHOWING = SHOWING_MODEL.createShowing();
     // What each of the shell's keys does, by its id, to the key window of the seat that pressed it. Close Window puts
     // away the view shown for that seat where there is one, and closes nothing then.
     const KEY_ACTIONS = Object.freeze({
@@ -153,7 +145,6 @@ export function createDesktop({
     const DIALOGS = DIALOG_MODEL.createDialogs(); // the dialogs the pages ask, where each stands in its window
     const asking = new Map(); // a dialog's ask -> the page that asked it, while it is up
     let answering = null; // `{ answer(ask, value), refuse(ask) }`, what deckit answered as the dialogs were served
-    const reserved = new WeakMap(); // a window's content -> whether it is kept from the machine's keyboard, as told
     const onDesktop = new Map(); // a page laid in the host window's view -> its rect on the desktop, as last laid
     // id -> what is drawn of a window: `{ window, motion, value, velocity, late, leaving, gone }`, `value` its frame
     // and opacity as drawn last, `leaving` 'closed' or 'minimized' while it goes, `gone()` once a closed one has
@@ -192,7 +183,7 @@ export function createDesktop({
             area,
             cameraOf,
             panelFrames: panelsOf,
-            panelHolderOf,
+            keyboardsOf,
             laidFor,
             laidOfWindow,
             windowAt,
@@ -329,7 +320,7 @@ export function createDesktop({
     function shownBy(window, rule) {
         rule(window.id, ACTIVATION.causeOf(window.mod));
         update();
-        if (SHOWING.heldBy(LOCAL) === window.id) host.show();
+        if (SHOWING.of(LOCAL) === window.id) host.show();
         return true;
     }
 
@@ -350,19 +341,14 @@ export function createDesktop({
         return view !== null && windowAt(page)?.id === view && putAway(seat);
     }
 
-    // `seat` pressed in a panel window: its input reached the window's mod. One in the bar leaves the seat's keyboard
-    // with its key window, or with the view that holds it. A view shown for the seat by activation keeps its keyboard,
-    // or takes it once no other seat holds it: answered `{ key, holder }` as a press on a window is.
+    // `seat` pressed in a panel window: its input reached the window's mod. One in the bar, or a view shown for every
+    // seat, leaves the seat's keyboard with its key window, or with the view that holds it; a view shown for the seat
+    // by activation holds its keyboard already.
     function pressPanel(seat, window) {
         if (!panels.has(window.id)) return;
         ACTIVATION.input(seat, window.mod);
-        if (SHOWING.of(seat) === window.id) {
-            const made = SHOWING.take(seat);
-            update();
-            if (seat === LOCAL && made === SHOWING_MODEL.HELD) giveBack();
-            return { key: made, holder: SHOWING.holderOf(window.id) };
-        }
-        if (seat === LOCAL) giveBack();
+        if (SHOWING.of(seat) === window.id) update();
+        else if (seat === LOCAL) giveBack();
     }
 
     // The local seat pressed a child's view shown in a panel window: as a press in the panel window, its input reached
@@ -393,7 +379,6 @@ export function createDesktop({
         if (![...windows.values()].some(({ mod }) => mod === window.mod)) ACTIVATION.cancelAttention(window.mod);
         for (const [seat, hand] of hands) {
             if (hand.moving?.id === window.id) endDrag(seat);
-            if (hand.wanted === window.id) hand.wanted = null;
             if (hand.down?.id === window.id) hand.down = null;
         }
         const surfaces = [PAGE.frameOf(window.id), PAGE.buttonsOf(window.id), PAGE.dialogOf(window.id)].map((name) => {
@@ -414,9 +399,9 @@ export function createDesktop({
     }
 
     // Brought forward as its mod asks, for each seat, the local one first: where the mod may activate for the seat, in
-    // front, and its key window unless `activates` is false or another seat holds it, the host window coming up for
-    // the local seat; where it may not, right behind the seat's key window, not key, its mod asking for the seat's
-    // attention unless `activates` is false, or in front where the seat has no key window to hold it behind.
+    // front, and its key window unless `activates` is false, the host window coming up for the local seat; where it
+    // may not, right behind the seat's key window, not key, its mod asking for the seat's attention unless `activates`
+    // is false, or in front where the seat has no key window to hold it behind.
     function orderFront(window, { activates = true } = {}) {
         if (!windows.has(window.id)) return;
         for (const seat of hands.keys()) {
@@ -429,18 +414,15 @@ export function createDesktop({
     }
 
     // `seat` pressed in the window, on its frame or in its content: its input reached the window's mod, and the
-    // window comes in front in its order, as its key window unless another seat holds it. Answers as
-    // MANAGER.makeKey does.
+    // window comes in front in its order, as its key window, whichever other seats' key window it is.
     function press(seat, window) {
-        if (!windows.has(window.id)) return null;
+        if (!windows.has(window.id)) return;
         ACTIVATION.input(seat, window.mod);
-        const made = MANAGER.orderFront(seat, window.id);
+        MANAGER.orderFront(seat, window.id);
         pressers.set(window.id, seat);
         const hand = hands.get(seat);
-        if (hand) hand.wanted = made === WM.HELD ? window.id : null;
         if (hand) hand.pressed = window.id;
         update();
-        return made;
     }
 
     function minimize(seat, window) {
@@ -564,25 +546,23 @@ export function createDesktop({
         return true;
     }
 
-    // What a window's content is told of it: `shown` on some seat's screen with the host window up, `key` while the
-    // keyboard of the seat that holds it is on it, not away (`away`), its size, and where its buttons stand over its
-    // top; a panel window is key while it holds some seat's keyboard and has no buttons, and a view is
-    // shown only while it stands on some seat's screen, told the size it would stand at while it does not. A panel
-    // window in the host's bar is told its `room` there (LAYOUT.roomsIn), any other window none. A content is one page
-    // under every seat that looks at it, so it is told what is so of the one whose keyboard it has, its holder: a seat
-    // that only looks at it has no keyboard in it.
+    // What a window's content is told of it: `shown` on some seat's screen with the host window up, `key` while it
+    // holds the keyboard of any seat (keyboardsOf), its size, and where its buttons stand over its top; a panel window
+    // has no buttons, and a view is shown only while it stands on some seat's screen, told the size it would stand at
+    // while it does not. A panel window in the host's bar is told its `room` there (LAYOUT.roomsIn), any other window
+    // none. A content is one page under every seat that looks at it, with one focus: it is key from the first seat
+    // whose keyboard it comes to hold until the last it holds no more.
     function stateOf(window) {
+        const key = keyboardsOf(window.id).length > 0;
         if (panels.has(window.id)) {
             const frame = panelFrameOf(window.id);
-            const key = panelHolderOf(window.id) !== null;
             const { width, height } = frame ?? ANCHORED.sizeOf(bounds(), window.size);
             return { shown: shown && !!frame, key, width, height, titleBar: null, room: roomOf(window.id) };
         }
         const frame = MANAGER.frameOf(window.id);
-        const holder = MANAGER.holderOf(window.id);
         return {
             shown: shown && MANAGER.isShown(window.id),
-            key: holder !== null && !away(holder),
+            key,
             width: frame?.width ?? 0,
             height: frame?.height ?? 0,
             titleBar: LAYOUT.guideOf(window.bar),
@@ -607,10 +587,9 @@ export function createDesktop({
         return MANAGER.keyOf(LOCAL) === window.id;
     }
 
-    // The panel window that holds the machine's keyboard, or null: the view shown for the local seat whose keyboard it
-    // holds.
+    // The panel window that holds the machine's keyboard, or null: the view shown for the local seat by activation.
     function keyPanel() {
-        return panels.get(SHOWING.heldBy(LOCAL)) ?? null;
+        return panels.get(SHOWING.of(LOCAL)) ?? null;
     }
 
     // The title a titled window's title bar holds now.
@@ -631,22 +610,15 @@ export function createDesktop({
         if (!stage) return;
         settleViews();
         for (const [seat, hand] of hands) {
-            const panel = seat === LOCAL ? (keyPanel() ?? WINDOWS.keyOverlay()) : panels.get(SHOWING.heldBy(seat));
+            const panel = seat === LOCAL ? (keyPanel() ?? WINDOWS.keyOverlay()) : panels.get(SHOWING.of(seat));
             ACTIVATION.setActive(seat, panel?.mod ?? keyWindow(seat)?.mod ?? null);
             // The keyboard of a seat comes to a window it did not press at its content.
-            if (hand.keys && ![keyboardOf(seat)?.id, hand.wanted].includes(hand.keys.id)) hand.keys = null;
+            if (hand.keys && hand.keys.id !== keyboardOf(seat)?.id) hand.keys = null;
             // Where a seat types is drawn of the page its keys go to now, and of no other.
             const page = typingPageOf(seat);
             if ((typings.get(seat)?.page ?? null) === page) continue;
             typings.delete(seat);
             if (page) reread(seat);
-        }
-        // The machine's press on a window another seat holds leaves the machine's keyboard where it is.
-        for (const { id, surface } of windows.values()) {
-            const kept = ![null, LOCAL].includes(MANAGER.holderOf(id));
-            if (!surface || reserved.get(surface) === kept) continue;
-            reserved.set(surface, kept);
-            reserve(surface, kept);
         }
         layout();
         tellPage();
@@ -717,7 +689,6 @@ export function createDesktop({
             dropping: null,
             pointer: null,
             down: null,
-            wanted: null,
             dock: false,
             menu: null,
             keys: null,
@@ -776,7 +747,8 @@ export function createDesktop({
         if (shown) focus();
     }
 
-    // A seat deckit closed leaves: what it held is no one's, and a view that followed it is the local seat's again.
+    // A seat deckit closed leaves: no window or view holds its keyboard, and a view that followed it is the local
+    // seat's again.
     // It is out of what is kept here before the desktop is laid again, as deckit answers nothing of a seat it closed.
     function leave(seat) {
         if (seat.id === LOCAL || !hands.has(seat.id)) return;
@@ -857,9 +829,9 @@ export function createDesktop({
     // The entry, as deckit hands it: what the devices of `seat` did, an event with the seat's `source`. It goes by the
     // route of its kind (ROUTING.ROUTES). An event the environment carried is in its page already, and the local
     // seat's press or key that ends its following of another seat does no more; any other is read against what is
-    // laid for the seat and put in the page it reaches. A pointer answers `{ over, key, holder, at }`: `over` the
-    // window it reached, 'desktop' for the desktop where no window is, or null, for a press on a window `key` 'key' or
-    // 'held' and `holder`, the seat that holds its keyboard, and `at`, the desktop's point it went to. A key or text
+    // laid for the seat and put in the page it reaches. A pointer answers `{ over, key, at }`: `over` the window it
+    // reached, 'desktop' for the desktop where no window is, or null, for a press on a window `key`, whether the
+    // seat's keys go to that window after it, and `at`, the desktop's point it went to. A key or text
     // answers `{ to }`, the window it went to, or null where the seat has no key window. Nothing is put while the
     // host window is hidden, where no page takes input: that is refused HIDDEN. A seat's events keep their order: one
     // placed by a ref takes time, and what enters meanwhile waits its turn (ROUTING.waits).
@@ -972,7 +944,7 @@ export function createDesktop({
     // A pointer event to be carried. A press and a scroll go where `stage.hit` finds a page in what is laid for the
     // seat; a move with a button held and the up that ends it go where the press went, at the pointer's point of that
     // page where its window is now, so a window its content's drag moves stays under the pointer. A press on the
-    // desktop or the Dock leaves the seat's keyboard with its key window, wanting no other. A move with none held
+    // desktop or the Dock leaves the seat's keyboard with its key window. A move with none held
     // reaches what lies at its point as a press does and presses nothing: a window's page it reaches hears it as the
     // machine's moving pointer, and the pages it left hear the pointer leave (pointedAlone). The Dock comes out for
     // the seat as its pointer reaches the Dock's sliver, and stays out while it is there or on the Dock's card, or an
@@ -1015,27 +987,25 @@ export function createDesktop({
         if (part) {
             const docks = DOCK_PARTS.includes(part.part);
             if (type === 'down') gesture(seat, type, point, part, { count: event.count, button: event.button });
-            if (type === 'down' && docks) hand.wanted = null;
             if (type === 'down') backToKey(hand);
             if (docks) return { over: 'dock' };
-            const made = MANAGER.keyOf(seat) === part.id ? 'key' : 'held';
-            return { over: part.id, ...(type === 'down' ? { key: made, holder: MANAGER.holderOf(part.id) } : {}) };
+            return { over: part.id, ...(type === 'down' ? { key: keyboardOf(seat)?.id === part.id } : {}) };
         }
         const window = windowAt(hit.page);
         if (!window) {
-            if (type === 'down') hand.wanted = null;
             if (type === 'down') backToKey(hand);
             if (type === 'scroll' && desktop.page) scrolled(seat, hand, event);
             return { over: desktop.page ? 'desktop' : null };
         }
-        let answer = { over: window.id };
+        const answer = { over: window.id };
         if (type === 'down') {
             const frame = frameOn(window.id, seat);
             const inside = { x: point.x - hit.x - frame.x, y: point.y - hit.y - frame.y };
             hand.down = { id: window.id, page: hit.page, inside };
-            if (panels.has(window.id)) answer = { ...answer, ...pressPanel(seat, window) };
-            else answer = reached(seat, window);
-            if ([keyboardOf(seat)?.id, hand.wanted].includes(window.id)) hand.keys = { id: window.id, page: hit.page };
+            if (panels.has(window.id)) pressPanel(seat, window);
+            else press(seat, window);
+            answer.key = keyboardOf(seat)?.id === window.id;
+            if (answer.key) hand.keys = { id: window.id, page: hit.page };
         }
         INPUT.put(hit.page, { ...event, x: hit.x, y: hit.y });
         reread(seat);
@@ -1066,22 +1036,10 @@ export function createDesktop({
     }
 
     // A key or text to be carried: put in the page that took the seat's last press in the window that holds its
-    // keyboard, the panel window it pressed or its key window, a child or a web page laid over the content as the
-    // content itself, while that page is laid there; in the window's content where it pressed none. One for a window
-    // the seat pressed that another seat still holds is refused HELD, and so is one of a seat a view is shown for by
-    // activation while another seat holds that view's keyboard.
+    // keyboard, the view shown for it by activation or its key window, a child or a web page laid over the content as
+    // the content itself, while that page is laid there; in the window's content where it pressed none. That the
+    // window holds another seat's keyboard too changes nothing of it.
     function typed(seat, event) {
-        const hand = hands.get(seat);
-        if (hand.wanted !== null && MANAGER.makeKey(seat, hand.wanted) === WM.HELD)
-            throw refusal('HELD', `seat ${MANAGER.holderOf(hand.wanted)} holds the keyboard of window ${hand.wanted}`);
-        if (hand.wanted !== null) {
-            hand.wanted = null;
-            update();
-        }
-        if (SHOWING.take(seat) === SHOWING_MODEL.HELD) {
-            const view = SHOWING.of(seat);
-            throw refusal('HELD', `seat ${SHOWING.holderOf(view)} holds the keyboard of window ${view}`);
-        }
         const key = keyboardOf(seat);
         if (!key?.surface) return { to: null };
         if (dialogKeyed(seat, event, keysPageOf(seat))) return { to: key.id };
@@ -1228,8 +1186,8 @@ export function createDesktop({
 
     // `seat`'s press on a window, answered as the entry answers it.
     function reached(seat, window) {
-        const made = press(seat, window);
-        return { over: window.id, key: made === WM.HELD ? 'held' : 'key', holder: MANAGER.holderOf(window.id) };
+        press(seat, window);
+        return { over: window.id, key: keyboardOf(seat)?.id === window.id };
     }
 
     // The window or panel window a page is of: its content, a child a region of it shows, a web page apart in it or
@@ -1692,10 +1650,17 @@ export function createDesktop({
         return windows.get(MANAGER.keyOf(seat)) ?? null;
     }
 
-    // The window that holds an attached seat's keyboard: the view shown for it whose keyboard it holds, or its key
-    // window; or null.
+    // The window that holds an attached seat's keyboard: the view shown for it by activation, or its key window; or
+    // null.
     function keyboardOf(seat) {
-        return panels.get(SHOWING.heldBy(seat)) ?? keyWindow(seat);
+        return panels.get(SHOWING.of(seat)) ?? keyWindow(seat);
+    }
+
+    // The seats whose keyboard the window or panel window `id` holds, in the order they sat: those a view is shown for
+    // by activation, and those whose key window a window is while their keyboard is not away from it.
+    function keyboardsOf(id) {
+        if (panels.has(id)) return SHOWING.seatsOf(id);
+        return MANAGER.seatsOf(id).filter((seat) => !away(seat));
     }
 
     // The seat a key was pressed by, as the environment tells what it was put for: the local one's for the machine's.
@@ -1832,10 +1797,10 @@ export function createDesktop({
     }
 
     // Whether a seat's keyboard is away from its key window: the machine's, the local seat's, with an overlay window
-    // or a view, any other's with the view it holds.
+    // or a view, any other's with the view shown for it by activation.
     function away(seat) {
         if (seat === LOCAL) return keyPanel() !== null || !!WINDOWS.keyOverlay();
-        return SHOWING.heldBy(seat) !== null;
+        return SHOWING.of(seat) !== null;
     }
 
     // An attached seat's keys go to the content of its key window again.
@@ -2086,24 +2051,20 @@ export function createDesktop({
         }));
     }
 
-    // The seat that holds the keyboard of a panel window, or null.
-    function panelHolderOf(id) {
-        return SHOWING.holderOf(id);
-    }
-
-    // The seat whose keys go to `page` now, or null. The local seat's keyboard is the machine's, and which page of
-    // its window has it is not told here: it is named in every page of that window.
+    // The seats whose keys go to `page` now, in the order they sat. The local seat's keyboard is the machine's, and
+    // which page of its window has it is not told here: it is named in every page of that window.
     function typingIn(page) {
         const window = windowAt(page);
-        if (!window) return null;
+        if (!window) return [];
+        const seats = [];
         for (const [seat, hand] of hands) {
             if (seat === LOCAL) {
-                if ((keyPanel() ?? (WINDOWS.keyOverlay() ? null : keyWindow(LOCAL))) === window) return seat;
+                if ((keyPanel() ?? (WINDOWS.keyOverlay() ? null : keyWindow(LOCAL))) === window) seats.push(seat);
             } else if (keyboardOf(seat) === window) {
-                if ((hand.keys?.id === window.id ? hand.keys.page : window.surface) === page) return seat;
+                if ((hand.keys?.id === window.id ? hand.keys.page : window.surface) === page) seats.push(seat);
             }
         }
-        return null;
+        return seats;
     }
 
     // What is drawn of each window on the local seat's screen, `view` as MANAGER.viewOf has it: back to front, each `{
@@ -2286,8 +2247,8 @@ export function createDesktop({
 
     // `{ windows, panels, seats, following, drop, strip, dock, down }`, as the desktop's page draws it, of the seat the
     // host window shows, each frame and point less the top left of the camera it shows (shownCamera). A window's frame
-    // is key as its content is (stateOf): not while an overlay window holds the keyboard, which update() tells as it
-    // takes or gives it back.
+    // is key while the window holds that seat's keyboard: not while an overlay window or a view does, which update()
+    // tells as it takes or gives it back. Its `rings` are of every seat whose key window it is.
     function stateOfPage() {
         const seatScreen = shownScreen();
         const { seat, camera } = seatScreen;
@@ -2302,7 +2263,7 @@ export function createDesktop({
                 id,
                 frame: onScreen(frame),
                 key: id === key && !away(seat),
-                holder: COLOURS.of(MANAGER.holderOf(id)),
+                rings: MANAGER.seatsOf(id).map((each) => COLOURS.of(each)),
                 bar: windows.get(id).bar,
                 title: isTitled(windows.get(id)) ? windows.get(id).title : null,
                 dialogs: DIALOGS.inWindow(id).map((dialog) => ({

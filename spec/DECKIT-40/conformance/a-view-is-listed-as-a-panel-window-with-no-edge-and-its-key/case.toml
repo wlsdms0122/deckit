@@ -1,6 +1,6 @@
 case = 29
 name = "a-view-is-listed-as-a-panel-window-with-no-edge-and-its-key"
-note = "mod-a opens main, the window 1, on the base shell, 1280 by 800, under a bar 52 high, and ada sits at s1 and presses main. mod-a is told to open v, 320 by 240, at the place top-right, at the level panel: v is shown for s1 by activation, and s1 holds its keyboard. The desktop is read: v is a line panel after the normal window, with no edge, and with key and s1."
+note = "mod-a opens main, the window 1, on the base shell, 1280 by 800, under a bar 52 high, and ada sits at s1 and presses main. mod-a is told to open v, 320 by 240, at the place top-right, at the level panel: v is shown for s1 by activation, and holds the keyboard of s1. The desktop is read: v is a line panel after the normal window, with no edge, and with key and s1, and the line of the window 1, whose keyboard of s1 the view holds, has no key."
 
 [host]
 base = "shell"
@@ -45,4 +45,4 @@ params = { of = "desktop" }
 part = "text"
 
 [step.expect]
-answers = "desktop at 0,0 1280x800 mark \u001A\nseat local \"Deckit conformance\" blue\nseat s1 \"Ada Lovelace\" green at 600,300 key w1 (you)\ndock (1 items)\n  item \"mod-a\" [running, active] dock.mod-a\nwindow w1 \"mod-a\" mod-a at 283,141 720x480 [key s1]\npanel w2 \"mod-a\" mod-a at 952,60 320x240 [key s1]"
+answers = "desktop at 0,0 1280x800 mark \u001A\nseat local \"Deckit conformance\" blue\nseat s1 \"Ada Lovelace\" green at 600,300 key w1 (you)\ndock (1 items)\n  item \"mod-a\" [running, active] dock.mod-a\nwindow w1 \"mod-a\" mod-a at 283,141 720x480\npanel w2 \"mod-a\" mod-a at 952,60 320x240 [key s1]"

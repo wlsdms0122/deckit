@@ -1,6 +1,6 @@
 case = 26
-name = "a-key-of-a-seat-held-from-the-window-it-pressed-is-refused-held"
-note = "The local seat holds main and is not idle. ada, at s1, presses main and is held from it, then sends a key down: the key is refused at call with kind HELD."
+name = "a-key-of-a-seat-goes-to-a-window-that-is-another-seat-s-key-window-too"
+note = "The person presses main, so it is the local seat's key window. ada, at s1, presses main: it is the key window of s1 too, the press answers key true, and a key down of s1 answers to the window 1."
 
 [host]
 base = "shell"
@@ -31,7 +31,7 @@ method = "seat/input"
 params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
 
 [step.expect]
-answers = { over = 1, key = "held", holder = "local", at = { x = 600, y = 300 } }
+answers = { over = 1, key = true, at = { x = 600, y = 300 } }
 
 [[step]]
 input = "ask"
@@ -40,5 +40,4 @@ method = "seat/input"
 params = { event = "key", type = "down", code = "KeyA", key = "a" }
 
 [step.expect]
-refuses = "call"
-kind = "HELD"
+answers = { to = 1 }

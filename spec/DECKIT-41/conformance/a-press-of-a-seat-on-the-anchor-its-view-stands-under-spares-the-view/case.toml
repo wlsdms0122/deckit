@@ -50,7 +50,7 @@ method = "seat/input"
 params = { event = "pointer", type = "down", x = 1190, y = 26, button = 0, count = 1 }
 
 [step.expect]
-answers = { over = 2, at = { x = 1190, y = 26 } }
+answers = { over = 2, key = false, at = { x = 1190, y = 26 } }
 
 [[step]]
 input = "ask"
@@ -72,7 +72,7 @@ method = "seat/input"
 params = { event = "pointer", type = "down", x = 1160, y = 26, button = 0, count = 1 }
 
 [step.expect]
-answers = { over = 2, at = { x = 1160, y = 26 } }
+answers = { over = 2, key = false, at = { x = 1160, y = 26 } }
 
 [[step]]
 input = "ask"

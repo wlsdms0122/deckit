@@ -8,11 +8,10 @@ export const setup = CHANNEL.pageToMain(
     {},
     { reply: true, sync: true, guard: CHANNEL.GUARD.ANY }
 );
-// `{ windows: [{ id, frame, key, holder, bar, title, dialogs }], panels: [{ id, edge, frame, radius }], seats,
+// `{ windows: [{ id, frame, key, rings, bar, title, dialogs }], panels: [{ id, edge, frame, radius }], seats,
 // following, drop, strip, dock, down }`: the windows on the screen of the seat whose view the host window shows, the local
-// seat's or that of the seat it follows, `frame` on the stage, `key` whether it is that seat's key window, `holder`
-// the name of the colour of the seat that holds its keyboard (a seat colour of the kit's token), or null, `bar` its
-// title bar
+// seat's or that of the seat it follows, `frame` on the stage, `key` whether it is that seat's key window, `rings`
+// the names of the colours of the seats whose key window it is (seat colours of the kit's token), `bar` its title bar
 // (model/layout.js barOf), `title` what the title bar the shell draws over a titled window's content holds, or null for
 // a window whose content draws its own, `dialogs` those its pages ask, `{ ask, kind, message, from, value, rect,
 // parts }` from the window's top left (model/dialog.js partsOf); `panels`, the panel windows that stand, at their

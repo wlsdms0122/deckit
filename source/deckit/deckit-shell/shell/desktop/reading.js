@@ -164,7 +164,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
                     const listed = toldLine(line);
                     entries.push({
                         kind,
-                        line: kind === '-' ? listed.ref : TEXT.elementLine(withSeat(listed, typing)),
+                        line: kind === '-' ? listed.ref : TEXT.elementLine(withSeats(listed, typing)),
                     });
                 }
             }
@@ -302,7 +302,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
                 title: (window.bar.style === 'titled' && window.title) || nameOf(window.mod),
                 mod: window.mod,
                 frame: { ...desk.MANAGER.frameOf(id) },
-                key: desk.MANAGER.holderOf(id),
+                key: keysOf(id),
                 minimized: desk.MANAGER.isMinimized(seat, id),
                 zoomed: desk.MANAGER.isZoomed(id),
                 tile: desk.MANAGER.tileNameOf(id),
@@ -311,8 +311,15 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         const panel = desk.panelFrames(seat).find(({ window: { id: each } }) => each === id);
         if (!panel) throw refusal('NOT_FOUND', `no window ${id} is open`);
         const { mod, edge } = panel.window;
-        const key = desk.panelHolderOf(id);
+        const key = keysOf(id);
         return { kind: 'panel', id: `w${id}`, title: nameOf(mod), mod, edge, frame: { ...panel.frame }, key };
+    }
+
+    // The seats whose keyboard the window or panel window `id` holds, in the order they sat, or null where it holds
+    // none's.
+    function keysOf(id) {
+        const seats = desk.keyboardsOf(id);
+        return seats.length ? seats : null;
     }
 
     // The desktop as `seat` reads it, its camera, and the windows that meet the camera or that it minimized, front to
@@ -378,7 +385,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
 
     // The pages a window or a panel window shows, bottom to top: `{ page, part, name, rect, typing }`, `part` its
     // 'content', a 'child' a region of it shows, named by its mod, a 'web' page in one of them or an 'overlay' of one,
-    // `rect` where it is on the desktop, which the shell is not told of a web page, and `typing` the seat whose keys
+    // `rect` where it is on the desktop, which the shell is not told of a web page, and `typing` the seats whose keys
     // go to it. A page that waits on its dialog is left out.
     function pagesOf(id) {
         const content = (desk.windows.get(id) ?? desk.panels.get(id))?.surface ?? null;
@@ -398,10 +405,11 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
             .map((each) => ({ name: null, ...each, typing: desk.typingIn(each.page) }));
     }
 
-    // A line of a document with the seat whose keys go to it after `focused`.
-    function withSeat(line, seat) {
-        if (!seat || !line.states?.includes('focused')) return line;
-        return { ...line, states: line.states.map((state) => (state === 'focused' ? `focused ${seat}` : state)) };
+    // A line of a document with the seats whose keys go to it after `focused`, in the order they sat.
+    function withSeats(line, seats) {
+        if (!seats.length || !line.states?.includes('focused')) return line;
+        const focused = ['focused', ...seats].join(' ');
+        return { ...line, states: line.states.map((state) => (state === 'focused' ? focused : state)) };
     }
 
     // The documents are numbered in the order they are listed, as the pages answer in any order.
@@ -415,7 +423,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
             noted(page, outline.document, outline.count);
             const { width, height } = outline;
             const document = toldOf(outline.document);
-            const lines = outline.lines.map((line) => withSeat(toldLine(line), typing));
+            const lines = outline.lines.map((line) => withSeats(toldLine(line), typing));
             return [{ document, part, ...(name ? { name } : {}), width, height, lines }];
         });
         return { window: own, parts: partsOf(id).map(({ rect: _rect, ...part }) => part), documents };
@@ -512,7 +520,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         if (desk.waits(kept.page)) throw refusal('REFUSED', 'its page waits on its dialog, which is answered first');
         const { rect, typing } = pagesOf(window.id).find(({ page }) => page === kept.page) ?? {};
         const inPage = `${document}.${element}`;
-        return { page: kept.page, ref: inPage, window: window.id, rect: rect ?? null, typing: typing ?? null };
+        return { page: kept.page, ref: inPage, window: window.id, rect: rect ?? null, typing: typing ?? [] };
     }
 
     // Where what `ref` names is on the desktop, `{ rect, window, by }`, what shows of an element in its page; with
@@ -540,7 +548,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         const lines = under.map(toldLine);
         const moved = (each) => (on ? { ...each, x: on.x + each.x, y: on.y + each.y } : null);
         return {
-            node: withSeat(toldLine(line), typing),
+            node: withSeats(toldLine(line), typing),
             ...(on ? { rect: moved(rect) } : { size: { width: rect.width, height: rect.height } }),
             ...(scroll ? { scroll } : {}),
             lines,

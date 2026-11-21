@@ -111,11 +111,11 @@ async function main() {
         seat.on('seat/output', (told) => heard.push(told));
         const read = await seat.request('seat/read', { of: 'desktop' });
         const stopping = await host.ask('runner/stop', {});
-        host.tell('seat/output', { of: 'held' });
+        host.tell('seat/output', { of: 'changes' });
         await until(() => heard.length, 2000);
         check(
             'a request goes each way: the relay passes on what is asked of the host, the party answers the host',
-            JSON.stringify([read, stopping, heard]) === '[{"of":"desktop","mark":7},"stopping",[{"of":"held"}]]',
+            JSON.stringify([read, stopping, heard]) === '[{"of":"desktop","mark":7},"stopping",[{"of":"changes"}]]',
             [read, stopping, heard]
         );
 

@@ -106,9 +106,8 @@ function pointed(seat, target, pointer) {
     return seat.request('seat/input', { event: 'pointer', ...place, modifiers, ...pointer });
 }
 
-function reached({ over = null, key = null, holder = null }) {
-    const held = key === 'held' ? `held by ${holder}` : key;
-    return [`over ${over ?? 'nothing'}`, held].filter(Boolean).join(', ');
+function reached({ over = null, key = false }) {
+    return [`over ${over ?? 'nothing'}`, key && 'key'].filter(Boolean).join(', ');
 }
 
 // The key a chord ends in, as a key event names it: its code, and the key that code gives.
@@ -196,13 +195,12 @@ const ASKS = {
     type: async (seat, [text]) =>
         void (await seat.request('seat/input', { event: 'text', type: 'insert', text: text ?? refuse() })),
     // A line an output told, until interrupted: the host says that the desktop changed, and what changed is asked
-    // then; a window of the seat's taken by another is said as it is told.
+    // then.
     watch: async (seat) => {
         let asked = Promise.resolve();
         const changes = async () => console.log((await seat.request('seat/read', { of: 'changes' })).text);
-        seat.on('seat/output', ({ of, window, holder }) => {
+        seat.on('seat/output', ({ of }) => {
             if (of === 'changes') asked = asked.then(changes).catch(() => {});
-            if (of === 'held') console.log(`held w${window} by ${holder}`);
         });
         await seat.request('seat/watch', { of: 'changes', on: true });
         const interrupted = new Promise((resolve) => process.once('SIGINT', resolve));

@@ -1,6 +1,6 @@
 case = 25
-name = "seat-watch-turned-off-for-an-output-told-from-the-opening-answers-true"
-note = "seat/watch answers true for an output that is told, with on false as with on true: held, which the shell tells a seat from the moment it opens, is watched no more."
+name = "seat-watch-turned-off-for-an-output-not-watched-answers-true"
+note = "seat/watch answers true for an output that is told, with on false as with on true: changes, which the seat of ada did not watch, is watched no more."
 
 [host]
 base = "shell"
@@ -21,7 +21,7 @@ key = "first"
 input = "ask"
 party = "p"
 method = "seat/watch"
-params = { of = "held", on = false }
+params = { of = "changes", on = false }
 
 [step.expect]
 answers = true

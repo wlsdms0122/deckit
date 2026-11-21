@@ -1,6 +1,6 @@
 case = 26
-name = "a-seat-whose-window-was-taken-is-told-held"
-note = "With the idle time 0 every seat is idle at once. ada, at s1, presses main and holds it, and is told nothing. The person then presses main: s1, idle, gives it up, and its party is told seat/output of held with the window's id and the seat local that holds it now."
+name = "a-press-of-another-seat-on-a-seat-s-key-window-leaves-it-the-seat-s"
+note = "Nothing of another seat changes a seat's key window. ada, at s1, presses main, its key window from then. The person then presses main: the party of s1 is told nothing, and the look windows answers main key for s1 still, and key for the local seat."
 
 [host]
 base = "shell"
@@ -8,7 +8,6 @@ api = "1.0.0"
 ship = ["mod-a"]
 users = [{ id = "ada", name = "Ada Lovelace" }]
 keys = [{ principal = "ada", key = "first" }]
-seats = { idleTime = 0 }
 
 [[step]]
 input = "start"
@@ -26,7 +25,7 @@ method = "seat/input"
 params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
 
 [step.expect]
-answers = { over = 1, key = "key", holder = "s1", at = { x = 600, y = 300 } }
+answers = { over = 1, key = true, at = { x = 600, y = 300 } }
 
 [[step]]
 look = "told"
@@ -48,14 +47,14 @@ party = "p"
 part = "messages"
 
 [step.expect]
-answers = [{ method = "seat/output", request = false, params = { of = "held", window = 1, holder = "local" } }]
+answers = []
 
 [[step]]
 look = "windows"
 seat = "s1"
 
 [step.expect]
-answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = false, minimized = false }]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = true, minimized = false }]
 
 [[step]]
 look = "windows"

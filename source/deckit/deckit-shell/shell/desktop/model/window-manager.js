@@ -1,20 +1,14 @@
-// MARK: - Property
-// What making a window key answers: it is the seat's key window now, or another seat holds its keyboard.
-const KEY = 'key';
-const HELD = 'held';
-
 // MARK: - Initializer
 // MARK: - Public
-// The desktop's windows as every seat shares them, each with its frame, its minimum size and the seats that hold its
-// keyboard, and each seat's own: its order, back to front, its key window and the windows it minimized. A seat is one
-// user's pointer and keyboard, named by a token the caller keeps; every operation is one seat's. A window is held by
-// the seat whose key window it is: making key a window another seat holds leaves it to that seat and answers HELD,
-// unless that seat is idle, as `isIdle(seat)` answers, which gives the window up: `onTaken(holder, id, by)` hears it.
+// The desktop's windows as every seat shares them, each with its frame and its minimum size, and each seat's own: its
+// order, back to front, its key window and the windows it minimized. A seat is one user's pointer and keyboard, named
+// by a token the caller keeps; every operation is one seat's. A seat's key window is its own: a window is the key
+// window of any number of seats at once, and nothing of one seat changes another's.
 // Frames are `{ x, y, width, height }`, never below the window's `minimum` `{ width, height }`.
-function createWindowManager({ isIdle = () => false, onTaken = () => {} } = {}) {
+function createWindowManager() {
     // MARK: - Property
-    // id -> { frame, minimum, zoomed, tiled, holders }: `zoomed` the frame zoom left, or null; `tiled`
-    // `{ name, before }`, the tile it is in and the frame it had before, or null
+    // id -> { frame, minimum, zoomed, tiled }: `zoomed` the frame zoom left, or null; `tiled` `{ name, before }`, the
+    // tile it is in and the frame it had before, or null
     const windows = new Map();
     const seats = new Map(); // seat -> { order, key, minimized }
 
@@ -24,17 +18,15 @@ function createWindowManager({ isIdle = () => false, onTaken = () => {} } = {}) 
         if (!seats.has(seat)) seats.set(seat, { order: [...windows.keys()], key: null, minimized: new Set() });
     }
 
-    // A seat leaves: what it held is no one's.
+    // A seat leaves: its key window is its no more.
     function removeSeat(seat) {
-        const held = seats.get(seat)?.key;
-        if (held !== null && held !== undefined) windows.get(held)?.holders.delete(seat);
         seats.delete(seat);
     }
 
     // A window opens, `by` a seat: right behind each seat's key window, or in front for a seat with none. A seat it is
     // brought forward for orders it front.
     function open(_by, id, { frame, minimum }) {
-        windows.set(id, { frame: fitted(frame, minimum), minimum, zoomed: null, tiled: null, holders: new Set() });
+        windows.set(id, { frame: fitted(frame, minimum), minimum, zoomed: null, tiled: null });
         for (const seat of seats.values()) seat.order = behindKey(seat, id);
     }
 
@@ -50,14 +42,14 @@ function createWindowManager({ isIdle = () => false, onTaken = () => {} } = {}) 
         }
     }
 
-    // In front in `by`'s order, out of what it minimized, and its key window unless `activates` is false: answers as
-    // makeKey does, or null.
+    // In front in `by`'s order, out of what it minimized, and its key window unless `activates` is false: answers
+    // whether it is its key window after.
     function orderFront(by, id, { activates = true } = {}) {
         const seat = seats.get(by);
-        if (!seat || !windows.has(id)) return null;
+        if (!seat || !windows.has(id)) return false;
         seat.minimized.delete(id);
         seat.order = [...seat.order.filter((one) => one !== id), id];
-        return activates ? makeKey(by, id) : null;
+        return activates ? makeKey(by, id) : seat.key === id;
     }
 
     // Right behind `by`'s key window in its order, or in front where it has none, out of what it minimized, and not
@@ -71,23 +63,13 @@ function createWindowManager({ isIdle = () => false, onTaken = () => {} } = {}) 
         seat.order = behindKey(seat, id);
     }
 
-    // `by`'s key window, and held by it, unless another seat holds it and is not idle: answers KEY or HELD. An idle
-    // holder is left with no key window.
+    // `by`'s key window, whichever other seats' key window it is: answers whether it is, which it is not while `by`
+    // has it minimized.
     function makeKey(by, id) {
         const seat = seats.get(by);
-        const window = windows.get(id);
-        if (!seat || !window || seat.minimized.has(id)) return null;
-        const others = [...window.holders].filter((holder) => holder !== by);
-        if (others.some((holder) => !isIdle(holder))) return HELD;
-        for (const holder of others) {
-            window.holders.delete(holder);
-            seats.get(holder).key = null;
-            onTaken(holder, id, by);
-        }
-        if (seat.key !== null) windows.get(seat.key)?.holders.delete(by);
+        if (!seat || !windows.has(id) || seat.minimized.has(id)) return false;
         seat.key = id;
-        window.holders.add(by);
-        return KEY;
+        return true;
     }
 
     // Out of `by`'s view; its key window the next in its order if it was this one.
@@ -96,7 +78,6 @@ function createWindowManager({ isIdle = () => false, onTaken = () => {} } = {}) 
         if (!seat || !windows.has(id)) return;
         seat.minimized.add(id);
         if (seat.key !== id) return;
-        windows.get(id).holders.delete(by);
         seat.key = null;
         next(by);
     }
@@ -140,9 +121,9 @@ function createWindowManager({ isIdle = () => false, onTaken = () => {} } = {}) 
 
     // The windows on `seat`'s screen, back to front, without those it minimized: `[{ id, frame }]`.
     function viewOf(seat) {
-        const held = seats.get(seat);
-        if (!held) return [];
-        return held.order.filter((id) => !held.minimized.has(id)).map((id) => ({ id, frame: windows.get(id).frame }));
+        const own = seats.get(seat);
+        if (!own) return [];
+        return own.order.filter((id) => !own.minimized.has(id)).map((id) => ({ id, frame: windows.get(id).frame }));
     }
 
     function keyOf(seat) {
@@ -163,14 +144,9 @@ function createWindowManager({ isIdle = () => false, onTaken = () => {} } = {}) 
         return windows.has(id) && [...seats.values()].some((seat) => !seat.minimized.has(id));
     }
 
-    // Some seat's key window.
-    function isKey(id) {
-        return (windows.get(id)?.holders.size ?? 0) > 0;
-    }
-
-    // The seat that holds the window's keyboard, or null.
-    function holderOf(id) {
-        return [...(windows.get(id)?.holders ?? [])][0] ?? null;
+    // The seats whose key window it is, in the order they sat.
+    function seatsOf(id) {
+        return [...seats].filter(([, seat]) => seat.key === id).map(([name]) => name);
     }
 
     function frameOf(id) {
@@ -194,12 +170,10 @@ function createWindowManager({ isIdle = () => false, onTaken = () => {} } = {}) 
     }
 
     // MARK: - Private
-    // The front-most window of `name`'s order it has not minimized and no other seat holds becomes its key window.
+    // The front-most window of `name`'s order it has not minimized becomes its key window.
     function next(name) {
         const seat = seats.get(name);
-        const id = [...seat.order]
-            .reverse()
-            .find((one) => !seat.minimized.has(one) && windows.get(one).holders.size === 0);
+        const id = seat.order.findLast((one) => !seat.minimized.has(one));
         if (id !== undefined) makeKey(name, id);
     }
 
@@ -232,8 +206,7 @@ function createWindowManager({ isIdle = () => false, onTaken = () => {} } = {}) 
         orderOf,
         isMinimized,
         isShown,
-        isKey,
-        holderOf,
+        seatsOf,
         isZoomed,
         frameOf,
         tileNameOf,
@@ -241,4 +214,4 @@ function createWindowManager({ isIdle = () => false, onTaken = () => {} } = {}) 
     };
 }
 
-export { KEY, HELD, createWindowManager };
+export { createWindowManager };

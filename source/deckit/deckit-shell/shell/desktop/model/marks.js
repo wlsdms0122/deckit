@@ -82,4 +82,10 @@ function glides(place) {
     return place === 'ref';
 }
 
-export { NAME, RING, MARK, topAt, underOf, cursorOn, nameLeft, ringOf, glides };
+// The share of a ring's length the seat `at` of the `count` that share it has, the seats side by side in their order:
+// `[before, after]`, how much of the length lies before its share and after it, in hundredths.
+function sharesOf(count, at) {
+    return [(100 * at) / count, (100 * (count - at - 1)) / count];
+}
+
+export { NAME, RING, MARK, topAt, underOf, cursorOn, nameLeft, ringOf, glides, sharesOf };

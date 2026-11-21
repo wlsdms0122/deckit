@@ -58,7 +58,7 @@ method = "seat/input"
 params = { event = "pointer", type = "down", x = 1000, y = 100, button = 0, count = 1 }
 
 [step.expect]
-answers = { over = 2, at = { x = 1000, y = 100 } }
+answers = { over = 2, key = false, at = { x = 1000, y = 100 } }
 
 [[step]]
 input = "ask"

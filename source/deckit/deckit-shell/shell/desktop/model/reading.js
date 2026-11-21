@@ -29,10 +29,15 @@ function entryLine({ name, ref }) {
     return joined('menuitem', quoted(name), ref);
 }
 
-// A window or a panel window: its id, title, mod, a panel's edge, its frame, then the seat that holds its keyboard and
-// how it is on the asker's screen.
+// A window or a panel window: its id, title, mod, a panel's edge, its frame, then `key`, the seats whose keyboard it
+// holds, or null where it holds none's, and how it is on the asker's screen.
 function windowLine({ kind, id, title, mod, edge = null, frame, key = null, minimized, zoomed, tile = null }) {
-    const states = [key && `key ${key}`, minimized && 'minimized', zoomed && 'zoomed', tile && `tile ${tile}`];
+    const states = [
+        key && ['key', ...key].join(' '),
+        minimized && 'minimized',
+        zoomed && 'zoomed',
+        tile && `tile ${tile}`,
+    ];
     return joined(kind, id, quoted(title), mod, edge, `at ${pointOf(frame)}`, sizeOf(frame), bracketed(states));
 }
 

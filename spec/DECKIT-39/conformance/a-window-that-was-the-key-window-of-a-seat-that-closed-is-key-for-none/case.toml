@@ -1,6 +1,6 @@
 case = 26
-name = "a-window-a-seat-that-closed-held-is-held-by-none"
-note = "A seat that closes holds nothing any more. ada's seat presses main and holds it, and ada's party leaves: the window is key for no seat, bob's seat is told nothing, and bob's press makes it bob's key window."
+name = "a-window-that-was-the-key-window-of-a-seat-that-closed-is-key-for-none"
+note = "A seat that closes holds nothing any more. ada's seat presses main, its key window from then, and ada's party leaves: the window is key for no seat, bob's seat is told nothing, and bob's press makes it bob's key window."
 
 [host]
 base = "shell"
@@ -32,7 +32,7 @@ method = "seat/input"
 params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
 
 [step.expect]
-answers = { over = 1, key = "key", holder = "s1", at = { x = 600, y = 300 } }
+answers = { over = 1, key = true, at = { x = 600, y = 300 } }
 
 [[step]]
 input = "ask"
@@ -72,4 +72,4 @@ method = "seat/input"
 params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
 
 [step.expect]
-answers = { over = 1, key = "key", holder = "s2", at = { x = 600, y = 300 } }
+answers = { over = 1, key = true, at = { x = 600, y = 300 } }
