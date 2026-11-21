@@ -18,7 +18,7 @@ const masked = (text) =>
         .replace(/^window w\d+ ("[^"]*" \S+) at .* mark \d+$/m, 'window $1')
         .replace(/ (w\d+\.[a-z.]+|\d+\.\d+)$/gm, '')
         .replace(/^( *document) \d+ (.*) \d+x\d+$/gm, '$1 $2')
-        .replace(/focused \w+/g, 'focused')
+        .replace(/focused(?: \w+)+/g, 'focused')
         .replace(/text \d+/g, 'text N')
         .replace(/value "[^"]*"/g, 'value "*"');
 // The last line is the field the outside checks put into the window the local seat types in.
@@ -292,16 +292,19 @@ async function run({ check, reader, other, window, editor, settings, showsFor, i
     const shown = editor && showsFor(other, editor);
     const pressed = shown && other.as('press', shown);
     const texts = editor ? other.as('read', 'window', `w${editor.id}`, '--roles', 'textbox') : '';
-    const [, text] = /^ +textbox "[^"]+" \[text \d+\] (\d+\.\d+)$/m.exec(texts) ?? [];
+    const [, text] = /^ +textbox "[^"]+" \[(?:focused[\w ]*, )?text \d+\] (\d+\.\d+)$/m.exec(texts) ?? [];
     const byRef = text && other.as('press', text);
     const inEditor = editor ? reader.as('read', 'window', `w${editor.id}`, '--roles', 'textbox') : '';
     check(
         'reading: the Editor read by one seat while another types in it names that seat as focused',
         byRef === `over ${editor?.id}, key` &&
-            new RegExp(`^window w${editor?.id} "Editor" editor .*\\[key ${other.seat}\\] mark \\d+$`, 'm').test(
+            new RegExp(
+                `^window w${editor?.id} "Editor" editor .*\\[key [\\w ]*\\b${other.seat}\\] mark \\d+$`,
+                'm'
+            ).test(inEditor) &&
+            new RegExp(`^ +textbox "[^"]+" \\[focused [\\w ]*\\b${other.seat}, text \\d+\\] ${text}$`, 'm').test(
                 inEditor
-            ) &&
-            new RegExp(`^ +textbox "[^"]+" \\[focused ${other.seat}, text \\d+\\] ${text}$`, 'm').test(inEditor),
+            ),
         JSON.stringify({ shown, pressed, texts, byRef, inEditor })
     );
 
