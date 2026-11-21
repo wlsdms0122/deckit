@@ -130,12 +130,14 @@ async function main() {
     );
 
     const handed = [];
+    // The shell's outputs, and one of the test's that a seat is told from the moment it opens.
+    const TELLS = { ...SERVED.TELLS, bell: Object.freeze({ fields: Object.freeze({ window: 'integer' }), on: true }) };
     const tells = SEAT.serve({
-        input: (seat, event) => (handed.push([seat.id, event]), { over: 'w1', key: 'key', holder: seat.id }),
+        input: (seat, event) => (handed.push([seat.id, event]), { over: 'w1', key: true, by: seat.id }),
         events: SERVED.EVENTS,
         read: (seat, query) => ({ text: `desktop for ${seat.id} ${JSON.stringify(query)}`, mark: 1 }),
         reads: SERVED.READS,
-        tells: SERVED.TELLS,
+        tells: TELLS,
     });
     const throws = (served) => {
         try {
@@ -150,7 +152,7 @@ async function main() {
             'with what answers them',
         throws({ input: () => ({}), events: {} }) &&
             throws({ onAsk: () => true }) &&
-            throws({ tells: { held: SERVED.TELLS.held } }) &&
+            throws({ tells: { bell: TELLS.bell } }) &&
             throws({ events: { wheel: { types: ['down'], fields: {} } } }),
         ''
     );
@@ -171,7 +173,7 @@ async function main() {
     const misplaced = await guest.ask('seat/input', { event: 'text', type: 'insert', text: 'a', x: 1 });
     check(
         'what a seat does and reads is handed to what is served with the seat, and answered as it answers',
-        pressed.value?.holder === 's1' &&
+        pressed.value?.by === 's1' &&
             JSON.stringify(handed) === JSON.stringify([['s1', { ...pointer, source: seat.source }]]) &&
             read.value?.text === 'desktop for s1 {"of":"desktop"}',
         [pressed, handed, read]
@@ -213,33 +215,33 @@ async function main() {
         fractions.every((answer) => answer.error?.kind === 'INVALID_ARGUMENT') && handed.length === 1,
         fractions
     );
-    const readHeld = await guest.ask('seat/read', { of: 'held' });
+    const readTold = await guest.ask('seat/read', { of: 'bell' });
     const readNone = await guest.ask('seat/read', { of: 'weather' });
     const readOther = await guest.ask('seat/read', { of: 'changes', scale: 2 });
     const watchPicture = await guest.ask('seat/watch', { of: 'picture', on: true });
     check(
         'the half an output has not, an output there is not, and a query that is not its output are refused',
-        [readHeld, readNone, readOther, watchPicture].every((answer) => answer.error?.kind === 'INVALID_ARGUMENT'),
-        [readHeld, readNone, readOther, watchPicture]
+        [readTold, readNone, readOther, watchPicture].every((answer) => answer.error?.kind === 'INVALID_ARGUMENT'),
+        [readTold, readNone, readOther, watchPicture]
     );
     const outputs = () => told.get('guest').map(({ payload }) => payload);
     tells.tell(seat, { of: 'changes', mark: 2 });
-    tells.tell(seat, { of: 'held', window: 1, holder: 'local' });
+    tells.tell(seat, { of: 'bell', window: 1 });
     const watched = await guest.ask('seat/watch', { of: 'changes', on: true });
     tells.tell(seat, { of: 'changes', mark: 3 });
     check(
-        'a seat is told of an output while it watches it, by its name, and of a window taken from the attach on',
+        'a seat is told of an output while it watches it, by its name, and of one told from its opening from the attach on',
         watched.value === true &&
             JSON.stringify(outputs()) ===
                 JSON.stringify([
-                    { of: 'held', window: 1, holder: 'local' },
+                    { of: 'bell', window: 1 },
                     { of: 'changes', mark: 3 },
                 ]),
         [watched, outputs()]
     );
-    await guest.ask('seat/watch', { of: 'held', on: false });
+    await guest.ask('seat/watch', { of: 'bell', on: false });
     await guest.ask('seat/watch', { of: 'changes', on: false });
-    tells.tell(seat, { of: 'held', window: 1, holder: 'local' });
+    tells.tell(seat, { of: 'bell', window: 1 });
     tells.tell(seat, { of: 'changes', mark: 4 });
     const untold = (output) => {
         try {

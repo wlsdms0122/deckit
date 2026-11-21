@@ -166,7 +166,7 @@ export function createApi({
                 // once: `input(seat, event)`, `event` with the seat's `source`, and `read(seat, { of, ...query })`, an
                 // output asked once, each handed plain data and answering what the user is answered. What is not
                 // served is refused. Answers `{ tell(seat, output) }`, what the shell tells a seat: `output`
-                // is `{ of: 'changes', mark }` or `{ of: 'held', window, holder }`, and reaches a seat that watches it.
+                // is `{ of: 'changes', mark }`, and reaches a seat that watches it.
                 serve: SEAT.serve,
             }),
             permissions: Object.freeze({ define: PERMISSION.define }),

@@ -63,8 +63,6 @@ const READS = Object.freeze({
 const TELLS = Object.freeze({
     // The desktop changed: the mark it is at now.
     changes: Object.freeze({ fields: Object.freeze({ mark: 'integer' }), on: false }),
-    // The seat's key window, by its id, was taken by another seat, `holder`.
-    held: Object.freeze({ fields: Object.freeze({ window: 'integer', holder: 'string?' }), on: true }),
 });
 
 export { EVENTS, READS, TELLS };
