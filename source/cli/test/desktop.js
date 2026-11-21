@@ -60,44 +60,48 @@ async function main() {
     manager.orderFront('me', 2);
     check(
         'a window a seat orders front is in front, its key window',
-        opened === WM.KEY && order('me') === '1,2' && manager.keyOf('me') === 2,
+        opened === true && order('me') === '1,2' && manager.keyOf('me') === 2,
         { me: order('me'), key: manager.keyOf('me') }
     );
     check(
-        'the key window is held by its seat alone, and is no key window of the seat that did not make it key',
-        manager.isKey(2) && !manager.isKey(1) && manager.keyOf('you') === null,
+        'a key window is the key window of the seat that made it key, and of no seat that did not',
+        manager.seatsOf(2).join() === 'me' && manager.seatsOf(1).join() === '' && manager.keyOf('you') === null,
         ''
     );
-    const held = manager.orderFront('you', 2);
+    const both = manager.orderFront('you', 2);
     check(
-        'a seat that brings a window another holds to its front has it in front, and is answered it is held',
-        held === WM.HELD && order('you') === '1,2' && manager.keyOf('you') === null && manager.keyOf('me') === 2,
-        { held, you: order('you') }
+        'a window is the key window of two seats at once, named in the order they sat',
+        both === true && order('you') === '1,2' && manager.keyOf('you') === 2 && manager.seatsOf(2).join() === 'me,you',
+        { both, you: order('you'), seats: manager.seatsOf(2) }
     );
     const yours = manager.orderFront('you', 1);
     check(
         "each seat has its own order and key window: one's front may be behind for another",
-        yours === WM.KEY && order('you') === '2,1' && order('me') === '1,2' && manager.keyOf('you') === 1,
+        yours === true && order('you') === '2,1' && order('me') === '1,2' && manager.keyOf('you') === 1,
         { me: order('me'), you: order('you') }
     );
-    manager.orderFront('me', 1);
-    check('a window another seat holds is not taken from it', manager.keyOf('me') === 2 && manager.keyOf('you') === 1, [
-        manager.keyOf('me'),
-        manager.keyOf('you'),
-    ]);
+    check(
+        "a seat that makes another window key leaves a window the other seat's key window",
+        manager.keyOf('me') === 2 && manager.seatsOf(2).join() === 'me',
+        manager.seatsOf(2)
+    );
     manager.open('me', 3, { frame: at(20), minimum });
     check(
         "a window opened leaves each seat's key window where it is, in front of it",
-        manager.keyOf('me') === 2 && order('me') === '3,2,1' && order('you') === '2,3,1',
+        manager.keyOf('me') === 2 && order('me') === '1,3,2' && order('you') === '2,3,1',
         { key: manager.keyOf('me'), me: order('me'), you: order('you') }
     );
     manager.orderFront('me', 3);
-    check('making another window key lets go of the one before', !manager.isKey(2) && manager.keyOf('me') === 3, '');
+    check(
+        'making another window key lets go of the one before',
+        !manager.seatsOf(2).length && manager.keyOf('me') === 3,
+        ''
+    );
 
     manager.minimize('me', 3);
     check(
         "a seat's minimized window leaves its view alone, and its key window is the next it does not minimize",
-        order('me') === '2,1' &&
+        order('me') === '1,2' &&
             order('you') === '2,3,1' &&
             manager.isMinimized('me', 3) &&
             manager.isShown(3) &&
@@ -109,27 +113,29 @@ async function main() {
     manager.orderFront('me', 3);
     check(
         'brought to front, a minimized window is back in front, the key window',
-        order('me') === '2,1,3' && manager.keyOf('me') === 3 && !manager.isMinimized('me', 3) && manager.isShown(3),
+        order('me') === '1,2,3' && manager.keyOf('me') === 3 && !manager.isMinimized('me', 3) && manager.isShown(3),
         order('me')
     );
     manager.minimize('me', 3);
     manager.minimize('me', 2);
     check(
-        'the next key window passes over one another seat holds',
-        manager.keyOf('me') === null && manager.keyOf('you') === 1,
+        "the next key window is the front-most the seat has not minimized, another seat's key window or not",
+        manager.keyOf('me') === 1 && manager.seatsOf(1).join() === 'me,you' && manager.makeKey('me', 2) === false,
         manager.keyOf('me')
     );
     manager.orderFront('me', 2);
     manager.close('you', 1);
     check(
-        'a window closed closes for every seat, and a seat whose key window it was takes the next it may hold',
-        order('me') === '2' && order('you') === '2' && manager.keyOf('you') === null && manager.keyOf('me') === 2,
+        'a window closed closes for every seat, and a seat whose key window it was takes the next in its order',
+        order('me') === '2' && order('you') === '2' && manager.keyOf('you') === 2 && manager.keyOf('me') === 2,
         { me: order('me'), you: order('you'), key: manager.keyOf('you') }
     );
+    manager.removeSeat('you');
+    manager.addSeat('you');
     check(
-        'the key window of one seat is not made key by another going to it',
-        manager.makeKey('you', 2) === WM.HELD,
-        ''
+        'a seat that leaves is no more among the seats whose key window a window is',
+        manager.seatsOf(2).join() === 'me' && manager.keyOf('you') === null,
+        manager.seatsOf(2)
     );
 
     manager.setFrame('you', 2, { x: 5, y: 6, width: 20, height: 400 });
@@ -159,8 +165,8 @@ async function main() {
     const taken = manager.orderFront('you', 3);
     manager.removeSeat('you');
     check(
-        "a seat that leaves holds nothing more: its key window may be another's",
-        taken === WM.KEY && manager.orderFront('me', 3) === WM.KEY,
+        "a seat that leaves changes nothing of another's: the window that was its key window is made key as before",
+        taken === true && manager.orderFront('me', 3) === true && manager.seatsOf(3).join() === 'me',
         taken
     );
     manager.addSeat('late');
@@ -1165,10 +1171,9 @@ function seatChecks({ LAYOUT, DOCK, createDesktop }, check) {
     check(
         'two seats press two windows and type at once: each has its key window, and each key is put in its own',
         mine.over === 1 &&
-            mine.key === 'key' &&
-            mine.holder === 's1' &&
+            mine.key === true &&
             yours.over === 2 &&
-            yours.holder === 's2' &&
+            yours.key === true &&
             typed.map(({ to }) => to).join() === '1,2,1' &&
             putIn('content-1', 's1').join() === 'down,up,KeyA,KeyC' &&
             putIn('content-2', 's2').join() === 'down,up,KeyB' &&
@@ -1213,59 +1218,42 @@ function seatChecks({ LAYOUT, DOCK, createDesktop }, check) {
         pressAt.x === 100 && pressAt.y === 100 - LAYOUT.DEFAULT_BAR.height,
         JSON.stringify(pressAt)
     );
-    check(
-        "the pages of the windows other seats hold are kept from the machine's keyboard, the local seat's own is not",
-        desk.reserved.get('content-1') && desk.reserved.get('content-2') && !desk.reserved.get('content-3'),
-        JSON.stringify([...desk.reserved])
-    );
 
     const before = desk.puts.length;
-    const held = desk.enter(you, pointer('down', middle(1)));
+    const second = desk.enter(you, pointer('down', middle(1)));
     desk.enter(you, pointer('up', middle(1)));
-    const refused = (() => {
-        try {
-            return desk.enter(you, key('KeyZ'));
-        } catch (error) {
-            return error;
-        }
-    })();
+    const both = [desk.enter(you, key('KeyZ')).to, desk.enter(me, key('KeyY')).to];
     check(
-        'a press on a window another seat holds reaches it and answers held and who holds it, and a key is refused',
-        held.over === 1 &&
-            held.key === 'held' &&
-            held.holder === 's1' &&
-            refused.kind === 'HELD' &&
-            refused.stage === 'call' &&
-            desk.puts.slice(before).every(({ event }) => event.event === 'pointer') &&
-            desk.puts.length === before + 2,
-        JSON.stringify({ held, refused: refused.kind, puts: desk.puts.slice(before) })
+        "a press on a window that is another seat's key window makes it the key window of both, and the keys of " +
+            'each go to it',
+        second.over === 1 &&
+            second.key === true &&
+            both.join() === '1,1' &&
+            putIn('content-1', 's2').join() === 'down,up,KeyZ' &&
+            putIn('content-1', 's1').at(-1) === 'KeyY' &&
+            desk.puts.length === before + 4,
+        JSON.stringify({ second, both, puts: desk.puts.slice(before) })
     );
-    const localHeld = desk.enter(desk.seats.open[0], {
-        ...pointer('down', { x: 5, y: 5 }),
-        page: all[0].surface,
-        carried: true,
-    });
+    const carried = (surface) =>
+        desk.enter(desk.seats.open[0], { ...pointer('down', { x: 5, y: 5 }), page: surface, carried: true });
+    const localToo = carried(all[0].surface);
     check(
-        "the machine's press in a window another seat holds comes in front and leaves the local seat's key window",
-        localHeld.key === 'held' &&
-            localHeld.holder === 's1' &&
-            localKey() === 3 &&
+        "the machine's press in a window that is another seat's key window makes it the local seat's key window too",
+        localToo.key === true &&
+            localKey() === 1 &&
             desk.desktop.control.windows().at(-1).id === 1 &&
-            desk.puts.length === before + 2,
-        JSON.stringify(localHeld)
+            desk.puts.length === before + 4,
+        JSON.stringify(localToo)
     );
+    carried(all[2].surface);
 
     desk.seats.idle.add('s1');
-    const taken = desk.enter(you, pointer('down', middle(1)));
-    const after = desk.enter(you, key('KeyY'));
+    const pressed = desk.enter(you, pointer('down', middle(1)));
+    const after = [desk.enter(you, key('KeyY')).to, desk.enter(me, key('KeyA')).to];
     check(
-        "an idle holder's window is taken: the press answers key, the holder is told, and it has no key window",
-        taken.key === 'key' &&
-            taken.holder === 's2' &&
-            after.to === 1 &&
-            JSON.stringify(desk.seats.held) === JSON.stringify([{ seat: 's1', window: 1, holder: 's2' }]) &&
-            desk.enter(me, key('KeyA')).to === null,
-        JSON.stringify({ taken, after, held: desk.seats.held })
+        "a seat that is idle keeps its key window, another seat's press on it or not",
+        pressed.key === true && after.join() === '1,1',
+        JSON.stringify({ pressed, after })
     );
     desk.seats.idle.clear();
 
@@ -1291,8 +1279,8 @@ function seatChecks({ LAYOUT, DOCK, createDesktop }, check) {
     desk.enter(me, pointer('move', { x: bar.x + 40, y: bar.y + 30 }, { buttons: [0] }));
     desk.enter(me, pointer('up', { x: bar.x + 40, y: bar.y + 30 }));
     check(
-        "a seat's drag of a title bar moves the window, and its press there answers that the local seat holds it",
-        onBar.over === 3 && onBar.key === 'held' && frame().x === from.x + 40 && frame().y === from.y + 30,
+        "a seat's drag of a title bar moves the window, the local seat's key window too, and its press there answers key",
+        onBar.over === 3 && onBar.key === true && frame().x === from.x + 40 && frame().y === from.y + 30,
         JSON.stringify({ onBar, from, to: frame() })
     );
     const edge = { x: frame().x + frame().width + 2, y: frame().y + 100 };
@@ -1359,7 +1347,7 @@ function seatChecks({ LAYOUT, DOCK, createDesktop }, check) {
     const pressedBy = (seat, id) => {
         const answer = desk.enter(seat, pointer('down', middle(id)));
         desk.enter(seat, pointer('up', middle(id)));
-        return answer.over === id && answer.key === 'key';
+        return answer.over === id && answer.key === true;
     };
     const others = desk.desktop.control
         .windows()
@@ -1373,7 +1361,7 @@ function seatChecks({ LAYOUT, DOCK, createDesktop }, check) {
     desk.enter(you, pointer('up', { x: 600, y: 780 }));
     told.push(toldKey());
     check(
-        "a window's content is told key by the seat that holds it, the machine's as an attached seat's, and stays " +
+        "a window's content is told key while it holds a seat's keyboard, the machine's as an attached seat's, and stays " +
             'so as that seat presses the desktop',
         holds.other !== null && holds.other !== holds.local && told.join(' ') === 'true,true true,true',
         JSON.stringify({ holds, told })
@@ -2771,36 +2759,32 @@ function dialogChecks({ createDialogs, partsOf, partAt, answerOf, keyed, covers 
 }
 
 // The showing rule (model/showing.js): on which seats' screens a view is after each thing that shows it and each that
-// puts it away, and which seat holds its keyboard.
-function showingChecks({ createShowing, KEY, HELD }, check) {
-    const idle = new Set();
-    const taken = [];
-    const showing = createShowing({
-        isIdle: (seat) => idle.has(seat),
-        onTaken: (holder, view, by) => taken.push([holder, view, by].join()),
-    });
+// puts it away, and the seats whose keyboard it holds.
+function showingChecks({ createShowing }, check) {
+    const showing = createShowing();
+    const holds = (view) => showing.seatsOf(view).join();
     for (const seat of ['me', 'you']) showing.addSeat(seat);
     const on = (view) => ['me', 'you', 'late'].filter((seat) => showing.isOn(seat, view)).join();
     showing.open(1, { seat: 'you' });
     check(
-        'a view opened is shown for the seat its mod acts for and no other, which holds its keyboard',
-        on(1) === 'you' && showing.of('you') === 1 && showing.of('me') === null && showing.holderOf(1) === 'you',
-        { on: on(1), holder: showing.holderOf(1) }
+        'a view opened is shown for the seat its mod acts for and no other, whose keyboard it holds',
+        on(1) === 'you' && showing.of('you') === 1 && showing.of('me') === null && holds(1) === 'you',
+        { on: on(1), holds: holds(1) }
     );
     showing.open(2, { activates: false, seat: 'me' });
     showing.addSeat('late');
     check(
         'a view opened with activates false is shown for every seat, one that sits later too, and takes no keyboard',
-        on(2) === 'me,you,late' && showing.of('me') === null && showing.holderOf(2) === null && showing.isShown(2),
-        { on: on(2), holder: showing.holderOf(2) }
+        on(2) === 'me,you,late' && showing.of('me') === null && holds(2) === '' && showing.isShown(2),
+        { on: on(2), holds: holds(2) }
     );
     showing.removeSeat('late');
     for (const seat of ['me', 'nobody', null]) showing.show(1, seat);
-    const second = { on: on(1), holder: showing.holderOf(1), take: showing.take('me'), held: showing.heldBy('me') };
+    const second = { on: on(1), holds: holds(1), mine: showing.of('me'), yours: showing.of('you') };
     check(
-        'a view shown again is shown for a second seat too and for no seat where its mod acts for none, and the ' +
-            'second seat finds its keyboard held',
-        second.on === 'me,you' && second.holder === 'you' && second.take === HELD && second.held === null,
+        'a view shown again is shown for a second seat too and for no seat where its mod acts for none, and holds ' +
+            'the keyboard of both, in the order they sat',
+        second.on === 'me,you' && second.holds === 'me,you' && second.mine === 1 && second.yours === 1,
         second
     );
     showing.toggle(1, 'me');
@@ -2808,16 +2792,12 @@ function showingChecks({ createShowing, KEY, HELD }, check) {
     showing.toggle(1, 'me');
     const both = on(1);
     showing.toggle(1, 'you');
-    const flipped = { off, both, on: on(1), holder: showing.holderOf(1), take: showing.take('me') };
+    const flipped = { off, both, on: on(1), holds: holds(1) };
     check(
         "a toggle puts a view away for one seat and shows it for that seat again, the other seat's screen left as it " +
-            'is, so two seats each keep it by their own toggles, and its keyboard is given back by the holder it is ' +
-            'put away for',
-        flipped.off === 'you' &&
-            flipped.both === 'me,you' &&
-            flipped.on === 'me' &&
-            flipped.holder === null &&
-            flipped.take === KEY,
+            'is, so two seats each keep it by their own toggles, and it holds the keyboard of the seat it is still ' +
+            'shown for',
+        flipped.off === 'you' && flipped.both === 'me,you' && flipped.on === 'me' && flipped.holds === 'me',
         flipped
     );
     showing.toggle(1, 'me');
@@ -2829,15 +2809,15 @@ function showingChecks({ createShowing, KEY, HELD }, check) {
     showing.toggle(1, 'me');
     check(
         "a seat that put a view away does not get it by another seat's toggle, and a toggle for no seat does nothing",
-        apart === 'you' && still === 'you' && on(1) === 'me' && showing.holderOf(1) === 'me',
-        { apart, still, on: on(1), holder: showing.holderOf(1) }
+        apart === 'you' && still === 'you' && on(1) === 'me' && holds(1) === 'me',
+        { apart, still, on: on(1), holds: holds(1) }
     );
     showing.open(3);
     const unseen = showing.isShown(3);
     showing.show(3, 'me');
     check(
         'another view shown for a seat puts away the one it had, one a seat, and a view is shown from its first seat',
-        !unseen && showing.isShown(3) && on(3) === 'me' && on(1) === '' && showing.holderOf(1) === null,
+        !unseen && showing.isShown(3) && on(3) === 'me' && on(1) === '' && holds(1) === '',
         { unseen, three: on(3), one: on(1) }
     );
     const spared = showing.pressed('me', [3]);
@@ -2850,41 +2830,34 @@ function showingChecks({ createShowing, KEY, HELD }, check) {
         { spared, stays, outside, on: on(3) }
     );
     showing.show(3, 'me');
-    const away = [showing.putAway('me'), showing.putAway('me'), showing.heldBy('me'), showing.holderOf(3)];
+    const away = [showing.putAway('me'), showing.putAway('me'), showing.of('me'), holds(3)];
     check(
         "a seat's view is put away as a window becomes its key window, at Escape, at Close Window and as it begins " +
-            'to follow: once, its keyboard given back',
-        JSON.stringify(away) === '[true,false,null,null]',
+            "to follow: once, its keyboard the view's no more",
+        JSON.stringify(away) === '[true,false,null,""]',
         away
     );
     for (const seat of ['me', 'you']) showing.show(3, seat);
-    const gone = [showing.unanchored(3), on(3), showing.holderOf(3), showing.unanchored(3), showing.unanchored(2)];
+    const gone = [showing.unanchored(3), on(3), holds(3), showing.unanchored(3), showing.unanchored(2)];
     check(
         'a view whose anchor goes is put away for every seat it was shown for by activation, and one shown for ' +
             'every seat is left',
-        JSON.stringify(gone) === '[true,"",null,false,false]' && on(2) === 'me,you',
+        JSON.stringify(gone) === '[true,"","",false,false]' && on(2) === 'me,you',
         gone
     );
     for (const seat of ['me', 'you']) showing.show(1, seat);
-    idle.add('me');
-    const given = [showing.take('you'), showing.holderOf(1), taken.join(';'), showing.take('me')];
-    idle.clear();
-    check(
-        'an idle holder gives the keyboard of a view up to the seat that takes it, and is told',
-        JSON.stringify(given) === JSON.stringify([KEY, 'you', 'me,1,you', HELD]),
-        given
-    );
     showing.removeSeat('you');
-    const left = [showing.holderOf(1), on(1), showing.take('me'), showing.take('you')];
+    const left = [holds(1), on(1), showing.of('you')];
     showing.close(1);
     showing.close(2);
     check(
-        'a seat that leaves gives its keyboard back, and a view that closes is on no screen',
-        JSON.stringify(left) === JSON.stringify([null, 'me', KEY, null]) &&
+        "a view holds the keyboard of a seat that leaves no more, the other seat's still, and a view that closes is " +
+            'on no screen',
+        JSON.stringify(left) === JSON.stringify(['me', 'me', null]) &&
             showing.of('me') === null &&
             on(1) === '' &&
             on(2) === '' &&
-            showing.take('me') === null,
+            holds(1) === '',
         left
     );
     const stack = createShowing();
@@ -3002,26 +2975,26 @@ async function viewChecks({ LAYOUT, createDesktop }, check) {
             opened.told.shown &&
             opened.told.key &&
             opened.over.over === 3 &&
-            opened.over.key === 'key' &&
-            opened.over.holder === 's1' &&
+            opened.over.key === true &&
             typed.to === 3 &&
             desk.puts.at(-1).page === 'content-3',
         { ...opened, typed, put: desk.puts.at(-1) }
     );
     await asks(s2);
     desk.desktop.orderFrontPanel(view);
-    const both = { on: await on(), over: await press(s2, inView), key: await refused(() => key(s2)) };
+    const both = { on: await on(), over: await press(s2, inView), keys: [(await key(s2)).to, (await key(s1)).to] };
     check(
-        "a view shown for a second seat is on its screen too, its keyboard the first seat's: the second's press " +
-            'answers held and its key is refused HELD',
-        both.on === 's1,s2' && both.over.key === 'held' && both.over.holder === 's1' && both.key === 'HELD',
+        "a view shown for a second seat is on its screen too and holds the keyboard of both: the second's press " +
+            'answers key, and the keys of each go to the view',
+        both.on === 's1,s2' && both.over.key === true && both.keys.join() === '3,3',
         both
     );
     await press(s1, outside);
-    const after = { on: await on(), key: await refused(() => key(s2)), holder: (await press(s2, inView)).holder };
+    const after = { on: await on(), keys: [(await key(s2)).to, (await key(s1)).to] };
     check(
-        "a press down outside a view puts it away for that seat alone, and its keyboard is the other seat's to take",
-        after.on === 's2' && after.key === null && after.holder === 's2' && told().shown && told().key,
+        "a press down outside a view puts it away for that seat alone: the view holds the other seat's keyboard " +
+            'still and is key',
+        after.on === 's2' && after.keys[0] === 3 && after.keys[1] !== 3 && told().shown && told().key,
         after
     );
     await press(s2, onAnchor);
@@ -3644,7 +3617,7 @@ function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
     );
 
     const states = desk.states();
-    const held = desk.page().windows[0].holder;
+    const ringed = desk.page().windows[0].rings;
     desk.enter(second, pointer('move', { x: 10, y: 20 }));
     const { x, y, width, height } = desk.frameOf(1);
     const middle = { x: x + width / 2, y: y + height / 2 };
@@ -3690,9 +3663,9 @@ function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
         desk.told()
     );
     check(
-        "a window's holder is told by its colour, and none where no seat holds it",
-        held === null && desk.page().windows[0].holder === 'orange',
-        [held, desk.page().windows]
+        "a window is told the colour of each seat whose key window it is, and none where it is no seat's",
+        ringed.join() === '' && desk.page().windows[0].rings.join() === 'orange',
+        [ringed, desk.page().windows]
     );
     desk.enter(second, pointer('up', middle));
     desk.leave(second);
@@ -3997,6 +3970,12 @@ async function marksChecks({ MARKS, LAYOUT, DOCK, createDesktop }, check) {
     timed.leave(second);
     const folded = stateOf().named;
     timed.enter(guest, pointer('scroll', { x: 30, y: 40 }));
+    check(
+        'the ring of a window that is the key window of several seats is shared between them, side by side',
+        JSON.stringify([MARKS.sharesOf(1, 0), MARKS.sharesOf(2, 0), MARKS.sharesOf(2, 1), MARKS.sharesOf(4, 1)]) ===
+            '[[0,0],[0,50],[50,0],[25,50]]',
+        MARKS.sharesOf(2, 1)
+    );
     check(
         "the page is told a seat's name shows with each thing its pointer does, and once that the pointer rests, the " +
             'name folded, when the time passed since the last of them; the state says the same',
@@ -4399,8 +4378,9 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
         moved.text ===
             [
                 `changes ${typed.mark} to ${moved.mark}`,
-                '~ seat local "Local" blue',
+                '~ seat local "Local" blue key w1',
                 '+ seat s2 "s2" orange',
+                '~ window w1 "A" a at 100,300 200x200 [key local s1]',
                 '~ window w2 "Second" a at 500,252 200x200',
             ].join('\n'),
         moved.text
@@ -4416,7 +4396,7 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
     check(
         'what changed since a mark 400 marks old is answered, and a mark the desktop never had refused STALE',
         old.mark - left.mark >= 400 &&
-            old.text.split('\n').slice(1).join() === '~ textbox "Line" [focused s1, text 6] 1.2' &&
+            old.text.split('\n').slice(1).join() === '~ textbox "Line" [focused local s1, text 6] 1.2' &&
             (await refused(served.read(me, { of: 'changes', since: old.mark + 5 }))) === 'STALE',
         JSON.stringify({ left: left.mark, old })
     );
@@ -4441,7 +4421,7 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
     check(
         'a pointer event at a ref goes to the middle of what shows of it, answered as one at that point with the point',
         acted.over === 1 &&
-            acted.key === 'key' &&
+            acted.key === true &&
             JSON.stringify(acted.at) === '{"x":160,"y":335}' &&
             lifted.over === 1 &&
             after.text.includes('seat s1 "s1" green at 160,335 key w1 (you)') &&
@@ -4516,7 +4496,7 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
         "a press at a ref of a window another covers in the seat's order brings its window to the front and lands on it",
         covered.over === 3 &&
             raised.over === 1 &&
-            raised.key === 'key' &&
+            raised.key === true &&
             desk.puts.map(({ page: to, event }) => `${to},${event.type}`).join(' ') ===
                 'content-3,down content-3,up content-1,down content-1,up',
         JSON.stringify({ covered, raised, puts: desk.puts })
@@ -4635,10 +4615,9 @@ function desktopOver(
     // The seats as deckit keeps them: the local one, those `sit` opens, what the desktop serves, the seats judged
     // idle, what a seat was told of a window held, each event put in a page and each page kept from the keyboard.
     const local = { id: 'local', local: true, user: { id: 'local', name: 'Local' }, source: 'of-local' };
-    const seats = { open: [local], opened: null, closed: null, served: null, idle: new Set(), held: [], told: [] };
+    const seats = { open: [local], opened: null, closed: null, served: null, idle: new Set(), told: [] };
     const machine = [];
     const puts = [];
-    const reserved = new Map();
     // The Dock's items, the item dragged, and what the desktop handed it: each click on an item and each entry chosen
     // with the seat it is of, each order shown while an item is dragged, and each order the items were let go in.
     const dock = { items: [], held: null, clicked: [], chosen: [], shown: [], reordered: [] };
@@ -4679,10 +4658,7 @@ function desktopOver(
             serve: (answers) => {
                 seats.served = answers;
                 return {
-                    tell: (seat, { of, ...told }) => {
-                        seats.told.push({ seat: seat.id, of, ...told });
-                        if (of === 'held') seats.held.push({ seat: seat.id, ...told });
-                    },
+                    tell: (seat, { of, ...told }) => seats.told.push({ seat: seat.id, of, ...told }),
                 };
             },
         },
@@ -4771,7 +4747,6 @@ function desktopOver(
             put: (page, { source, ...event }) => puts.push({ page: page.name, event, source }),
             machine: (source) => machine.push(source),
         },
-        reserve: (page, on) => reserved.set(page.name, on),
         read,
         deckit,
         state: {
@@ -4882,7 +4857,6 @@ function desktopOver(
         told: () => sent.filter(({ channel }) => channel === 'deckit-shell:desktop-seat').map(({ payload }) => payload),
         states: () => sent.filter(({ channel }) => channel === 'deckit-shell:desktop-state').length,
         pictures,
-        reserved,
         dock,
         request: (from, to) => heard.requests({ from, to }),
         key: (page) => heard.monitor(page, { code: 'KeyA' }),

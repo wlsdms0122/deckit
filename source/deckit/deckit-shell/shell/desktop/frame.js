@@ -15,8 +15,8 @@ import * as DECLARED from './protocol.js';
 // Each frame's surface is the window grown by its shadow: the window's material at its middle, the title bar of a
 // titled window at its top, the edges that resize it just outside it, as model/layout.js partsOf has them.
 const { SHADOW, EDGE, RADIUS, BUTTON } = LAYOUT;
-// How wide the holder's colour is drawn round a window's title bar, a seat's cursor, and the ring at its press, px.
-const HOLDER = 2;
+// How wide a seat's colour is drawn round the title bar of its key window, its cursor, and the ring at its press, px.
+const STROKE = 2;
 const CURSOR = MARKS.MARK;
 const RING = 20;
 // The path of all of the stage, however large it is, from which what covers a seat's mark is taken out.
@@ -90,19 +90,18 @@ const STYLE = `
     }
     .deckit-window-title[hidden] { display: none; }
     .deckit-window-title[data-key] .deckit-window-title-text { color: var(--deckit-text); }
-    .deckit-window-holder {
+    .deckit-window-ring {
         position: fixed;
-        top: ${SHADOW - HOLDER}px;
-        left: ${SHADOW - HOLDER}px;
-        right: ${SHADOW - HOLDER}px;
+        top: ${SHADOW - STROKE}px;
+        left: ${SHADOW - STROKE}px;
+        right: ${SHADOW - STROKE}px;
         box-sizing: border-box;
-        border: ${HOLDER}px solid var(--deckit-seat);
+        border: ${STROKE}px solid var(--deckit-seat);
         border-bottom: 0;
-        border-radius: ${RADIUS + HOLDER}px ${RADIUS + HOLDER}px 0 0;
+        border-radius: ${RADIUS + STROKE}px ${RADIUS + STROKE}px 0 0;
         mask-image: linear-gradient(#000 40%, transparent);
         pointer-events: none;
     }
-    .deckit-window-holder[hidden] { display: none; }
     .deckit-window-edge { position: fixed; }
     .deckit-window-edge[hidden] { display: none; }
     .deckit-window-edge[data-edge='top'] { top: ${SHADOW - EDGE}px; left: ${SHADOW}px; right: ${SHADOW}px; height: ${EDGE}px; cursor: ns-resize; }
@@ -252,7 +251,7 @@ const STYLE = `
         content: '';
         position: absolute;
         inset: 0;
-        border: ${HOLDER}px solid currentColor;
+        border: ${STROKE}px solid currentColor;
         pointer-events: none;
     }
     .deckit-following-bar {
@@ -411,11 +410,9 @@ function boot(theme, channels) {
         }
         for (const window of state.windows) {
             if (!drawn.has(window.id)) drawn.set(window.id, frameOf(window.id));
-            const { material, holder, bar, text, buttons, edges } = drawn.get(window.id);
+            const { material, rings, bar, text, buttons, edges } = drawn.get(window.id);
             const laid = window.bar;
-            holder.hidden = !window.holder;
-            holder.style.height = laid.height + 'px';
-            holder.style.setProperty('--deckit-seat', `var(--deckit-seat-${window.holder})`);
+            ringed(material, rings, window.rings, laid.height);
             material.toggleAttribute('data-key', window.key);
             buttons.toggleAttribute('data-key', window.key);
             bar.toggleAttribute('data-key', window.key);
@@ -770,12 +767,28 @@ function boot(theme, channels) {
         PROTOCOL.glass.send({ materials });
     }
 
+    // The ring round a window's title bar, `height` high, in the colour of each seat whose key window it is: `rings`,
+    // the elements drawn of it after `material`, are one for each of `colours`, each cut to its share of the ring's
+    // length, in the order of the colours.
+    function ringed(material, rings, colours, height) {
+        while (rings.length > colours.length) rings.pop().remove();
+        while (rings.length < colours.length) {
+            rings.push(element(material.ownerDocument, 'div', 'deckit-window-ring'));
+            (rings.at(-2) ?? material).after(rings.at(-1));
+        }
+        for (const [at, ring] of rings.entries()) {
+            const [before, after] = MARKS.sharesOf(colours.length, at);
+            ring.style.height = height + 'px';
+            ring.style.setProperty('--deckit-seat', `var(--deckit-seat-${colours[at]})`);
+            ring.style.clipPath = colours.length > 1 ? `inset(0 ${after}% 0 ${before}%)` : '';
+        }
+    }
+
     // A window's frame and buttons, in the two documents main lets this page open for it: a titled window's frame has
     // its title bar too.
     function frameOf(id) {
         const frame = surface(PAGE.frameOf(id));
         const material = element(frame.document, 'div', 'deckit-window-material');
-        const holder = element(frame.document, 'div', 'deckit-window-holder');
         const bar = element(frame.document, 'div', 'deckit-window-title');
         const text = element(frame.document, 'span', 'deckit-window-title-text');
         bar.append(text);
@@ -786,7 +799,7 @@ function boot(theme, channels) {
             forward(id, band, () => edge, { takes: true });
             return band;
         });
-        frame.document.body.append(material, holder, bar, ...edges);
+        frame.document.body.append(material, bar, ...edges);
 
         const held = surface(PAGE.buttonsOf(id));
         const buttons = element(held.document, 'div', 'deckit-window-buttons');
@@ -813,7 +826,7 @@ function boot(theme, channels) {
         held.document.body.append(buttons);
         const asks = surface(PAGE.dialogOf(id));
         const cards = new Map(); // a dialog's ask -> what is drawn of it
-        return { material, holder, bar, text, buttons, edges, asks, cards, off: [frame.off, held.off, asks.off] };
+        return { material, rings: [], bar, text, buttons, edges, asks, cards, off: [frame.off, held.off, asks.off] };
     }
 
     // What the pointer does on `node`, a part of the window `id`, told to main as it does it: its press there, and

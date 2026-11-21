@@ -576,15 +576,13 @@ async function run({
             );
             return seen?.rings?.length > 0 && seen.cursors?.length === 2 && seen;
         }, 3000);
-        const holderOf = ({ id }) =>
+        const ringsOf = ({ id }) =>
             inPage(
                 pageNamed(({ name }) => name === `frame-${id}`),
-                `(() => {
-                    const holder = document.querySelector('.deckit-window-holder');
-                    return !!holder && !holder.hidden && holder.style.getPropertyValue('--deckit-seat');
-                })()`
+                `[...document.querySelectorAll('.deckit-window-ring')].map((ring) =>
+                    ring.style.getPropertyValue('--deckit-seat'))`
             );
-        const holders = [await holderOf(windowA), await holderOf(windowB)];
+        const rings = [await ringsOf(windowA), await ringsOf(windowB)];
         check(
             'outside: each seat has a cursor in its colour where its pointer last went, and a press leaves a ring',
             drawnSeats &&
@@ -598,9 +596,9 @@ async function run({
             JSON.stringify({ drawnSeats, read: read.slice(0, 4), pressedAt, child: at(child) })
         );
         check(
-            "outside: a key window's frame wears its holder's colour, each seat's own",
-            same(holders, [worn(seatA), worn(seatB)]),
-            JSON.stringify({ holders, read: read.slice(0, 4) })
+            "outside: a key window's frame wears the colour of each seat whose key window it is",
+            !!rings[0]?.includes(worn(seatA)) && !!rings[1]?.includes(worn(seatB)),
+            JSON.stringify({ rings, read: read.slice(0, 4) })
         );
         // The local seat follows the first: its press on that seat's row in the view of Seats shows the seat's view,
         // the window it holds in front and key, until the local seat presses again, which reaches nothing. The view
@@ -679,33 +677,30 @@ async function run({
             reached === desktopPage && backView && same({ ...restedView, cursors: [] }, { ...ownView, cursors: [] }),
             JSON.stringify({ reached, desktopPage, ownView, backView, restedView })
         );
-        // The second seat presses the first one's window right after the first typed in it: held, and typing nothing.
+        // The second seat presses the first one's window right after the first typed in it: its key window too, and
+        // what it types lands in the same field.
         const shownToB = showsFor(seatB, windowA);
         seatA.as('type', '!');
-        const answeredHeld = [seatB.as('press', shownToB), seatB.as('press', at(windowA))];
-        const typedHeld = seatB.as('type', 'no');
-        const afterHeld = await texts();
+        const answeredBoth = [seatB.as('press', shownToB), seatB.as('press', at(windowA))];
+        const typedBoth = seatB.as('type', 'no');
+        const afterBoth = await until(async () => (await valueOf(windowA.content)) === 'alpha!no', 3000);
         check(
-            'outside: a press on a window another seat holds answers held, and what the seat types then is refused',
-            same(answeredHeld, Array(2).fill(`over ${windowA.id}, held by ${seatA.seat}`)) &&
-                /holds the keyboard/.test(typedHeld) &&
-                same(afterHeld, ['alpha!', 'beta', '', '']),
-            JSON.stringify({ shownToB, answeredHeld, typedHeld, afterHeld })
+            "outside: a press on a window that is another seat's key window answers key, and what the seat types " +
+                'then lands in the field the other types in',
+            same(answeredBoth, Array(2).fill(`over ${windowA.id}, key`)) &&
+                afterBoth &&
+                same(await texts(), ['alpha!no', 'beta', '', '']),
+            JSON.stringify({ shownToB, answeredBoth, typedBoth, texts: await texts() })
         );
-        // The first seat gives no input for the idle time: its window is the second one's as it presses it.
-        const hears = await connect(RELAY.fileOf(home, 'ta'));
-        const heard = [];
-        hears.on('seat/output', ({ of, ...told }) => of === 'held' && heard.push(told));
+        // The first seat gives no input for the idle time: the window is its key window still.
         await new Promise((resolve) => setTimeout(resolve, idleTime * 1000 + 500));
-        const taken = seatB.as('press', at(windowA));
-        const told = await until(() => heard[0], 3000);
-        const typedTaken = seatB.as('type', '?');
-        const afterTaken = await until(async () => (await valueOf(windowA.content)) === 'alpha!?', 3000);
-        hears.close();
+        const pressedIdle = seatB.as('press', at(windowA));
+        const typedIdle = [seatB.as('type', '?'), seatA.as('type', '.')];
+        const afterIdle = await until(async () => (await valueOf(windowA.content)) === 'alpha!no?.', 3000);
         check(
-            "outside: an idle holder's window is taken by the seat that presses it, and the holder is told it is held",
-            taken === `over ${windowA.id}, key` && same(told, { window: windowA.id, holder: seatB.seat }) && afterTaken,
-            JSON.stringify({ taken, heard, typedTaken, in: await valueOf(windowA.content) })
+            "outside: a seat that is idle keeps its key window: it types there after another seat's press on it",
+            pressedIdle === `over ${windowA.id}, key` && afterIdle,
+            JSON.stringify({ pressedIdle, typedIdle, in: await valueOf(windowA.content) })
         );
         const chordSent = seatB.as('key', 'Meta+KeyW');
         const closedOwn = await until(async () => !(await windowsNow()).some(({ id }) => id === windowA.id), 5000);
@@ -1454,7 +1449,7 @@ async function run({
         };
         // The mod's view as a seat reads it on the desktop, `{ id, x, y, key }`, or null where it reads none.
         const readBy = (seat) => {
-            const line = /^panel (w\d+) .* anchor-user at (\d+),(\d+) 320x200(?: \[key (\w+)\])?$/m.exec(
+            const line = /^panel (w\d+) .* anchor-user at (\d+),(\d+) 320x200(?: \[key ([\w ]+)\])?$/m.exec(
                 seat.as('read', 'desktop')
             );
             return line && { id: line[1], x: Number(line[2]), y: Number(line[3]), key: line[4] ?? null };
@@ -1498,8 +1493,8 @@ async function run({
         const typed = second ? seatB.as('type', 'x') : '';
         check(
             "outside: toggled by a second seat it is shown for that seat too and stays on the first seat's screen, " +
-                "its keyboard the first seat's, and the second's key is refused",
-            second && second.key === seatA.seat && readBy(seatA) && /HELD|holds the keyboard/.test(typed),
+                'which holds the keyboard of both, and the second types in it',
+            second && second.key === `${seatA.seat} ${seatB.seat}` && readBy(seatA) && !/HELD|holds/.test(typed),
             JSON.stringify({ second, first: readBy(seatA), typed })
         );
         if (outside) seatA.as('press', outside);
