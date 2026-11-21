@@ -21,28 +21,15 @@ function createSeats({ mod, granted, channels, deliver }) {
     // MARK: - Public
     // `shell.seats` for the lifecycle whose scope is `scope`, `request` making each of its requests as the handle guards
     // them, every member guarded by deckit.seats: `list()` resolves to who sits, `[{ id, name, colour, idle, following
-    // }]` in the order they sat, and `asks()` to who asks to, `[{ id, name }]` in the order they asked (protocol.js:
-    // read); `answer(ask, allow)` answers the ask of that id and resolves to whether it waited; `follow(seat)` has the
-    // host window show the view of the seat of that id, or its own seat's again with null, and resolves to whether it
-    // shows that seat's now; `onChange(listener)` hears each change of either list, with nothing said of it, and
-    // answers its off, cut with `scope`. It throws its refusal: NOT_PERMITTED, then INVALID_ARGUMENT for a listener
+    // }]` in the order they sat (protocol.js: read); `follow(seat)` has the host window show the view of the seat of
+    // that id, or its own seat's again with null, and resolves to whether it shows that seat's now;
+    // `onChange(listener)` hears each change of who sits, with nothing said of it, and answers its off, cut with
+    // `scope`. It throws its refusal: NOT_PERMITTED, then INVALID_ARGUMENT for a listener
     // that is no function, then ENDED once `scope` is cut. No member says which seat a press came from.
     function forScope(scope, { request }) {
         const guard = PROTOCOL.read.guard;
         return Object.freeze({
             list: request('seats.list', { guard }, () => PROTOCOL.read.invoke().then(({ seats }) => seats)),
-            asks: request('seats.asks', { guard }, () => PROTOCOL.read.invoke().then(({ asks }) => asks)),
-            answer: request(
-                'seats.answer',
-                {
-                    guard,
-                    signature: [
-                        ['ask', 'string'],
-                        ['allow', 'boolean'],
-                    ],
-                },
-                (ask, allow) => PROTOCOL.answer.invoke({ ask, allow })
-            ),
             follow: request('seats.follow', { guard, signature: [['seat', 'string?']] }, (seat) =>
                 PROTOCOL.follow.invoke({ seat: seat ?? null })
             ),

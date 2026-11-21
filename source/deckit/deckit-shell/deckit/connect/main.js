@@ -104,7 +104,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const REQUEST = createRequest();
     const CONNECTION = createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER, REQUEST });
     const EVENT = createEvent({ CORE, LOG, IDENTITY, RUNNER });
-    const SEAT = createSeat({ CORE, LOG, IDENTITY, RUNNER, name: CONFIG.name });
+    const SEAT = createSeat({ CORE, LOG, IDENTITY, RUNNER, name: CONFIG.name, ask: ENV.admission.ask });
     const OUTSIDE = createOutside({
         CORE,
         LOG,

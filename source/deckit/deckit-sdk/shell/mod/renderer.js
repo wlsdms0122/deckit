@@ -30,7 +30,7 @@ const UNREGISTERED = Object.freeze({
 // picks, records the keys pressed in the page and with deckit.shell-keys changes the shell's own, `active()`, whether
 // the app is in front, `dialogs`, which asks the person for folders, `reveal(path)`, which shows a path where it lies,
 // `fonts`, whose `set` deckit.fonts guards, the Dock on `mods`, which deckit.mods guards, `seats`, who sits at the
-// desktop and who asks to, which deckit.seats guards, `view.register()`, which
+// desktop, which deckit.seats guards, `view.register()`, which
 // registers a view for a mod whose manifest fields give its view a parent, and `styles.register()`, which registers
 // styles for a mod granted deckit.styles. A request is refused as deckit's handle refuses one (deckit/request), a
 // member that answers at once throws its refusal, and a registration answers nothing and is never refused: one that

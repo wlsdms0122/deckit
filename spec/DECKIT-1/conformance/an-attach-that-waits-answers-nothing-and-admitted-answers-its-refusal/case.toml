@@ -1,9 +1,9 @@
-case = 26
+case = 31
 name = "an-attach-that-waits-answers-nothing-and-admitted-answers-its-refusal"
-note = "The host sets asking, on a base where no layer serves the ask. An attach that writes waits ends as the party is told attach/asking and answers nothing; the look admitted comes to the refusal authenticate is answered, and the look told to the notification and the close."
+note = "The host sets asking, on the base shell, which holds each ask for an answer. An attach that writes waits ends as the party is told attach/asking and answers nothing, the transport connection open; an answer of no then has the look admitted come to the refusal authenticate is answered, and the look told to the notification and the close."
 
 [host]
-base = "system"
+base = "shell"
 api = "1.0.0"
 users = [{ id = "ada", name = "Ada Lovelace" }]
 keys = [{ principal = "ada", key = "first" }]
@@ -18,6 +18,18 @@ party = "p"
 principal = "ada"
 key = "first"
 waits = true
+
+[[step]]
+look = "told"
+party = "p"
+
+[step.expect]
+answers = { messages = [{ method = "attach/asking", request = false }], closed = false }
+
+[[step]]
+input = "answer"
+party = "p"
+allow = false
 
 [[step]]
 look = "admitted"

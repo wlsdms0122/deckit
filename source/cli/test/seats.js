@@ -1,6 +1,6 @@
 // The seats on deckit's main side (deckit-shell/deckit/seat) over stand-ins for the core, the runner and the senders:
-// the local user kept and seated as it starts, a user seated at once or, as the core asks, after what is served
-// answered the ask, the seats' settings read and set, a seat closed with its run, each method of a seat held to the
+// the local user kept and seated as it starts, a user seated at once or, as the core asks, after whoever is at the
+// machine answered the ask (the environment's, handed in), the seats' settings read and set, a seat closed with its run, each method of a seat held to the
 // seat permission and to a seat, and handed to what is served with the sender's seat. Exits 1 with a line for each
 // check that failed.
 const path = require('path');
@@ -73,7 +73,11 @@ async function main() {
         modFrom: (page) => identities.get(page),
         pageOf: (id) => [...identities].find(([, mod]) => mod.id === id)?.[0] ?? null,
     };
-    const SEAT = createSeat({ CORE, LOG: { error() {} }, IDENTITY, RUNNER, name: 'Host' });
+    // Whoever is at the machine, as the environment asks them: `answer` answers each ask, and each is kept.
+    const asks = [];
+    const machine = { answer: () => Promise.resolve(false) };
+    const ask = ({ user }, { signal }) => (asks.push({ user, signal }), machine.answer(user));
+    const SEAT = createSeat({ CORE, LOG: { error() {} }, IDENTITY, RUNNER, name: 'Host', ask });
     const opened = [];
     const closed = [];
     SEAT.onOpen((seat) => opened.push(seat.id));
@@ -90,13 +94,30 @@ async function main() {
     const proof = { transport: 't1', principal: 'guest' };
     const unserved = await SEAT.admit(proof, hooks).catch((error) => error);
     check(
-        'with nothing served, an admission that waits is told so and answered no, and the proof is handed on as it is',
+        'an admission that waits is told so, the machine is asked of the user, and its no is handed on with the proof',
         unserved.kind === 'REFUSED' &&
             hooks.told === 1 &&
+            asks[0]?.user === 'guest' &&
             asked.at(-1)[1].allow === false &&
             JSON.stringify(asked.at(-2)) === JSON.stringify(['authentication/verify', proof]),
-        [unserved.message, asked.slice(-2)]
+        [unserved.message, asked.slice(-2), asks]
     );
+    machine.answer = () => Promise.reject(new Error('no box'));
+    const thrown = await SEAT.admit(proof, hooks).catch((error) => error);
+    let leave = null;
+    machine.answer = () => new Promise(() => {});
+    const leaving = SEAT.admit(proof, { ...hooks, whenEnds: (listener) => (leave = listener) }).catch((e) => e);
+    await new Promise((resolve) => setImmediate(resolve));
+    const waited = asks.at(-1).signal.aborted;
+    leave();
+    const left = await leaving;
+    check(
+        'an ask that throws is answered no, and so is one whose party leaves, which puts the ask away',
+        thrown.kind === 'REFUSED' && left.kind === 'REFUSED' && !waited && asks.at(-1).signal.aborted,
+        [thrown.message, left.message, waited]
+    );
+    asks.length = 0;
+    machine.answer = (user) => Promise.resolve(user === 'guest');
     const guest = sender('guest', ['deckit.seat']);
     const mod = sender('a-mod', ['deckit.mods']);
     const pointer = { event: 'pointer', type: 'down', x: 4, y: 8 };
@@ -109,14 +130,12 @@ async function main() {
     );
 
     const handed = [];
-    const asks = [];
     const tells = SEAT.serve({
         input: (seat, event) => (handed.push([seat.id, event]), { over: 'w1', key: 'key', holder: seat.id }),
         events: SERVED.EVENTS,
         read: (seat, query) => ({ text: `desktop for ${seat.id} ${JSON.stringify(query)}`, mark: 1 }),
         reads: SERVED.READS,
         tells: SERVED.TELLS,
-        onAsk: ({ user }, { signal }) => (asks.push({ user, signal }), Promise.resolve(user === 'guest')),
     });
     const throws = (served) => {
         try {
@@ -130,6 +149,7 @@ async function main() {
         'each answer is served once, each name is named once, and the kinds of device and the outputs read are named ' +
             'with what answers them',
         throws({ input: () => ({}), events: {} }) &&
+            throws({ onAsk: () => true }) &&
             throws({ tells: { held: SERVED.TELLS.held } }) &&
             throws({ events: { wheel: { types: ['down'], fields: {} } } }),
         ''
@@ -137,7 +157,7 @@ async function main() {
     const denied = await SEAT.admit({ transport: 't2', principal: 'other' }, hooks).catch((error) => error);
     const admitted = await SEAT.admit(proof, hooks);
     check(
-        'what is served answers the ask: no refuses, yes seats the user, and the ask is over either way',
+        "the machine's answer is the ask's: no refuses, yes seats the user, and the ask is put away either way",
         denied.kind === 'REFUSED' && admitted.seat.id === 's1' && asks.every(({ signal }) => signal.aborted),
         [denied.message, admitted]
     );
@@ -257,7 +277,7 @@ async function main() {
     const tellsBefore = hooks.told;
     const atOnce = await SEAT.admit({ transport: 't3', principal: 'late' }, hooks);
     check(
-        'a user the core seats at once sits unasked: nothing is told, and no answer is asked of what is served',
+        'a user the core seats at once sits unasked: nothing is told, and the machine is asked nothing',
         atOnce.seat.id === 's9' &&
             hooks.told === tellsBefore &&
             asked.at(-1)[0] === 'authentication/verify' &&

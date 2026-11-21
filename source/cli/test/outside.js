@@ -3,10 +3,10 @@
 // refused and told nothing, a principal that runs takes no second party, and the run asks what a run asks, bounded by
 // a job that grants only the seat permission: its own records and events, no connection, and what a seat does and
 // reads. The users and the keys are made, listed and removed as a host does it, by `deckit user` and `deckit key`
-// against the app's folder, while the app runs. The shell serves the seats: a user that asks to sit is a row of the
-// Seats mod's view under its item in the status bar, which the local seat answers as the machine presses, yes, no
-// for one user and never for another: a user is known there by its name. The app is started with asking on, and
-// while `deckit seat asking` has it off a user sits unasked. Two users, each
+// against the app's folder, while the app runs. A user that asks to sit is asked of whoever is at the machine, in a
+// box of the machine's held by the stand-in for it and shown on no screen, which answers yes, no for one user and
+// never for another: a user is known there by its name. The app is started with asking on, and while `deckit seat
+// asking` has it off a user sits unasked. Two users, each
 // a terminal of its own, press and type in the windows of the
 // desktop beside the local seat, `windowsNow()` and `desktopLaid()` reading what the local seat sees of them, and
 // `idleTime` the seconds a seat is idle after, as the app was started with. With `reads`, the second user reads the
@@ -165,7 +165,7 @@ async function run({
     const askedDenied = await answer('Denied', 'deny');
     const denied = await refusing;
     check(
-        "outside: a user the local seat's press on Deny denies is told it was asked, refused, and closed",
+        'outside: a user whoever is at the machine denies is told it was asked, refused, and closed',
         same(askedDenied, ['Waits', 'Denied']) &&
             denied?.kind === 'REFUSED' &&
             deniedTold === 1 &&
@@ -189,7 +189,7 @@ async function run({
     );
     const seat = { id: 's1', local: false, user: { id: principal, name: 'Outside Party' } };
     check(
-        "outside: a user the local seat's press on Allow allows is told it was asked, then sits at a seat that opened",
+        'outside: a user whoever is at the machine allows is told it was asked, then sits at a seat that opened',
         told === 1 && same(attached.seat, seat) && same(askedParty, ['Waits', 'Outside Party']),
         JSON.stringify({ told, seat: attached.seat, askedParty })
     );
@@ -198,7 +198,7 @@ async function run({
         asks: await until(async () => same(await asksNow(), ['Waits']) && asksNow(), 3000),
     };
     check(
-        'outside: the seat that opened has a row in the view of Seats, and the ask that was answered is gone from it',
+        'outside: the seat that opened has a row in the view of Seats, and the ask that was answered is put away',
         same(open, { seats: [LOCAL_NAME, 'Outside Party'], asks: ['Waits'] }),
         JSON.stringify(open)
     );
@@ -1329,8 +1329,8 @@ async function run({
     }
 
     // The Seats mod's item and its view, with two seats beside the local one: the item and its count, the view the
-    // local seat's press on the item shows, a user that asks as a row there, an attached seat's press on Allow as it
-    // reads it, and a seat followed by a press on its row, which an attached seat's press on that row ends.
+    // local seat's press on the item shows, a user that asks with no row there, and a seat followed by a press on its
+    // row, which an attached seat's press on that row ends.
     async function seatsChecks({ seatA, seatB }) {
         const { item, shown, rows, pressIn } = seatsView;
         const ASKER = 'outside-asker';
@@ -1381,23 +1381,21 @@ async function run({
         const sitting = asker
             .authenticate({ principal: ASKER, ...userWithKey(ASKER, 'Asker') })
             .catch((error) => error);
-        const asked = await until(async () => {
-            const [now, wants] = [await rows(), await item()];
-            return now.asks.includes('Asker') && /attention/.test(wants?.name ?? '') && { now, wants };
-        }, 8000);
-        await desktopShot('seats-ask');
+        const asked = await until(async () => (await asksNow()).includes('Asker'), 8000);
+        const [now, wants] = [await rows(), await item()];
         await VIEWS.standing({ check, main, desktopLaid, area: 'outside' }, 'seats', 'seats');
-        check(
-            'outside: with asking on a user that asks to sit is a row of the view, and the item asks for attention',
-            !!asked,
-            JSON.stringify(asked || { now: await rows(), wants: await item() })
-        );
         let read = '';
-        const allow = await until(() => {
+        const listed = await until(() => {
             read = readBy(seatA);
-            return refIn(read, 'Allow Asker');
+            return refIn(read, 'First');
         }, 8000);
-        const pressed = allow ? seatA.as('press', allow) : '';
+        check(
+            'outside: with asking on a user that asks to sit is asked at the machine, with no row of the view, which ' +
+                'an attached seat reads, and the item asks for no attention',
+            asked && now.seats.length === 3 && !/attention/.test(wants?.name ?? '') && !!listed && !/Asker/.test(read),
+            JSON.stringify({ asked, now, wants, read })
+        );
+        const answered = await answer('Asker', 'allow');
         const admitted = await Promise.race([sitting, sleep(8000)]);
         const greeted = await until(async () => {
             const now = await item();
@@ -1409,14 +1407,9 @@ async function run({
             JSON.stringify(greeted)
         );
         check(
-            'outside: an attached seat reads the view, its rows buttons by name, and its press on Allow seats the ' +
-                'user that asks, whose name the item says as it sits',
-            !!refIn(read, 'Deny Asker') &&
-                !!refIn(read, 'First') &&
-                !!refIn(read, 'Second') &&
-                admitted?.seat?.user.id === ASKER &&
-                greeted,
-            JSON.stringify({ read, pressed, admitted: admitted?.message ?? admitted, item: await item() })
+            'outside: whoever is at the machine allows the user that asks, whose name the item says as it sits',
+            !!answered && admitted?.seat?.user.id === ASKER && greeted,
+            JSON.stringify({ answered, admitted: admitted?.message ?? admitted, item: await item() })
         );
         if (admitted?.seat) {
             await asker.request('runner/started', started);
@@ -1655,7 +1648,7 @@ async function run({
     const { refusal, after } = await unanswered;
     const asking = await until(async () => same(await asksNow(), []), 3000);
     check(
-        'outside: an ask nobody answers is answered no once its time has passed, and its row goes',
+        'outside: an ask nobody answers is answered no once its time has passed, and its box is put away',
         refusal?.kind === 'REFUSED' && after >= ASK_TIME && after < ASK_TIME + 5000 && waitsTold === 1 && asking,
         JSON.stringify({ refusal, after, asks: await asksNow() })
     );

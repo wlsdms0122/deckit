@@ -172,6 +172,7 @@ function createEnvironment({ core, preload, openWindow }) {
         }),
         open: Object.freeze({ url: openURL, file: openFile, appFor }),
         notifications: Object.freeze({ show: NOTIFICATIONS.show }),
+        admission: Object.freeze({ ask: askToSit }),
         clipboard: Object.freeze({
             readText: () => require('electron').clipboard.readText(),
             writeText: (text) => require('electron').clipboard.writeText(text),
@@ -580,6 +581,19 @@ async function chooseFolders({ title, buttonLabel, message, multiple = false }) 
     const properties = multiple ? ['openDirectory', 'multiSelections'] : ['openDirectory'];
     const result = await dialog.showOpenDialog({ title, buttonLabel, message, properties });
     return result.canceled ? [] : result.filePaths;
+}
+
+// A message box of the machine's, with the user's name: Allow answers yes, and Deny, or the box put away, no.
+async function askToSit({ user }, { signal }) {
+    const { dialog } = require('electron');
+    const { response } = await dialog.showMessageBox({
+        message: `${user.name} asks to sit`,
+        buttons: ['Deny', 'Allow'],
+        defaultId: 0,
+        cancelId: 0,
+        signal,
+    });
+    return response === 1 && !signal.aborted;
 }
 
 // MARK: - Private

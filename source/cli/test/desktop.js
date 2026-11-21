@@ -1022,7 +1022,6 @@ async function main() {
     dialogChecks(await import(url('deckit-shell', 'shell', 'desktop', 'model', 'dialog.js')), check);
     await webPageChecks({ LAYOUT, createDesktop }, check);
     await viewChecks({ LAYOUT, createDesktop }, check);
-    await askChecks({ createDesktop }, check);
     await followChecks({ LAYOUT, createDesktop }, check);
     const ROSTER = await import(url('deckit-shell', 'shell', 'seats', 'model', 'roster.js'));
     const { createSeats } = await import(url('deckit-shell', 'shell', 'seats', 'main.js'));
@@ -3228,65 +3227,6 @@ async function viewChecks({ LAYOUT, createDesktop }, check) {
     desk.leave(s2);
 }
 
-// A user that asks to sit, as the desktop tells it to what hears the seats: it waits until it is answered, once, or
-// no answer is waited for, and the desktop's page neither draws it nor takes the pointer for it.
-async function askChecks({ createDesktop }, check) {
-    const desk = desktopOver(createDesktop, {});
-    desk.desktop.control.present({ titleBar: { height: 28, controlsWidth: 70 } });
-    desk.desktop.control.show();
-    desk.sit('s1');
-    const { seats } = desk.desktop;
-    let heard = 0;
-    const off = seats.onChange(() => heard++);
-    const settled = () => new Promise((resolve) => setTimeout(resolve));
-    const input = () => JSON.stringify(desk.laid().find(({ page }) => page === desk.desktopPage).input);
-    const asking = (id) => {
-        const control = new AbortController();
-        const asked = { control, answer: undefined };
-        desk.seats.served.onAsk({ user: { id, name: id } }, { signal: control.signal }).then((answer) => {
-            asked.answer = answer;
-        });
-        return asked;
-    };
-    const alone = input();
-    const ada = asking('ada');
-    const waiting = seats.now().asks;
-    check(
-        "a user that asks to sit is told to what hears the seats, and the desktop's page is told no ask and takes " +
-            'the pointer nowhere for one',
-        JSON.stringify(waiting) === JSON.stringify([{ id: 1, name: 'ada' }]) &&
-            heard === 1 &&
-            ada.answer === undefined &&
-            !('asks' in desk.page()) &&
-            input() === alone,
-        [waiting, heard, Object.keys(desk.page()), input()]
-    );
-    const allowed = seats.answer(waiting[0].id, true);
-    const twice = seats.answer(waiting[0].id, false);
-    await settled();
-    check(
-        'an answer of yes lets the user sit, and the ask is over: a second answer of it answers nothing',
-        allowed === true && twice === false && ada.answer === true && seats.now().asks.length === 0 && heard === 2,
-        [allowed, twice, ada.answer, seats.now().asks, heard]
-    );
-    const [grace, late] = [asking('grace'), asking('late')];
-    const denied = seats.answer(seats.now().asks[0].id, false);
-    await settled();
-    const left = seats.now().asks.map(({ name }) => name);
-    late.control.abort();
-    await settled();
-    off();
-    check(
-        'an answer of no refuses the user, and an ask no answer is waited for goes',
-        denied === true &&
-            grace.answer === false &&
-            late.answer === undefined &&
-            left.join() === 'late' &&
-            seats.now().asks.length === 0,
-        [denied, grace.answer, late.answer, left, seats.now().asks]
-    );
-}
-
 // What a mod with deckit.seats is told of the seats, and what it does to them, whichever seat's press made it ask.
 async function memberChecks({ ROSTER, createSeats, createDesktop }, check) {
     const roster = ROSTER.createRoster();
@@ -3298,30 +3238,28 @@ async function memberChecks({ ROSTER, createSeats, createDesktop }, check) {
         following: false,
         ...more,
     });
-    const both = roster.told({ seats: [seat('local'), seat('s1', { idle: true })], asks: [{ id: 1, name: 'Ada' }] });
-    const ids = [...both.seats, ...both.asks].map(({ id }) => id);
+    const both = roster.told({ seats: [seat('local'), seat('s1', { idle: true })] });
+    const ids = both.seats.map(({ id }) => id);
     check(
-        "a mod is told each seat and each ask as plain data in its order, under an id of the roster's own",
+        "a mod is told each seat as plain data in its order, under an id of the roster's own, and nothing else",
         JSON.stringify(both.seats.map(({ id, ...rest }) => rest)) ===
             JSON.stringify([
                 { name: 'user local', colour: 'blue', idle: false, following: false },
                 { name: 'user s1', colour: 'blue', idle: true, following: false },
             ]) &&
-            JSON.stringify(both.asks.map(({ id, ...rest }) => rest)) === '[{"name":"Ada"}]' &&
-            new Set(ids).size === 3 &&
+            Object.keys(both).join() === 'seats' &&
+            new Set(ids).size === 2 &&
             ids.every((id) => typeof id === 'string' && !['local', 's1'].includes(id)) &&
-            roster.seatOf(both.seats[1].id) === 's1' &&
-            roster.askOf(both.asks[0].id) === 1,
+            roster.seatOf(both.seats[1].id) === 's1',
         both
     );
-    const again = roster.told({ seats: [seat('local'), seat('s1')], asks: [] });
-    const alone = roster.told({ seats: [seat('local')], asks: [] });
-    const back = roster.told({ seats: [seat('local'), seat('s1')], asks: [] });
+    const again = roster.told({ seats: [seat('local'), seat('s1')] });
+    const alone = roster.told({ seats: [seat('local')] });
+    const back = roster.told({ seats: [seat('local'), seat('s1')] });
     check(
         'an id holds while its seat sits, names nothing once it left, and a seat that sits again has a new one',
         again.seats[1].id === both.seats[1].id &&
             alone.seats[0].id === both.seats[0].id &&
-            roster.askOf(both.asks[0].id) === null &&
             back.seats[1].id !== both.seats[1].id &&
             roster.seatOf(both.seats[1].id) === null &&
             roster.seatOf(back.seats[1].id) === 's1' &&
@@ -3349,7 +3287,7 @@ async function memberChecks({ ROSTER, createSeats, createDesktop }, check) {
                 { name: 's1', colour: 'green', idle: false, following: false },
                 { name: 's2', colour: 'orange', idle: false, following: false },
             ]) &&
-            sat.asks.length === 0 &&
+            !('asks' in sat) &&
             changes().length === 2 &&
             changes().every((told) => told.page === page && JSON.stringify(told.payload) === '{}'),
         [sat, changes()]
@@ -3365,39 +3303,10 @@ async function memberChecks({ ROSTER, createSeats, createDesktop }, check) {
         untold === 2 && one === 1 && SEATS.untaken() === 0,
         [untold, one, SEATS.untaken()]
     );
-    const asking = (id) => {
-        const control = new AbortController();
-        const waits = { control, answer: undefined };
-        desk.seats.served.onAsk({ user: { id, name: `user ${id}` } }, { signal: control.signal }).then((answer) => {
-            waits.answer = answer;
-        });
-        return waits;
-    };
-    const settled = () => new Promise((resolve) => setTimeout(resolve));
-    const [ada, grace] = [asking('ada'), asking('grace')];
-    const waiting = asked('read').asks;
-    const told = changes().length;
-    const allowed = asked('answer', { ask: waiting[0].id, allow: true });
-    const twice = asked('answer', { ask: waiting[0].id, allow: false });
-    await settled();
     check(
-        'an ask that waits is told by its name, and an answer of allow lets its user sit, whoever pressed for it',
-        JSON.stringify(waiting.map(({ name }) => name)) === '["user ada","user grace"]' &&
-            told === 4 &&
-            allowed === true &&
-            twice === false &&
-            ada.answer === true &&
-            grace.answer === undefined &&
-            asked('read').asks.length === 1 &&
-            changes().length === 5,
-        [waiting, allowed, twice, ada.answer, grace.answer, changes().length]
-    );
-    const denied = asked('answer', { ask: waiting[1].id, allow: false });
-    await settled();
-    check(
-        'an answer of deny refuses its user, and an ask that is not told answers nothing',
-        denied === true && grace.answer === false && asked('answer', { ask: 'none', allow: true }) === false,
-        [denied, grace.answer]
+        'the member answers no ask, and an answer is a message nothing handles',
+        !('deckit-shell:seats-answer' in desk.handlers),
+        Object.keys(desk.handlers)
     );
     const followed = asked('follow', { seat: sat.seats[1].id });
     const shows = desk.page().following?.id;
@@ -3432,14 +3341,13 @@ async function memberChecks({ ROSTER, createSeats, createDesktop }, check) {
             left[1].id === sat.seats[1].id,
         [idle, left]
     );
-    const last = Math.max(...[...sat.seats, ...waiting].map(({ id }) => Number(id)));
-    const unread = asking('lin');
-    const blind = asked('answer', { ask: String(last + 1), allow: true });
-    await settled();
+    const last = Math.max(...sat.seats.map(({ id }) => Number(id)));
+    desk.sit('s3');
+    const next = asked('read').seats.at(-1);
     check(
-        'an ask has its id from the moment it waits, the next count, whether or not any mod read it',
-        blind === true && unread.answer === true,
-        [last, blind, unread.answer]
+        'a seat has its id from the moment it sits, the next count of the seats alone, whether or not any mod read it',
+        next.name === 's3' && next.id === String(last + 1),
+        [last, next]
     );
 }
 

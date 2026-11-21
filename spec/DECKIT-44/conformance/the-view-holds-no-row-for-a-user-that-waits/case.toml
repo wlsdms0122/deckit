@@ -1,0 +1,77 @@
+case = 31
+name = "the-view-holds-no-row-for-a-user-that-waits"
+note = "The host ships the status bar and the seats mod by their ids, on the base shell, 1280 by 800, under a bar 32 high. With asking true, ada is answered yes at the machine and sits at s1. bob attaches and waits. ada presses the item and reads the view: the rows of the local seat and of ada, and none for bob, whose ask is the machine's."
+
+[host]
+base = "shell"
+api = "1.0.0"
+owners = ["deckit/commands"]
+mods = ["status-bar", "seats"]
+bar = 32
+users = [{ id = "ada", name = "Ada Lovelace" }, { id = "bob", name = "Bob Hope" }]
+keys = [{ principal = "ada", key = "first" }, { principal = "bob", key = "second" }]
+seats = { asking = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+waits = true
+
+[[step]]
+input = "answer"
+party = "p"
+allow = true
+
+[[step]]
+look = "admitted"
+party = "p"
+part = "seat"
+
+[step.expect]
+answers = { id = "s1", local = false, user = { id = "ada", name = "Ada Lovelace" } }
+
+[[step]]
+input = "attach"
+party = "q"
+principal = "bob"
+key = "second"
+waits = true
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w1" }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", ref = "1.2", button = 0 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", ref = "1.2", button = 0 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w2" }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "node", ref = "2.1" }
+part = "text"
+
+[step.expect]
+answers = "group \"Seats\" 2.1 at 990,40 280x80\n  button \"Deckit conformance\" [not pressed] 2.2\n    text \"Deckit conformance\"\n  button \"Ada Lovelace\" [not pressed] 2.3\n    text \"Ada Lovelace\""

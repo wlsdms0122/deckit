@@ -1,0 +1,61 @@
+case = 31
+name = "an-answer-answers-the-ask-of-its-party-alone"
+note = "An answer answers the ask of the party it names and no other. With asking true on the base shell, ada attaches as p and bob as q, and both wait. An answer of yes for q seats bob at s1 and leaves p waiting, its transport connection open; an answer of no for p then refuses ada."
+
+[host]
+base = "shell"
+api = "1.0.0"
+users = [{ id = "ada", name = "Ada Lovelace" }, { id = "bob", name = "Bob Kahn" }]
+keys = [{ principal = "ada", key = "first" }, { principal = "bob", key = "second" }]
+seats = { asking = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+waits = true
+
+[[step]]
+input = "attach"
+party = "q"
+principal = "bob"
+key = "second"
+waits = true
+
+[[step]]
+input = "answer"
+party = "q"
+allow = true
+
+[[step]]
+look = "admitted"
+party = "q"
+part = "seat"
+
+[step.expect]
+answers = { id = "s1", local = false, user = { id = "bob", name = "Bob Kahn" } }
+
+[[step]]
+look = "told"
+party = "p"
+part = "closed"
+
+[step.expect]
+answers = false
+
+[[step]]
+input = "answer"
+party = "p"
+allow = false
+
+[[step]]
+look = "admitted"
+party = "p"
+
+[step.expect]
+refuses = "call"
+kind = "REFUSED"

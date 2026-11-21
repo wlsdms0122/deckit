@@ -162,12 +162,10 @@ export function createApi({
                 // did, which the shell calls for what the environment's hardware tells; `event` is one of `pointer`,
                 // `key` and `text`, named under `event` beside its fields. Answered by what is served.
                 input: SEAT.input,
-                // serve({ input, read, onAsk }): what the shell answers the entry and the users at the seats with,
-                // each once: `input(seat, event)`, `event` with the seat's `source`, and `read(seat, { of, ...query
-                // })`, an output asked once, each handed plain data and answering what the user is answered, and
-                // `onAsk({ user }, { signal }) -> Promise of boolean`, whether a seated user lets `user` sit, `signal`
-                // aborted once no answer is waited for. What is not served is refused, and so is a user that waits
-                // for an ask nothing serves. Answers `{ tell(seat, output) }`, what the shell tells a seat: `output`
+                // serve({ input, read }): what the shell answers the entry and the users at the seats with, each
+                // once: `input(seat, event)`, `event` with the seat's `source`, and `read(seat, { of, ...query })`, an
+                // output asked once, each handed plain data and answering what the user is answered. What is not
+                // served is refused. Answers `{ tell(seat, output) }`, what the shell tells a seat: `output`
                 // is `{ of: 'changes', mark }` or `{ of: 'held', window, holder }`, and reaches a seat that watches it.
                 serve: SEAT.serve,
             }),

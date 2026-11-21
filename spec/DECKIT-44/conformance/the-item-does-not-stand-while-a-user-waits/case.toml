@@ -1,0 +1,29 @@
+case = 31
+name = "the-item-does-not-stand-while-a-user-waits"
+note = "The host ships the status bar and the seats mod by their ids, on the base shell, 1280 by 800, under a bar 32 high. With asking true, ada attaches and waits: one seat alone is open, so the seats mod sets no item, and the local seat sees no window."
+
+[host]
+base = "shell"
+api = "1.0.0"
+owners = ["deckit/commands"]
+mods = ["status-bar", "seats"]
+bar = 32
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+seats = { asking = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+waits = true
+
+[[step]]
+look = "windows"
+seat = "local"
+[step.expect]
+answers = []

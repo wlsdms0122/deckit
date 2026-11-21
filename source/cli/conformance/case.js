@@ -6,7 +6,7 @@ const TOML = require('./toml.js');
 const { holdsStandIn } = require('./match.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 30;
+const FORMAT = 31;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -197,6 +197,7 @@ const INPUTS = {
         part: [is.string, false],
     },
     detach: { party: [is.name, true] },
+    answer: { party: [is.name, true], allow: [is.boolean, true] },
 };
 const LOOKS = {
     mod: { mod: [is.string, true], part: [is.string, false] },
@@ -262,6 +263,7 @@ const ADDED = {
     detach: 25,
     told: 25,
     admitted: 26,
+    answer: 31,
 };
 // The format that added an input, where it is not the one ADDED names for a look of its name.
 const INPUTS_ADDED = { desktop: 30 };
@@ -312,6 +314,7 @@ const ANSWERLESS = [
     'drop',
     'desktop',
     'detach',
+    'answer',
 ];
 // The inputs a case hands only while the host app is started.
 const WHILE_STARTED = [
@@ -328,6 +331,7 @@ const WHILE_STARTED = [
     'attach',
     'ask',
     'detach',
+    'answer',
 ];
 
 // The case in `folder`: `{ name, note, host, steps, bundles, sites }`, `bundles` each bundle's folder by its name,
@@ -570,7 +574,7 @@ function stepOf(step, number, format, refuse) {
 // `delegated` beside none of the three, at most one of `site`, `url` and `file`, a hand's `edge` beside a resize alone
 // and `by` beside a move or a resize alone, a Dock's `to` beside a drag alone, an attach's `party` one no earlier
 // attach wrote, any other step's `party` one an earlier attach wrote, no `part` beside an attach that waits, and an
-// admitted's `party` one of an attach that waits.
+// admitted's and an answer's `party` one of an attach that waits.
 function order(steps, refuse) {
     let up = false;
     const parties = new Set();
@@ -604,7 +608,7 @@ function order(steps, refuse) {
         if (step.what === 'attach' && step.waits && 'part' in step)
             refuse(`step ${step.number}: part is written beside no attach that waits`);
         if (step.what === 'attach' && step.waits) waiting.add(step.party);
-        if (step.what === 'admitted' && parties.has(step.party) && !waiting.has(step.party))
+        if (['admitted', 'answer'].includes(step.what) && parties.has(step.party) && !waiting.has(step.party))
             refuse(`step ${step.number}: party names the party of no earlier attach that waits`);
         if (step.kind !== 'input' || WHILE_STARTED.includes(step.what)) {
             if (!up) refuse(`step ${step.number} ${step.kind === 'input' ? step.what + 's' : 'looks'} after a quit`);

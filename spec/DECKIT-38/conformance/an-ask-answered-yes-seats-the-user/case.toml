@@ -1,12 +1,10 @@
-case = 26
+case = 31
 name = "an-ask-answered-yes-seats-the-user"
-note = "With asking true on the base shell, whose shell serves the ask, ada attaches and is told attach/asking while authenticate waits. mod-a, a system mod granted deckit.seats, reads the ask and answers it yes: authenticate answers its result, ada sits at s1 and its transport connection stays open."
+note = "With asking true on the base shell, ada attaches and is told attach/asking while authenticate waits, and the system asks the host whether she may sit. Whoever is at the machine answers yes: authenticate answers its result, ada sits at s1 and its transport connection stays open."
 
 [host]
 base = "shell"
 api = "1.0.0"
-ship = ["mod-a"]
-system = ["mod-a"]
 users = [{ id = "ada", name = "Ada Lovelace" }]
 keys = [{ principal = "ada", key = "first" }]
 seats = { asking = true }
@@ -30,23 +28,9 @@ part = "messages"
 answers = [{ method = "attach/asking", request = false }]
 
 [[step]]
-input = "call"
-mod = "mod-a"
-member = "seats.asks"
-handle = "shell"
-
-[step.expect]
-answers = [{ id = "2", name = "Ada Lovelace" }]
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "seats.answer"
-handle = "shell"
-args = ["2", true]
-
-[step.expect]
-answers = true
+input = "answer"
+party = "p"
+allow = true
 
 [[step]]
 look = "admitted"
@@ -63,12 +47,3 @@ part = "closed"
 
 [step.expect]
 answers = false
-
-[[step]]
-input = "call"
-mod = "mod-a"
-member = "seats.asks"
-handle = "shell"
-
-[step.expect]
-answers = []

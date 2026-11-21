@@ -1,0 +1,48 @@
+case = 31
+name = "seats-onchange-calls-its-listener-as-a-user-sits-and-not-as-it-waits"
+note = "seats.onChange calls its listener as what seats.list answers changes, which a user that waits does not change. With asking true, mod-a registers a listener and ada attaches and waits: the listener is not called. Whoever is at the machine answers yes and ada sits: it is called once, with no value."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+system = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+seats = { asking = true }
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "call"
+mod = "mod-a"
+member = "seats.onChange"
+handle = "shell"
+listener = true
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+waits = true
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = []
+
+[[step]]
+input = "answer"
+party = "p"
+allow = true
+
+[[step]]
+look = "heard"
+mod = "mod-a"
+
+[step.expect]
+answers = [[]]
