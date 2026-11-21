@@ -1,6 +1,6 @@
 case = 26
-name = "a-press-on-a-window-another-seat-holds-leaves-it-held"
-note = "The person presses main, so the local seat holds it, and with the idle time of 300 seconds that seat is not idle. ada, at s1, presses main: the press answers key held and holder local, the look windows of s1 answers main not key, and that of the local seat answers it key."
+name = "a-seat-that-is-idle-keeps-its-key-window"
+note = "Whether a seat is idle changes no seat's key window. With the idle time 0 every seat is idle at once. The person presses main, so it is the local seat's key window. ada, at s1, presses main: the press answers key true, and the look windows answers main key for s1 and key for the local seat still."
 
 [host]
 base = "shell"
@@ -8,6 +8,7 @@ api = "1.0.0"
 ship = ["mod-a"]
 users = [{ id = "ada", name = "Ada Lovelace" }]
 keys = [{ principal = "ada", key = "first" }]
+seats = { idleTime = 0 }
 
 [[step]]
 input = "start"
@@ -31,14 +32,14 @@ method = "seat/input"
 params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
 
 [step.expect]
-answers = { over = 1, key = "held", holder = "local", at = { x = 600, y = 300 } }
+answers = { over = 1, key = true, at = { x = 600, y = 300 } }
 
 [[step]]
 look = "windows"
 seat = "s1"
 
 [step.expect]
-answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = false, minimized = false }]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = true, minimized = false }]
 
 [[step]]
 look = "windows"
