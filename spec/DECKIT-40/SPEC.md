@@ -88,8 +88,8 @@ panel-line   = "panel " window-id " " quoted " " mod-id [ " top" ] " at " point 
 - **`seat-line`**, one for each seat at the desktop, in the order they opened: the seat's id, its user's name, its colour's name as [seats at the desktop](../DECKIT-39/SPEC.md) gives a seat one, `at` and where its pointer is once an event of it had a place, `key` and its key window where it has one, and `(you)` on the line of the seat that asks.
 - **`dock-line`**: how many items the Dock has, then a line for each in [the Dock](../DECKIT-33/SPEC.md)'s order: its name, which is its mod's name, or its id where the mod has none; its marks in the order `running`, `active`, `attention`, those that are so for the seat that asks; and its ref.
 - **`menu-line`**, while the menu of an item of the Dock is open for the seat that asks: the name of that item, then a line for each choice of the menu in its order, with the words the menu shows for it and its ref.
-- **`window-line`**, one for each normal window whose frame meets the camera of the seat that asks, and for each that seat minimized, front to back in its order: the window's id; its title where its title bar is `titled` and it has one, and its mod's name otherwise, or its mod's id where the mod has no name; its mod's id; where its frame's top left is on the desktop and its frame's size; and its states, in this order: `key` and the id of the seat that holds its keyboard, where one does; `minimized`, where the seat that asks minimized it; `zoomed`; `tile` and the name of the tile it has.
-- **`panel-line`**, one for each panel window on the screen of the seat that asks, in the order they opened, after every normal window: as a window's line, with its mod's name for the title, `top` where it stands at that edge, as [windows](../DECKIT-31/SPEC.md) fixes a panel window's `edge`, and for states only `key` and the seat that holds its keyboard.
+- **`window-line`**, one for each normal window whose frame meets the camera of the seat that asks, and for each that seat minimized, front to back in its order: the window's id; its title where its title bar is `titled` and it has one, and its mod's name otherwise, or its mod's id where the mod has no name; its mod's id; where its frame's top left is on the desktop and its frame's size; and its states, in this order: `key` and the id of each seat whose keyboard it holds, in the order the seats opened, a space before each, where it holds any; `minimized`, where the seat that asks minimized it; `zoomed`; `tile` and the name of the tile it has.
+- **`panel-line`**, one for each panel window on the screen of the seat that asks, in the order they opened, after every normal window: as a window's line, with its mod's name for the title, `top` where it stands at that edge, as [windows](../DECKIT-31/SPEC.md) fixes a panel window's `edge`, and for states only `key` and the seats whose keyboard it holds.
 
 No other window is listed.
 
@@ -174,7 +174,7 @@ An element that names a node and has no role reads as `generic`.
 | `pressed`, `expanded`, `selected`, `current`, `invalid`, `busy`, `haspopup` | the `aria-` attribute of that name is `true`; for another value but `false`, the name, `=` and the value, as `current=page`; `not pressed` and `not expanded` where that attribute is `false` |
 | `required`, `readonly` | the element is so |
 | `level` and a number | a `heading`: its `aria-level`, or the digit of its element |
-| `focused` and a seat's id | the element has its document's focus; the id is that of the seat whose keys go to the document, left out where none's do |
+| `focused` and the seats' ids | the element has its document's focus; the ids are those of every seat whose keys go to the document, in the order the seats opened, a space before each, left out where none's do |
 | `value`, a space, and a `quoted` | a `textbox`, `searchbox`, `combobox` or `spinbutton` that holds a value, an empty one too, but for one of those the next row names: the value, flattened as a name is, cut to `text` characters and 40 at most as a name is cut, and escaped as a name is |
 | `text` and a count | in place of `value`, such a field that hides what is typed, or editable content: how many characters it holds |
 | `not in view` | in what `changes` lists alone: the element changed and is out of sight |
@@ -281,7 +281,7 @@ An element's table is `{ depth, role, name, length, states, items, inView, below
 ## Interactions
 
 - `seat/read`, the outputs a layer names, watching, `seat/output` and the refusal of `params`: [users and seats](../DECKIT-38/SPEC.md). The shell is the layer that serves a reading.
-- Each seat's camera, order, key window, minimized windows and marks, the holder of a window, a seat's colour, and the event that points at a `ref`: [seats at the desktop](../DECKIT-39/SPEC.md).
+- Each seat's camera, order, key window, minimized windows and marks, the focus and the seats whose keyboard a window holds, a seat's colour, and the event that points at a `ref`: [seats at the desktop](../DECKIT-39/SPEC.md).
 - A window's id, frame, title, title bar and its buttons, tiles, panel windows and their edges: [windows](../DECKIT-31/SPEC.md). The Dock's items, their order and marks, and its menu: [the Dock](../DECKIT-33/SPEC.md). The key window and the active mod: [activation](../DECKIT-32/SPEC.md).
 - A region and the page laid into it: [regions and drops](../DECKIT-36/SPEC.md). A web page: [web pages](../DECKIT-25/SPEC.md).
 
