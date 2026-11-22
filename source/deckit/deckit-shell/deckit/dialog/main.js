@@ -22,8 +22,8 @@ export function createDialog({ IDENTITY, CATALOG, pages }) {
 
     // serve({ whose, asked, withdrawn }), once: what shows the dialogs. `whose(page) -> { mod, web } | null` names the
     // mod whose window content or web page a page is, `web` whether it is a web page, or null for none. `asked(dialog)`
-    // is told each dialog up, `{ ask, page, kind, message, value, from }`, or picker, `{ ask, page, kind, options,
-    // rect, from }` (`options` and `rect` as the environment hands them), `ask` its number and `from` who asks as a
+    // is told each dialog up, `{ ask, page, kind, message, value, from }`, or picker, `{ ask, page, kind, name,
+    // options, rect, from }` (as the environment hands them), `ask` its number and `from` who asks as a
     // person reads it, the site's origin of a web page and the mod's name of any other; `withdrawn(ask)` is told as it
     // is no longer up, answered, refused or withdrawn. Answers `{ answer(ask, value), refuse(ask) }`: the first
     // answer is the page's, `value` what it is replied (a boolean for `confirm` and `leave`, the text or null for
@@ -43,9 +43,9 @@ export function createDialog({ IDENTITY, CATALOG, pages }) {
     }
 
     // MARK: - Private
-    // A dialog the environment hands, `{ kind, message, value, origin }`, or a picker, `{ kind, options, rect,
+    // A dialog the environment hands, `{ kind, message, value, origin }`, or a picker, `{ kind, name, options, rect,
     // origin }`: a promise of its reply, undefined for the refusal.
-    function heard(page, { kind, message, value, origin, options, rect }) {
+    function heard(page, { kind, message, value, origin, name: named, options, rect }) {
         if (!served || IDENTITY.modOf(page) || IDENTITY.pageNameOf(page)) return undefined;
         if (up.get(asking.get(page))?.kind === 'select') settle(asking.get(page), undefined);
         if (asking.has(page)) return undefined;
@@ -59,7 +59,10 @@ export function createDialog({ IDENTITY, CATALOG, pages }) {
             const off = pages.watch(page, { destroyed: withdraw, ended: withdraw, gone: withdraw });
             up.set(ask, { page, kind, settle: resolve, off });
             asking.set(page, ask);
-            const asked = kind === 'select' ? { options, rect } : { message: String(message), value: String(value) };
+            const asked =
+                kind === 'select'
+                    ? { name: String(named), options, rect }
+                    : { message: String(message), value: String(value) };
             served.asked(Object.freeze({ ask, page, kind, ...asked, from }));
         });
     }

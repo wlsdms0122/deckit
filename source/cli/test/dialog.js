@@ -135,12 +135,20 @@ async function main() {
 
     const options = [{ label: 'Apple', group: null, disabled: false, selected: true }];
     const rect = { x: 20, y: 100, width: 200, height: 30 };
-    const picked = answer(content, { kind: 'select', options, rect, origin: 'deckit://notes.mod' });
+    const picked = answer(content, { kind: 'select', name: 'Fruit', options, rect, origin: 'deckit://notes.mod' });
     const pick = asked[asked.length - 1];
     check(
-        'a picker is handed up with its options and rect',
+        'a picker is handed up with its name, options and rect',
         JSON.stringify(pick) ===
-            JSON.stringify({ ask: pick.ask, page: content, kind: 'select', options, rect, from: 'Notes' }),
+            JSON.stringify({
+                ask: pick.ask,
+                page: content,
+                kind: 'select',
+                name: 'Fruit',
+                options,
+                rect,
+                from: 'Notes',
+            }),
         pick
     );
     served.answer(pick.ask, 'Apple');
