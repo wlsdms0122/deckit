@@ -529,13 +529,15 @@ function boot(theme, channels) {
 
     // The rows of `picker` drawn in its list anew where they changed: a group's label as a row that is not enabled,
     // and each option, the one moved to marked active; of a date picker, its month's name and its two buttons over its
-    // days, each where its parts place it in the list, a day by its number.
+    // days, each where its parts place it in the list, a day by its number; of a colour picker, each colour a swatch of
+    // it where its parts place it.
     function drawPicker(page, made, picker, place) {
         place(made.list, picker.parts.list);
         const rows = JSON.stringify(picker.parts);
         if (rows === made.rows) return;
         made.rows = rows;
         const { list, title, buttons = [] } = picker.parts;
+        const swatches = picker.kind === 'color';
         const within = (node, { x, y, width, height }) =>
             Object.assign(node.style, {
                 position: 'absolute',
@@ -573,10 +575,18 @@ function boot(theme, channels) {
             ...head,
             ...picker.parts.rows.map((row) => {
                 const drawn = element(page, 'div', 'deckit-menu-row');
-                const label = element(page, 'span', 'deckit-menu-label');
-                label.textContent = row.group ?? (title ? String(Number(row.label.slice(8))) : row.label);
+                const label = element(page, 'span', swatches ? '' : 'deckit-menu-label');
+                if (swatches)
+                    Object.assign(label.style, {
+                        flex: '0 0 20px',
+                        height: '20px',
+                        borderRadius: 'var(--deckit-radius-control)',
+                        boxShadow: 'var(--deckit-rim)',
+                        background: row.label,
+                    });
+                else label.textContent = row.group ?? (title ? String(Number(row.label.slice(8))) : row.label);
                 drawn.append(label);
-                if (title) within(drawn, row.rect);
+                if (title || swatches) within(drawn, row.rect);
                 if (row.group !== undefined || row.disabled) drawn.setAttribute('aria-disabled', 'true');
                 if (row.group !== undefined) return drawn;
                 drawn.setAttribute('role', 'option');
