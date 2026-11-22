@@ -42,6 +42,13 @@ function rectOf(text) {
     return { x, y, width, height };
 }
 
+// What a picture of a stage draws of `layers`, `desktopLaid`'s: from the backdrop up, each not hidden, whether it takes
+// the pointer or not, as the stage draws it.
+function drawn(layers) {
+    const from = layers.findIndex(({ name }) => name === 'backdrop');
+    return from < 0 ? [] : layers.slice(from).filter(({ hidden }) => !hidden);
+}
+
 // What reads the desktop through `main`, `pageById` and `compose`, a client's (devtools.js), and `desktop()`, the
 // session of the desktop's page.
 function seat({ main, pageById, compose, desktop }) {
@@ -210,19 +217,15 @@ function seat({ main, pageById, compose, desktop }) {
                 )
             )}, ${JSON.stringify({ rect, scale })})`
         );
-    // The desktop as a person sees it, as the stage takes its picture, from the backdrop up, with `compose`'s options:
-    // the pages that take the pointer somewhere, the cursors' surface, which takes it nowhere, and the materials.
+    // The desktop as a person sees it, as the stage takes its picture (drawn), with `compose`'s options.
     const desktopShot = async (name, options) => {
         const stage = await desktopLaid();
-        const laid = (stage?.layers || []).filter(
-            ({ material, name: each, input }) => material || each === 'cursors' || !Array.isArray(input) || input.length
-        );
-        const from = laid.findIndex(({ name: each }) => each === 'backdrop');
-        const session = from < 0 ? null : await pageById(laid[from].id);
+        const laid = drawn(stage?.layers || []);
+        const session = laid.length ? await pageById(laid[0].id) : null;
         if (!session) return;
         const scale = await session.evaluate('devicePixelRatio');
         const rect = { x: 0, y: 0, width: stage.rect.width, height: stage.rect.height };
-        const data = await stagePicture(laid.slice(from), rect, scale);
+        const data = await stagePicture(laid, rect, scale);
         if (typeof data === 'string') await compose(name, [{ session, data }], options);
     };
     // The windows of the mod `mod` the host window lays over the desktop's page, the local seat's screen, as
@@ -368,4 +371,4 @@ function seat({ main, pageById, compose, desktop }) {
     };
 }
 
-module.exports = { seat };
+module.exports = { seat, drawn };

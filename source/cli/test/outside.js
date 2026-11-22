@@ -18,6 +18,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync, spawn } = require('child_process');
 const { makeKey, readKey, connect } = require('../outside/client.js');
+const { drawn } = require('./seat.js');
 const RELAY = require('../outside/relay.js');
 const { sleep, until } = require('./devtools.js');
 const READING = require('./reading.js');
@@ -1414,6 +1415,14 @@ async function run({
         const pressedRow = await pressIn(await shown(), '.seats-seat[aria-label^="First"]');
         const followed = await until(async () => (await followingNow()) === 'Following First', 4000);
         await desktopShot('seats-followed');
+        const barDrawn = drawn((await desktopLaid())?.layers ?? []).some(({ opener }) =>
+            /^deckit:\/\/status-bar\.mod/.test(opener ?? '')
+        );
+        check(
+            'outside: while the local seat follows another the desktop drawn as a person sees it has the status bar',
+            followed && barDrawn,
+            JSON.stringify({ followed, barDrawn })
+        );
         let byB = '';
         const marked = await until(() => {
             byB = readBy(seatB);
