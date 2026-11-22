@@ -1960,16 +1960,19 @@ export function createDesktop({
         );
         const backdrop = surface(PAGE.BACKDROP);
         const cursors = MARKS.apart(hands.size) && surface(PAGE.CURSORS);
+        // Where a mod's page lies: at its front window on screen, cut to that window's corners as its content is, so
+        // what it presents over the window is cut there too; at a panel window, what it presents spread over the stage.
+        const placeOf = (page) => {
+            const rect = front.get(page);
+            if (!rect) return { rect: desktopIn(full) };
+            if (ofPanels.has(page)) return { rect, spread: full };
+            return { rect, clip: { ...rect, cornerRadius: LAYOUT.RADIUS } };
+        };
         return {
             children,
             parts: {
                 pages: [
-                    ...[...pages].map((page) => ({
-                        page,
-                        rect: front.get(page) ?? desktopIn(full),
-                        ...(ofPanels.has(page) ? { spread: full } : {}),
-                        input: [],
-                    })),
+                    ...[...pages].map((page) => ({ page, ...placeOf(page), input: [] })),
                     ...elsewhere.map(({ window, frame }) => ({ page: window.surface, rect: frame, input: [] })),
                 ],
                 backdrop: backdrop ? [{ page: backdrop, rect: full }] : [],

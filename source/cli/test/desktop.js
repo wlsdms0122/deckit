@@ -911,6 +911,12 @@ async function main() {
             .filter(({ page }) => /^(page|content)-/.test(page.name))
             .map(({ page, rect, spread = null }) => [page.name, { rect, spread }])
     );
+    const pageClips = Object.fromEntries(
+        desk
+            .laid()
+            .filter(({ page }) => /^page-/.test(page.name))
+            .map(({ page, rect, clip = null }) => [page.name, { rect, clip }])
+    );
     desk.desktop.closePanel(lonePanel);
     check(
         'a page whose front window is a panel window is laid at that panel with its overlay over the whole stage, ' +
@@ -924,6 +930,14 @@ async function main() {
             'content-23' in spreads &&
             'page-a' in spreads,
         spreads
+    );
+    check(
+        'a page whose front window is a normal one is laid cut to its rounded corners, as its content is, so what it ' +
+            'presents over the window is cut there too; one at a panel window is not',
+        JSON.stringify(pageClips['page-a']?.clip) ===
+            JSON.stringify({ ...pageClips['page-a']?.rect, cornerRadius: LAYOUT.RADIUS }) &&
+            pageClips['page-c']?.clip === null,
+        pageClips
     );
     const panelTold = desk.desktop.stateOf(firstPanel);
     desk.desktop.pressPanel(firstPanel);
