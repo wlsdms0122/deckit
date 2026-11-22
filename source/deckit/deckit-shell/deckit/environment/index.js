@@ -64,8 +64,7 @@ const MAIN = Object.freeze({
         // `{ kind, name, rect, origin }`, `name` and `rect` the control's, its rect in its frame: of kind `select` with
         // its `options` in order `{ label, group, disabled, selected }`, `group` a group's label or null, replied an
         // option's index; of kind `date` with the control's `type`, `value`, `min`, `max` and `step` as the page has
-        // them, replied a date, yyyy-mm-dd; of kind `color` with the control's `value`, replied a colour, #rrggbb;
-        // anything else the refusal. Until it is given, every page is refused
+        // them, replied a date, yyyy-mm-dd; anything else the refusal. Until it is given, every page is refused
         dialogs: 'function',
     },
     // What is opened outside the app, by the system: `url(url, { activate }) -> Promise`, an address in the app that

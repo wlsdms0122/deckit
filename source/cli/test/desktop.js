@@ -2691,8 +2691,7 @@ async function webPageChecks({ LAYOUT, createDesktop }, check) {
 // it cut to what shows it, nowhere for a page in no window or one shown outside what shows it, moved as its page is,
 // kept where it was while its page shows nowhere, and up until it is withdrawn; and a page's picker, its list under
 // its control, its rows, the option a press or the keys pick, and the page it covers; and a date picker's month, its
-// days, those its control rules out, the turn of its month, the date a press picks and the arrows; and a colour
-// picker's palette, the one selected, its cells, the colour a press picks and the arrows.
+// days, those its control rules out, the turn of its month, the date a press picks and the arrows.
 function dialogChecks({ createDialogs, partsOf, partAt, answerOf, keyed, covers, waitsOn }, check) {
     const dialogs = createDialogs({ today: () => '2026-12-05' });
     const content = { x: 0, y: 28, width: 400, height: 300 };
@@ -2936,11 +2935,7 @@ function dialogChecks({ createDialogs, partsOf, partAt, answerOf, keyed, covers,
         { turned: turned.options[0], before: before.options[0], title: head.title }
     );
     const picked = [19, 24].map((day) => answerOf(march, partAt(march, middle(days[day].rect))));
-    const arrowed = [
-        dialogs.step(30, 'ArrowRight').at,
-        dialogs.step(30, 'ArrowLeft').at,
-        dialogs.step(30, 'ArrowUp').at,
-    ];
+    const arrowed = [dialogs.step(30, 'ArrowRight').at, dialogs.step(30, 'ArrowLeft').at, dialogs.step(30, 'ArrowUp').at];
     check(
         'a press on a day picks its date, one on a disabled day nothing; the arrows move a day and a week',
         JSON.stringify(picked) === JSON.stringify([{ value: '2026-03-20' }, null]) &&
@@ -2950,38 +2945,6 @@ function dialogChecks({ createDialogs, partsOf, partAt, answerOf, keyed, covers,
             JSON.stringify(answerOf(dialogs.of(30), keyed(dialogs.of(30), 'Enter'))) === '{"value":"2026-03-14"}' &&
             !waitsOn(march),
         { picked, arrowed }
-    );
-
-    const coloured = (ask, value) => ({ ask, kind: 'color', name: 'Colour', value, rect: control, from: 'A' });
-    const red = dialogs.ask(coloured(40, '#cf1717'), { window: 7, content });
-    const unheld = dialogs.ask(coloured(41, '#010203'), { window: 7, content });
-    const swatches = partsOf(red).rows;
-    check(
-        "a colour picker holds its palette, the control's colour selected where it holds it, laid in cells by rows",
-        red.options.length === 50 &&
-            red.options
-                .filter(({ selected }) => selected)
-                .map(({ label }) => label)
-                .join() === '#cf1717' &&
-            red.at === 30 &&
-            unheld.at === -1 &&
-            unheld.options.every(({ selected, disabled }) => !selected && !disabled) &&
-            JSON.stringify(red.rect) === JSON.stringify({ x: 20, y: 158, width: 288, height: 148 }) &&
-            JSON.stringify(swatches[30].rect) === JSON.stringify({ x: 24, y: 162 + 3 * 28, width: 28, height: 28 }) &&
-            !waitsOn(red),
-        { rect: red.rect, at: red.at, first: red.options[0] }
-    );
-    const swatched = answerOf(red, partAt(red, middle(swatches[11].rect)));
-    check(
-        'a press on a colour picks its colour, one outside the palette nothing; the arrows move a colour and a row',
-        JSON.stringify(swatched) === JSON.stringify({ value: red.options[11].label }) &&
-            answerOf(red, 'dialog-option-51') === null &&
-            dialogs.step(40, 'ArrowUp').at === 20 &&
-            dialogs.step(40, 'ArrowRight').at === 21 &&
-            dialogs.step(41, 'ArrowLeft') === null &&
-            JSON.stringify(answerOf(dialogs.of(40), keyed(dialogs.of(40), 'Enter'))) ===
-                JSON.stringify({ value: red.options[21].label }),
-        { swatched }
     );
 }
 

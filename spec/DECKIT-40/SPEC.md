@@ -114,7 +114,7 @@ The first line is the window's line of the desktop's reading, with the mark. Und
 | each of its buttons, left to right | `button` | `OK`, `Cancel`, `Leave`, `Stay` | `w<id>.dialog.ok`, `.cancel`, `.leave`, `.stay` |
 | the picker up in it, as [windows](../DECKIT-31/SPEC.md) fixes a page's pickers, the one opened last where there are more | `listbox` | the control's name, as *What an element reads as* names it | `w<id>.picker` |
 | under it, for a `date` picker, its buttons to the month before and the month after | `button` | `Previous`, `Next` | `w<id>.picker.previous`, `.next` |
-| under it, each of its options in order, with the state `disabled` where it is and `selected` for the one selected, an option of a group under the group's line | `option`; `group` | its label, for a day its whole date as a `date` control's value writes it, for a colour its colour as a `color` control's value writes it; the group's label | `w<id>.picker.<n>`, `n` counting the options from 1; a group has none |
+| under it, each of its options in order, with the state `disabled` where it is and `selected` for the one selected, an option of a group under the group's line | `option`; `group` | its label, for a day its whole date as a `date` control's value writes it; the group's label | `w<id>.picker.<n>`, `n` counting the options from 1; a group has none |
 
 A button that is not enabled, as [windows](../DECKIT-31/SPEC.md) fixes when one is, has the state `disabled`. A part writes no count, and a picker lists all its options. A panel window lists no part.
 
