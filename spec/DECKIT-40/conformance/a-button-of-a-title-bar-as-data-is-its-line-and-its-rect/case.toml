@@ -25,4 +25,4 @@ method = "seat/read"
 params = { of = "node", ref = "w1.close", format = "json" }
 
 [step.expect]
-answers = { data = { node = { role = "button", name = "Close", states = [], ref = "w1.close" }, rect = { x = 301, y = 125, width = 12, height = 12 }, mark = 7 }, mark = 7 }
+answers = { data = { node = { depth = 0, role = "button", name = "Close", states = [], ref = "w1.close" }, rect = { x = 301, y = 125, width = 12, height = 12 }, mark = 7 }, mark = 7 }
