@@ -37,7 +37,7 @@ So a press of a seat brings a window in front in that seat's order and makes it 
 
 Each seat has its **screen**, on which it sees the desktop through its own **camera**, as [windows](../DECKIT-31/SPEC.md) fixes the camera the host app's window shows. The local seat's screen is the host app's window; another seat's is the size it tells under *A screen event*, and the size of the host app's window until it tells one. A seat's camera is as large as its screen, and the bar, the Dock and the zoom area are of each seat's camera, so a rule of windows that speaks of the camera speaks of one seat's:
 
-- a tile, the zoom area a window is zoomed to and an edge met are of the zoom area of the seat whose hand or key it is;
+- a tile, the zoom area a window is zoomed to and an edge met are of the zoom area of the seat whose hand or key it is, and a tile and a zoom are taken again as that seat's camera changes size;
 - a frame let go is brought into reach of the camera of the seat whose hand let it go, and a window that opens, or that `resize` sizes, is placed and brought into reach in the camera of the seat its mod acts for, under *The seat a mod acts for*, and in the local seat's where it acts for none;
 - a seat's camera moves as a scroll of that seat on the desktop moves it, and as a window becomes that seat's key window while it is out of reach, and no other seat's camera moves by it.
 
