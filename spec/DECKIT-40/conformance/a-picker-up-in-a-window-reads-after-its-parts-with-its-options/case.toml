@@ -1,0 +1,41 @@
+case = 29
+name = "a-picker-up-in-a-window-reads-after-its-parts-with-its-options"
+note = "A picker reads under the window's parts, its options under it in order. mod-a opens main, the window 1 at 283, 107, 720 by 480, whose content holds the select Fruit at 20, 100, 200 by 30, showing one option at a time: Apple, selected, then the group Citrus of Orange and Lime, disabled, then Pear, each valued by its label in lower case. The page opens https://said.test/<type>/<value> outside the app for each input and change it hears. The desktop is the base shell, 1280 by 800, and ada sits at s1. ada presses the select at 403, 222 and reads the window: after the title bar the listbox Fruit, w1.picker, holds Apple, selected, the group Citrus with Orange and Lime, disabled, and Pear, each option with its ref; the document follows, the select a combobox in it."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 403, y = 222, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 403, y = 222, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w1" }
+part = "text"
+
+[step.expect]
+answers = "window w1 \"mod-a\" mod-a at 283,107 720x480 [key s1] mark \u001A\n  button \"Close\" w1.close\n  button \"Minimize\" w1.minimize\n  button \"Zoom\" w1.zoom\n  titlebar w1.bar\n  listbox \"Fruit\" w1.picker\n    option \"Apple\" [selected] w1.picker.1\n    group \"Citrus\"\n      option \"Orange\" w1.picker.2\n      option \"Lime\" [disabled] w1.picker.3\n    option \"Pear\" w1.picker.4\n  document 1 content 720x480\n    combobox \"Fruit\" \u001A"

@@ -1,0 +1,55 @@
+case = 29
+name = "a-pick-of-another-seat-is-the-value-the-page-hears-as-input-then-change"
+note = "Any seat picks from a page's picker. mod-a opens main, the window 1 at 283, 107, 720 by 480, whose content holds the select Fruit at 20, 100, 200 by 30, showing one option at a time: Apple, selected, then the group Citrus of Orange and Lime, disabled, then Pear, each valued by its label in lower case. The page opens https://said.test/<type>/<value> outside the app for each input and change it hears. The desktop is the base shell, 1280 by 800, and ada sits at s1. bob sits at s2. ada presses the select at 403, 222, which opens its picker in the window, and bob presses its option Orange, w1.picker.2: the page hears input and then change with the value orange."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }, { id = "bob", name = "Bob Kahn" }]
+keys = [{ principal = "ada", key = "first" }, { principal = "bob", key = "second" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "attach"
+party = "q"
+principal = "bob"
+key = "second"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 403, y = 222, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 403, y = 222, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "q"
+method = "seat/input"
+params = { event = "pointer", type = "down", ref = "w1.picker.2", button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "q"
+method = "seat/input"
+params = { event = "pointer", type = "up", ref = "w1.picker.2", button = 0, count = 1 }
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/input/orange", activates = true }, { url = "https://said.test/change/orange", activates = true }]

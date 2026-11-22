@@ -189,7 +189,8 @@ export function createDesktop({
             windowAt,
             typingIn,
             dialogsIn: (id) => DIALOGS.inWindow(id),
-            waits: (page) => [...asking.values()].includes(page),
+            waits: (page) =>
+                [...asking].some(([ask, asker]) => asker === page && DIALOG_MODEL.waitsOn(DIALOGS.of(ask))),
         },
     });
 
@@ -793,9 +794,10 @@ export function createDesktop({
 
     // A press down of `seat` in `page`, or in none: the view shown for it is put away unless the press spares it
     // (sparedBy). One in the desktop's page, on the Dock, or on its backdrop, in no window, reached no mod:
-    // what the seat handed is over.
+    // what the seat handed is over. One anywhere but on a window's dialog surface puts every picker up away.
     function pressedDown(seat, hand, page) {
         if (page && [desktop.page, desktop.surfaces.get(PAGE.BACKDROP)].includes(page)) ACTIVATION.input(seat, null);
+        if (![...windows.keys()].some((id) => desktop.surfaces.get(PAGE.dialogOf(id)) === page)) unpicked();
         if (SHOWING.pressed(seat, sparedBy(page, hand.pointer))) update();
     }
 
@@ -1223,8 +1225,8 @@ export function createDesktop({
     }
 
     // A dialog deckit keeps up stands where its page shows (DIALOGS), and is refused where that is in no window.
-    function dialogAsked({ ask, page, kind, message, value, from }) {
-        if (!DIALOGS.ask({ ask, kind, message, value, from }, dialogAt(page))) return answering.refuse(ask);
+    function dialogAsked({ ask, page, ...asked }) {
+        if (!DIALOGS.ask({ ask, ...asked }, dialogAt(page))) return answering.refuse(ask);
         asking.set(ask, page);
         update();
     }
@@ -1237,8 +1239,9 @@ export function createDesktop({
     }
 
     // A key or text of `seat`'s that goes to `page`, on the dialog asked last of those up in the window that holds its
-    // keyboard that cover that page (DIALOG_MODEL covers): Return and Escape answer it, and in a prompt text and
-    // Backspace edit its text. A page no dialog covers takes it as ever. Answers whether a dialog took it.
+    // keyboard that cover that page (DIALOG_MODEL covers): Return and Escape answer it, in a prompt text and
+    // Backspace edit its text, and in a picker the up and down arrows move from option to option. A page no dialog
+    // covers takes it as ever. Answers whether a dialog took it.
     function dialogKeyed(seat, event, page) {
         const window = keyboardOf(seat);
         if (!page || !window || windowAt(page)?.id !== window.id) return false;
@@ -1249,13 +1252,19 @@ export function createDesktop({
         if (event.event === 'text' && ['insert', 'commit'].includes(event.type))
             DIALOGS.type(dialog.ask, dialog.value + String(event.text ?? ''));
         else if (event.event === 'key' && event.type === 'down' && event.key === 'Backspace')
-            DIALOGS.type(dialog.ask, dialog.value.slice(0, -1));
+            DIALOGS.type(dialog.ask, String(dialog.value).slice(0, -1));
         else if (event.event === 'key' && event.type === 'down') {
-            const part = DIALOG_MODEL.keyed(dialog, event.key);
+            DIALOGS.step(dialog.ask, event.key);
+            const part = DIALOG_MODEL.keyed(DIALOGS.of(dialog.ask), event.key);
             if (part) dialogPressed(dialog.ask, part);
         }
         update();
         return true;
+    }
+
+    // Every picker up put away, as a press lands anywhere but on a dialog's surface.
+    function unpicked() {
+        for (const ask of asking.keys()) if (!DIALOG_MODEL.waitsOn(DIALOGS.of(ask))) answering.refuse(ask);
     }
 
     // A dialog is up no more, however it went.
@@ -2280,6 +2289,7 @@ export function createDesktop({
                 dialogs: DIALOGS.inWindow(id).map((dialog) => ({
                     ask: dialog.ask,
                     kind: dialog.kind,
+                    name: dialog.name,
                     message: dialog.message,
                     from: dialog.from,
                     value: dialog.value,

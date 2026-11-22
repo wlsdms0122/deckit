@@ -26,7 +26,7 @@ final class MessageRelay: NSObject, WKScriptMessageHandlerWithReply {
         replyHandler: @escaping @MainActor @Sendable (Any?, String?) -> Void
     ) {
         guard let page else { return replyHandler(nil, nil) }
-        page.received(message.body, from: message.frameInfo, reply: replyHandler)
+        page.received(message.body, named: message.name, from: message.frameInfo, reply: replyHandler)
     }
 
     // MARK: - Public
