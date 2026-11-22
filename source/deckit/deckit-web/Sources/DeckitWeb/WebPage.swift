@@ -375,7 +375,7 @@ final class WebPage: NSObject {
         switch action {
         case #selector(NSText.copy(_:)): copied("copy", source: source)
         case #selector(NSText.cut(_:)): copied("cut", source: source)
-        case #selector(NSText.paste(_:)): return
+        case #selector(NSText.paste(_:)), #selector(NSTextView.pasteAsPlainText(_:)): return
         default: NSApp.sendAction(action, to: view, from: item)
         }
     }
