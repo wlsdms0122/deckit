@@ -75,10 +75,21 @@ extension WebPage {
         }
     }
 
+    // An event of the app's own that carries nothing: the app ends the undo step of the edits before it, as it does
+    // at each event of the machine's devices.
+    private static func step() {
+        guard let event = NSEvent.otherEvent(
+            with: .applicationDefined, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+            windowNumber: 0, context: nil, subtype: 0, data1: 0, data2: 0
+        ) else { return }
+        NSApp.postEvent(event, atStart: false)
+    }
+
     // `event` put into the page for what `source` names: what the page tells of it carries `source`, and a key the
     // document does not handle is handed back to this page alone (InputMonitor).
     func put(_ event: Put, source: String, through input: InputMonitor) throws {
         let window = try shownWindow()
+        Self.step()
         switch event {
         case let .pointer(pointer):
             try put(pointer, source: source, in: window)
