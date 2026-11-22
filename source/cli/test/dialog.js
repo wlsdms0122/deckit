@@ -3,8 +3,8 @@
 // no mod, for a page that is no mod's, and for a page with a dialog up; handed up with who asks, the site's origin of a
 // web page and the mod's name of any other; answered once by the first answer, of its kind; refused as asked; and
 // withdrawn and refused as its page closes, loads another document, or its process ends; and a page's picker, handed
-// up with its options and rect, replied an option's index, withdrawn as its page asks again. Exits 1 with a line for
-// each check that failed. The packages are ES modules, so they are imported as such.
+// up with what its kind holds and its rect, replied an option's index or a date, withdrawn as its page asks again.
+// Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -170,6 +170,20 @@ async function main() {
     const chosen = answer(content, { kind: 'select', options, rect });
     served.answer(asked[asked.length - 1].ask, 0);
     check('a picker is replied the index picked', (await chosen) === 0, '');
+    const control = { type: 'date', value: '2026-03-14', min: '', max: '2026-03-20', step: '' };
+    const dated = answer(content, { kind: 'date', name: 'Day', ...control, rect, origin: 'deckit://notes.mod' });
+    const day = asked[asked.length - 1];
+    const { ask: _ask, page: _page, ...handed } = day;
+    served.answer(day.ask, '2026-03-20');
+    check(
+        'a date picker is handed up with its control and replied a date',
+        JSON.stringify(handed) === JSON.stringify({ kind: 'date', name: 'Day', ...control, rect, from: 'Notes' }) &&
+            (await dated) === '2026-03-20',
+        handed
+    );
+    const undated = answer(content, { kind: 'date', ...control, rect });
+    served.answer(asked[asked.length - 1].ask, 14);
+    check('a date picker is replied a date alone', (await undated) === undefined, '');
     await tick();
 
     if (failed.length) {

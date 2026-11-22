@@ -61,9 +61,10 @@ const MAIN = Object.freeze({
         // Promise of the reply`, `kind` `alert`, `confirm`, `prompt` or `leave`, `value` the prompt's starting text,
         // `origin` the asking frame's; a reply that is no boolean (confirm, leave) or string (prompt) is the refusal:
         // done, false, null, and leaves. A page's picker, which it does not wait on, is asked the same way as
-        // `{ kind, name, options, rect, origin }`, `kind` `select`, `name` the control's, `options` in order `{ label, group, disabled,
-        // selected }`, `group` a group's label or null, `rect` the control's in its frame, replied an option's index
-        // or the refusal. Until it is given, every page is refused
+        // `{ kind, name, rect, origin }`, `name` and `rect` the control's, its rect in its frame: of kind `select` with
+        // its `options` in order `{ label, group, disabled, selected }`, `group` a group's label or null, replied an
+        // option's index; of kind `date` with the control's `type`, `value`, `min`, `max` and `step` as the page has
+        // them, replied a date, yyyy-mm-dd; anything else the refusal. Until it is given, every page is refused
         dialogs: 'function',
     },
     // What is opened outside the app, by the system: `url(url, { activate }) -> Promise`, an address in the app that
