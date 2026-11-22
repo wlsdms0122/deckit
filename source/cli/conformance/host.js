@@ -174,12 +174,19 @@ const pagesOn = (pages) =>
             },
         },
     });
-// The machine's input of the base shell: what hears it, each listener also told each scroll the host hands, and the
-// source the machine's own events carry.
+// The machine's input of the base shell: what hears it, each listener also told each scroll the host hands, the
+// source the machine's own events carry, and the pages a seat's key down is put in, kept until the input settles.
 const listening = new Set();
 let machineSource = null;
+const keyed = new Set();
 const inputOn = (input) =>
     Object.create(input, {
+        put: {
+            value: (page, event) => {
+                if (event?.event === 'key' && event.type === 'down') keyed.add(page);
+                return input.put(page, event);
+            },
+        },
         listen: {
             value: (listener) => {
                 listening.add(listener);
@@ -440,6 +447,7 @@ socket.on('data', (chunk) => {
             ).then(async (came) => {
                 // A run a page starts or ends as it takes what it was told is waited for too.
                 if (asked.input) {
+                    await keysDone();
                     await tellingsTaken();
                     await runsSettled();
                     await told();
@@ -677,6 +685,16 @@ async function tellingsTaken() {
     for (const { run, page } of deckit.mods.runs())
         if (run.state === 'running') await quiet.invoke(page, {}).catch(() => {});
     return true;
+}
+
+// Resolves once what each seat's key down put since the last input set going in its page is done, the text of a copy
+// or cut told to the seat's party among it, format 32. A page answers scripts in the order asked, after the input put
+// before them: the first is answered once WebKit handed the key back, and the second once what that started is done.
+async function keysDone() {
+    const pages = [...keyed];
+    keyed.clear();
+    for (const page of pages)
+        for (let round = 0; round < 2; round++) await page.evaluate('return null', 'deckit').catch(() => {});
 }
 
 // Resolves once no run is between two states: each has started, or has ended. Answers whether one was.

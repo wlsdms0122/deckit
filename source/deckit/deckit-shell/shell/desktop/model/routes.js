@@ -3,7 +3,13 @@
 
 // The route of each kind of event: `place`, where the seat's pointer is, `keyboard`, what holds the seat's keyboard, or
 // `sizing`, the seat's screen and its camera.
-const ROUTES = Object.freeze({ pointer: 'place', key: 'keyboard', text: 'keyboard', ['screen']: 'sizing' });
+const ROUTES = Object.freeze({
+    pointer: 'place',
+    key: 'keyboard',
+    text: 'keyboard',
+    clipboard: 'keyboard',
+    ['screen']: 'sizing',
+});
 
 // The route of `event`, or null for one of no kind.
 function routeOf(event) {

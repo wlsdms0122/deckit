@@ -202,8 +202,9 @@ export function createDesktop({
     // overlay draws for a window lands over that window. The machine's keyboard is the local seat's: a key pressed in a
     // page reaches the mod whose page it is, a chord the mod that took it, for the seat that pressed it. Every seat
     // deckit opens sits here, and what a seat's devices do enters through `deckit.seats.input`, the machine's as the
-    // local seat's. The shell names to deckit the kinds of device and the outputs of model/served.js. The host window
-    // shows the local seat's view, or that of the seat the local one follows (follow).
+    // local seat's. The shell names to deckit the kinds of device and the outputs of model/served.js, and tells a seat
+    // the text a key of its copied or cut. The host window shows the local seat's view, or that of the seat the local
+    // one follows (follow).
     function start(given) {
         WINDOWS = given.WINDOWS;
         DOCK = given.DOCK;
@@ -221,6 +222,7 @@ export function createDesktop({
             tells: SERVED.TELLS,
         });
         if (deckit.seats.local?.source) INPUT.machine(deckit.seats.local.source);
+        INPUT.copied(copied);
         READ.listen(({ page }) => {
             for (const [seat, typing] of typings) if (typing.page === page) reread(seat);
         });
@@ -831,14 +833,17 @@ export function createDesktop({
     // seat's press or key that ends its following of another seat does no more; any other is read against what is
     // laid for the seat and put in the page it reaches. A pointer answers `{ over, key, at }`: `over` the window it
     // reached, 'desktop' for the desktop where no window is, or null, for a press on a window `key`, whether the
-    // seat's keys go to that window after it, and `at`, the desktop's point it went to. A key or text
+    // seat's keys go to that window after it, and `at`, the desktop's point it went to. A key, text or paste
     // answers `{ to }`, the window it went to, or null where the seat has no key window. Nothing is put while the
     // host window is hidden, where no page takes input: that is refused HIDDEN. A seat's events keep their order: one
     // placed by a ref takes time, and what enters meanwhile waits its turn (ROUTING.waits).
     function entered(seat, event) {
         const route = { place, keyboard, sizing }[ROUTING.routeOf(event)];
         if (!route)
-            throw refusal('INVALID_ARGUMENT', "what a seat's devices do is a pointer, key, text or screen event");
+            throw refusal(
+                'INVALID_ARGUMENT',
+                "what a seat's devices do is a pointer, key, text, clipboard or screen event"
+            );
         const turn = () => {
             const hand = hands.get(seat.id);
             if (!hand) throw refusal('NOT_FOUND', 'the seat is not at the desktop');
@@ -878,7 +883,13 @@ export function createDesktop({
         return cameraOf(seat);
     }
 
-    // The route of a key or of text: to what holds the seat's keyboard.
+    // The text a key of a seat's copied or cut, told to that seat.
+    function copied({ text, source }) {
+        const seat = seated.get(sources.get(source));
+        if (seat) tells.tell(seat, { of: 'clipboard', text });
+    }
+
+    // The route of a key, of text or of a paste: to what holds the seat's keyboard.
     function keyboard(seat, hand, event) {
         if (!event.carried) return typed(seat, event);
         if (event.event === 'key' && seat === LOCAL) unfollowed(event.type);
@@ -1035,7 +1046,7 @@ export function createDesktop({
         for (const each of left) INPUT.put(each, { event: 'pointer', type: 'move', x: -1, y: -1, buttons: [], source });
     }
 
-    // A key or text to be carried: put in the page that took the seat's last press in the window that holds its
+    // A key, text or paste to be carried: put in the page that took the seat's last press in the window that holds its
     // keyboard, the view shown for it by activation or its key window, a child or a web page laid over the content as
     // the content itself, while that page is laid there; in the window's content where it pressed none. That the
     // window holds another seat's keyboard too changes nothing of it.

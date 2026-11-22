@@ -130,8 +130,8 @@ async function main() {
     );
 
     const handed = [];
-    // The shell's outputs, and one of the test's that a seat is told from the moment it opens.
-    const TELLS = { ...SERVED.TELLS, bell: Object.freeze({ fields: Object.freeze({ window: 'integer' }), on: true }) };
+    // The shell's outputs, `clipboard` told a seat from the moment it opens.
+    const TELLS = SERVED.TELLS;
     const tells = SEAT.serve({
         input: (seat, event) => (handed.push([seat.id, event]), { over: 'w1', key: true, by: seat.id }),
         events: SERVED.EVENTS,
@@ -152,7 +152,7 @@ async function main() {
             'with what answers them',
         throws({ input: () => ({}), events: {} }) &&
             throws({ onAsk: () => true }) &&
-            throws({ tells: { bell: TELLS.bell } }) &&
+            throws({ tells: { clipboard: TELLS.clipboard } }) &&
             throws({ events: { wheel: { types: ['down'], fields: {} } } }),
         ''
     );
@@ -215,7 +215,7 @@ async function main() {
         fractions.every((answer) => answer.error?.kind === 'INVALID_ARGUMENT') && handed.length === 1,
         fractions
     );
-    const readTold = await guest.ask('seat/read', { of: 'bell' });
+    const readTold = await guest.ask('seat/read', { of: 'clipboard' });
     const readNone = await guest.ask('seat/read', { of: 'weather' });
     const readOther = await guest.ask('seat/read', { of: 'changes', scale: 2 });
     const watchPicture = await guest.ask('seat/watch', { of: 'picture', on: true });
@@ -226,7 +226,7 @@ async function main() {
     );
     const outputs = () => told.get('guest').map(({ payload }) => payload);
     tells.tell(seat, { of: 'changes', mark: 2 });
-    tells.tell(seat, { of: 'bell', window: 1 });
+    tells.tell(seat, { of: 'clipboard', text: 'ab' });
     const watched = await guest.ask('seat/watch', { of: 'changes', on: true });
     tells.tell(seat, { of: 'changes', mark: 3 });
     check(
@@ -234,14 +234,14 @@ async function main() {
         watched.value === true &&
             JSON.stringify(outputs()) ===
                 JSON.stringify([
-                    { of: 'bell', window: 1 },
+                    { of: 'clipboard', text: 'ab' },
                     { of: 'changes', mark: 3 },
                 ]),
         [watched, outputs()]
     );
-    await guest.ask('seat/watch', { of: 'bell', on: false });
+    await guest.ask('seat/watch', { of: 'clipboard', on: false });
     await guest.ask('seat/watch', { of: 'changes', on: false });
-    tells.tell(seat, { of: 'bell', window: 1 });
+    tells.tell(seat, { of: 'clipboard', text: 'ab' });
     tells.tell(seat, { of: 'changes', mark: 4 });
     const untold = (output) => {
         try {

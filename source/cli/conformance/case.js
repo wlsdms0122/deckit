@@ -6,7 +6,7 @@ const TOML = require('./toml.js');
 const { holdsStandIn } = require('./match.js');
 
 // The newest case format this runner knows. It reads a case of any format from 1 up to it.
-const FORMAT = 31;
+const FORMAT = 32;
 const NAME = /^[a-z][a-z0-9-]*$/;
 const BUNDLE = /^\.?[a-z][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;

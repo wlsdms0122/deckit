@@ -81,6 +81,15 @@ function createEnvironment({ core, preload, openWindow }) {
         containerOf: (page) => WEB.containerOf(page),
         always: [READER],
         posted: READ.told,
+        copied: (text, source) => {
+            for (const listener of [...copying]) {
+                try {
+                    listener(Object.freeze({ text, source }));
+                } catch (error) {
+                    LOG.error('a listener of a copy failed', error);
+                }
+            }
+        },
     });
     const MESSAGES = createMessages();
     const WINDOWS = createWindows({ LOG, WEBKIT, openWindow });
@@ -98,6 +107,7 @@ function createEnvironment({ core, preload, openWindow }) {
     let script = null; // the preload's source
     let dialogs = null; // what answers every page's dialog, once given (pages.dialogs)
     const hearing = new Set(); // what hears the machine's input (listen)
+    const copying = new Set(); // what hears the text of a copy or cut key put into a page (copied)
     const moved = { last: null, timer: null }; // the move not told yet
     let hardware; // the source of the machine's own pointer and keyboard, once told (machine)
     hear();
@@ -162,7 +172,7 @@ function createEnvironment({ core, preload, openWindow }) {
             focused: () => WEBKIT.focusedPage(),
             reserve: (page, on) => void (page.isDestroyed() || WEBKIT.native().reserveKeyboard(page.id, !!on)),
         }),
-        input: Object.freeze({ listen, put, machine }),
+        input: Object.freeze({ listen, put, machine, copied }),
         read: Object.freeze({
             outline: READ.outline,
             node: READ.node,
@@ -301,15 +311,23 @@ function createEnvironment({ core, preload, openWindow }) {
         }
     }
 
-    // `event`, as `listen` tells one or `{ event: 'text', type, text }`, `type` `insert`, `compose`, `commit` or
-    // `cancel`, with `source`, an opaque word of the caller's for the devices it came from, put into `page` at a point
-    // from its top left: the page is not given the keyboard, what the page tells of the event carries `source`, and a
-    // key the page does not handle is told as its own unhandled key and reaches nothing else.
+    // `event`, as `listen` tells one, `{ event: 'text', type, text }`, `type` `insert`, `compose`, `commit` or
+    // `cancel`, or `{ event: 'clipboard', type: 'paste', text }`, with `source`, an opaque word of the caller's for the
+    // devices it came from, put into `page` at a point from its top left: the page is not given the keyboard, what the
+    // page tells of the event carries `source`, and a key the page does not handle is told as its own unhandled key and
+    // reaches nothing else.
     function put(page, event) {
         if (typeof event?.source !== 'string' || !event.source)
             throw new Error('[deckit] an event is put with a source');
         if (isGone(page)) return;
         WEBKIT.native().putInput(page.id, event);
+    }
+
+    // `handler({ text, source })` hears the text of each copy or cut key put into a page with `source`: what the page
+    // set for it, or else what is selected. Answers its off.
+    function copied(handler) {
+        copying.add(handler);
+        return () => copying.delete(handler);
     }
 
     // The source of the machine's own pointer and keyboard from now on: what a page tells of a key of theirs carries

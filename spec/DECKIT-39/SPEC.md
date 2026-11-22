@@ -5,7 +5,7 @@ Area: shell
 
 ## Summary
 
-The shell serves the seats of [users and seats](../DECKIT-38/SPEC.md): every seat has the desktop for itself. This DECKIT fixes what of the desktop each seat has of its own and what every seat shares, each seat's screen and camera and the event `screen` that sizes them, the seat a mod acts for, the one **focus** a window's content has under every seat whose key window it is, what `seat/input` takes and answers for a pointer, a key and a text event, the colour a seat is told apart by, and the member `seats` of the handle `shell` with its permission `deckit.seats`, by which a mod reads who sits and has the host app's window follow a seat.
+The shell serves the seats of [users and seats](../DECKIT-38/SPEC.md): every seat has the desktop for itself. This DECKIT fixes what of the desktop each seat has of its own and what every seat shares, each seat's screen and camera and the event `screen` that sizes them, the seat a mod acts for, the one **focus** a window's content has under every seat whose key window it is, what `seat/input` takes and answers for a pointer, a key and a text event, what a seat's key does in a page, a seat's clipboard and the event `clipboard` that pastes, the colour a seat is told apart by, and the member `seats` of the handle `shell` with its permission `deckit.seats`, by which a mod reads who sits and has the host app's window follow a seat.
 
 ## Motivation
 
@@ -73,7 +73,7 @@ No press on a window's content, of whatever button and with whatever keys held, 
 
 ### What the shell names
 
-The shell serves input and a reading, as [users and seats](../DECKIT-38/SPEC.md) fixes what a layer serves. It takes these kinds of device; the outputs it reads, and `changes`, which it tells, are those of [what a seat reads](../DECKIT-40/SPEC.md).
+The shell serves input and a reading, as [users and seats](../DECKIT-38/SPEC.md) fixes what a layer serves. It takes these kinds of device; the outputs it reads, and `changes`, which it tells, are those of [what a seat reads](../DECKIT-40/SPEC.md), and it tells `clipboard` besides, under *A seat's clipboard*.
 
 | `event` | `type` |
 |---|---|
@@ -81,6 +81,7 @@ The shell serves input and a reading, as [users and seats](../DECKIT-38/SPEC.md)
 | `key` | `down`, `up` |
 | `text` | `insert`, `compose`, `commit`, `cancel` |
 | `screen` | `resize` |
+| `clipboard` | `paste` |
 
 ### A pointer event
 
@@ -118,6 +119,8 @@ A key or text event of a seat goes to the window that holds the seat's keyboard,
 
 A chord the event makes is read as [the shell's keys](../DECKIT-34/SPEC.md) read one, for that seat.
 
+A key of a seat does in the page it goes to what the same key of the machine's own keyboard does there, the edits of a page's text among them: undo and redo, cut, copy and paste, and select all, each with the seat's own clipboard, under *A seat's clipboard*. A key that acts on the host app and not on a page, as one that quits or hides the app, is the machine's own keyboard's alone: a seat's key goes no further than what [the shell's keys](../DECKIT-34/SPEC.md) say a key pressed in a page goes to.
+
 ### A screen event
 
 `seat/input` with `event` `screen` and `type` `resize` tells the size of the seat's screen by `width` and `height`, integers 1 or more. It sets the size of the seat's camera to them, its top left where it was, and answers the camera, a table `{ x, y, width, height }`. A party tells it as its seat opens and as its screen changes size. The local seat's screen is the host app's window, which no event sizes.
@@ -127,6 +130,14 @@ A chord the event makes is read as [the shell's keys](../DECKIT-34/SPEC.md) read
 `seat/input` with `event` `key` takes `code` and `key`, strings, as a page is told a key by them, and may take `modifiers`, as a pointer event writes it, and `repeat`, a boolean. With `event` `text` it may take `text`, a string, read for `insert` and `compose`: `insert` puts the text where the caret is; `compose` shows it as text still being composed, in place of what was being composed before it; `commit` ends the composing and keeps the text composed last; and `cancel` ends the composing and keeps none of it. A `commit` and a `cancel` read no `text`. An `insert` with no `text`, and a `commit` or a `cancel` while nothing is being composed, do nothing.
 
 Each answers a table `{ to }`: the id of the window the event went to, or null where nothing holds the seat's keyboard, and nothing is done then.
+
+### A seat's clipboard
+
+A seat's **clipboard** is of its input and output, as its pointer and keyboard are, and is where the seat's party keeps it. The local seat's is [the clipboard](../DECKIT-20/SPEC.md), the machine's. A seat a transport connection opened has the one its party holds, and the host keeps none for it.
+
+`seat/input` with `event` `clipboard` and `type` `paste` takes `text`, a string, the plain text pasted. The page the seat's key events go to, under *Where a seat's keys go*, hears a paste of that text as it hears one of the machine's own key, and where the page does not prevent it the text is put in where the caret is, in place of what is selected, an edit the page's undo takes back. A `paste` with no `text` does nothing. It answers a table `{ to }`, as a key event does.
+
+A key of a seat a transport connection opened that copies or cuts is heard by the page as the machine's own key's copy or cut. The text copied, what the page set for it or else what is selected, is told to the seat's party as `{ of = "clipboard", text }`, from the moment the seat opens, as [users and seats](../DECKIT-38/SPEC.md) lets a layer tell an output; and where the page does not prevent a cut, it removes what is selected, an edit the page's undo takes back. The machine's clipboard stays as it was.
 
 ### What refuses an input
 
@@ -193,8 +204,9 @@ It guards every member of `shell.seats`.
 - The active mod, who may activate, input and a request, a mod held back and attention: [activation](../DECKIT-32/SPEC.md).
 - The Dock, its items and marks, a click, the menu and the drag of an item: [the Dock](../DECKIT-33/SPEC.md).
 - A chord and the shell's own keys: [the shell's keys](../DECKIT-34/SPEC.md).
+- The machine's clipboard, which is the local seat's and which a mod's request reads and writes: [the clipboard](../DECKIT-20/SPEC.md).
 - The handle `shell`, a request, a registration, `ENDED` and how the shell defines a permission: [the shell](../DECKIT-29/SPEC.md). A privileged permission and `NOT_PERMITTED`: [the permissions](../DECKIT-3/SPEC.md).
-- `[host] seats`, the key `seat` of the looks `windows`, `desktop` and `dock`, a party of a case and the look `told`: [the case format](../DECKIT-1/SPEC.md).
+- `[host] seats`, the key `seat` of the looks `windows`, `desktop` and `dock`, a party of a case, the look `told` and a step settled once a seat's output is sent: [the case format](../DECKIT-1/SPEC.md).
 - A reading, a ref and when it names nothing, the mark and the output `changes`: [what a seat reads](../DECKIT-40/SPEC.md).
 - `HIDDEN` of an input, the focus, a seat's screen and its camera: here.
 - The camera, a scroll on the desktop and a window made key out of reach: [windows](../DECKIT-31/SPEC.md).
@@ -211,11 +223,15 @@ It guards every member of `shell.seats`.
 - `shell.seats` reading and answering the users that ask to sit. Who sits is the machine's, as [users and seats](../DECKIT-38/SPEC.md) part every state, and a mod acts in the shared state for whichever seat's input reaches it, so a seat from outside would admit or refuse another; the host asks whoever is at the machine.
 - The ids of `shell.seats` being the seats' own ids. `local` would tell a mod which seat is the machine's; an id here is a count.
 - A content's focus that follows each seat's key window. A seat's key window is its own: a press of one seat elsewhere would blur the content another seat types in, and close there what closes as it blurs, as a menu.
+- One clipboard for every seat, the machine's. A seat could not paste what its own device copied, and what one seat copied any seat could paste.
+- A mod's request of [the clipboard](../DECKIT-20/SPEC.md) following the seat whose input led to it. A mod would have to know of seats; a mod does nothing for seats, so its request reads and writes the machine's clipboard.
 - A pointer over a page for each seat. A page would hear several pointers and tell them apart, and with them the seats; a page has one, which the last move of any seat places.
 - Following as a seat that watches another. The seat followed would have two users at one view; only the host app's window, which is no seat, shows another's desktop.
 
 ## Notes
 
-**Note.** What this costs an implementation: it keeps the desktop's order, the key window, the minimized windows, the camera and the screen's size and the record of activation once for each seat; lays the stage out for each seat that reads or points; keeps for each window and view the seats whose keyboard it holds, and tells its content the focus by whether it holds any; and asks the system when each seat's devices last gave input, for `idle` of `seats.list()`.
+**Note.** What this costs an implementation: it keeps the desktop's order, the key window, the minimized windows, the camera and the screen's size and the record of activation once for each seat; lays the stage out for each seat that reads or points; keeps for each window and view the seats whose keyboard it holds, and tells its content the focus by whether it holds any; does for a seat's key in its page what the host app does for the machine's key there, but that a seat's copy, cut and paste go to and come from its party; and asks the system when each seat's devices last gave input, for `idle` of `seats.list()`.
 
-**Note.** No case holds these, each for its reason. That a press the host's input `window` makes opens no menu but the content's: that `press` of [the case format](../DECKIT-1/SPEC.md) is of the main button with no key held, which opens none, and a seat's press of the second button holds the rule. A seat's events done in the order sent: a party of a case asks one request and waits for its answer before the next. `ENDED` of a cut handle: no `call` of a case reaches one, as [the shell](../DECKIT-29/SPEC.md) notes. What is drawn of a seat, since no look reads the screen. A seventh seat's colour, since a case's host would attach six parties to reach it. Two inputs close together, which no rule fixes. Following ended by a press or a key of the machine's own devices: the person's press and key of the base `shell` of [the case format](../DECKIT-1/SPEC.md) come of no device of the machine. Following ended by the seat followed closing, and `seats.follow` with null: once the seat is closed no member answers whether the window follows it, and a case writes no null; `seats.follow` with null is held only as [the seats mod](../DECKIT-44/SPEC.md) asks it, a press on the row of the seat followed. The menu of an item open for one seat alone, and the Dock out for one: no look reads either. The 4 of a drag of an item by a seat: a case knows no point of an item, which is the look's. `HIDDEN`: that base shows the host app's window from its start, and no input of a case hides it. An `x` or a `y` that is no finite number, and a `button` or a `count` that is no integer: a case writes no number but an integer. An event at the `ref` of an element of a window's content: such a ref is known only from a reading, which no look answers, so the cases at a `ref` write `w1.bar`, the title bar of the window of the id 1, `dock.mod-b`, the Dock's item of the mod `mod-b`, and `dock-menu.quit` and `dock-menu.keep`, the choices of the menu open for the seat that quit the app and that keep it or take it out. What the host app's window shows while it follows a seat: the looks `windows`, `desktop` and `dock` read a seat's screen, the local seat's where they name none. A registration of `seats.onChange` ended: what the member answers is a function, and a `call` of a case calls a member of what a call answered, never the answer itself.
+**Note.** What a seat's clipboard leaves out: text alone crosses between a seat's party and its page, and what a mod's request copies reaches no party's clipboard. Carrying it across is a matter apart, which this DECKIT does not rule.
+
+**Note.** No case holds these, each for its reason. That a press the host's input `window` makes opens no menu but the content's: that `press` of [the case format](../DECKIT-1/SPEC.md) is of the main button with no key held, which opens none, and a seat's press of the second button holds the rule. A seat's events done in the order sent: a party of a case asks one request and waits for its answer before the next. `ENDED` of a cut handle: no `call` of a case reaches one, as [the shell](../DECKIT-29/SPEC.md) notes. What is drawn of a seat, since no look reads the screen. A seventh seat's colour, since a case's host would attach six parties to reach it. Two inputs close together, which no rule fixes. Following ended by a press or a key of the machine's own devices: the person's press and key of the base `shell` of [the case format](../DECKIT-1/SPEC.md) come of no device of the machine. Following ended by the seat followed closing, and `seats.follow` with null: once the seat is closed no member answers whether the window follows it, and a case writes no null; `seats.follow` with null is held only as [the seats mod](../DECKIT-44/SPEC.md) asks it, a press on the row of the seat followed. The menu of an item open for one seat alone, and the Dock out for one: no look reads either. The 4 of a drag of an item by a seat: a case knows no point of an item, which is the look's. `HIDDEN`: that base shows the host app's window from its start, and no input of a case hides it. An `x` or a `y` that is no finite number, and a `button` or a `count` that is no integer: a case writes no number but an integer. An event at the `ref` of an element of a window's content: such a ref is known only from a reading, which no look answers, so the cases at a `ref` write `w1.bar`, the title bar of the window of the id 1, `dock.mod-b`, the Dock's item of the mod `mod-b`, and `dock-menu.quit` and `dock-menu.keep`, the choices of the menu open for the seat that quit the app and that keep it or take it out. What the host app's window shows while it follows a seat: the looks `windows`, `desktop` and `dock` read a seat's screen, the local seat's where they name none. A registration of `seats.onChange` ended: what the member answers is a function, and a `call` of a case calls a member of what a call answered, never the answer itself. That the local seat's clipboard is the machine's, and that a seat a transport connection opened leaves the machine's clipboard as it was: a case never reads or replaces the clipboard of whoever runs it, as [the clipboard](../DECKIT-20/SPEC.md) notes, and the clipboard the base `system` keeps in its place is the one a mod's request reads, not one a page's copy writes. That a pasted text is plain text: a case writes `text` as a string, and no other form.

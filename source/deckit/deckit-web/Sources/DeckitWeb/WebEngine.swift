@@ -40,13 +40,14 @@ import CNodeAPI
 //   alt, ctrl, meta, shift })`, `code` and `key` as the web names them; `sendMouse(id, { type, x, y })`, `type` `down`,
 //   `dragged`, `up` or `moved`, at a point from the page's top left; `sendDrop(id, { files, x, y }) -> Promise`, files
 //   from outside the app dropped there. `listenInput(emit)`, the machine's pointer and keyboard told as the app has
-//   them to each listener, `emit('input', event)`, `{ event: 'pointer', type, x, y, button, buttons, modifiers, count, dx, dy, page }`
-//   or `{ event: 'key', type, code, key, modifiers, repeat, page }` (Put), `page` the id of the page it is delivered
-//   to and the point from that page's top left, or null and the point from the window's content's;
-//   `putInput(id, event)`, such an event, or `{ event: 'text', type, text }`, put into a page for what its `source`
-//   names, the keyboard and the order of the views left as they are; `reserveKeyboard(id, on)`, a press leaving the
-//   keyboard where it is while on. `snapshot(id) -> Promise of a PNG in base64`; `killProcess(id)`, its content's
-//   process ended as a crash ends it; `pages()` and `windows()`, the ids of those open.
+//   them to each listener, `emit('input', event)`, `{ event: 'pointer', type, x, y, button, buttons, modifiers,
+//   count, dx, dy, page }` or `{ event: 'key', type, code, key, modifiers, repeat, page }` (Put), `page` the id of the
+//   page it is delivered to and the point from that page's top left, or null and the point from the window's
+//   content's; `putInput(id, event)`, such an event, `{ event: 'text', type, text }` or `{ event: 'clipboard', type:
+//   'paste', text }`, put into a page for what its `source` names, the keyboard and the order of the views left as
+//   they are; `reserveKeyboard(id, on)`, a press leaving the keyboard where it is while on. `snapshot(id) -> Promise
+//   of a PNG in base64`; `killProcess(id)`, its content's process ended as a crash ends it; `pages()` and
+//   `windows()`, the ids of those open.
 // - Stages (Stage): `makeStage() -> id`; `placeStage(id, { window, frame, front })`; `layStage(id, [{ page,
 //   frame, clips, input, opacity, scale } | { page, hidden: true } | { material, frame, cornerRadius }])`, `clips` the
 //   rects on the stage the page is cut to, each `{ x, y, width, height, cornerRadius }`, `input` the rects in the page
@@ -634,8 +635,11 @@ final class WebEngine {
         case ("text", "cancel"):
             return .text(.cancel)
 
+        case ("clipboard", "paste"):
+            return .paste(try text("text") ?? "")
+
         default:
-            throw NodeError(message: "an event put is a pointer, a key or a text, of a type it has")
+            throw NodeError(message: "an event put is a pointer, a key, a text or a paste, of a type it has")
         }
     }
 

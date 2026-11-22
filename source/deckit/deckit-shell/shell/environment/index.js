@@ -67,11 +67,16 @@ const SHELL = Object.freeze({
         // the point from the window's content's, and `carried: true`, the page having it already. Moves are told once
         // a frame
         listen: 'function',
-        // put(page, event): such an event, or `{ event: 'text', type, text }`, `type` `insert`, `compose`, `commit`
-        // or `cancel`, with `source`, an opaque word for the devices it came from, put into `page` at a point from
-        // its top left. The page is not given the keyboard and no window's order changes; a key it tells
-        // (`keys.capture`, `keys.unhandled`) carries that `source`, and one it does not handle reaches nothing else
+        // put(page, event): such an event, `{ event: 'text', type, text }`, `type` `insert`, `compose`, `commit` or
+        // `cancel`, or `{ event: 'clipboard', type: 'paste', text }`, with `source`, an opaque word for the devices it
+        // came from, put into `page` at a point from its top left. The page is not given the keyboard and no window's
+        // order changes; a key it tells (`keys.capture`, `keys.unhandled`) carries that `source`, and one it does not
+        // handle reaches nothing else. A paste is heard by the page and goes in at its selection, and a copy or cut
+        // key is heard as the machine's, neither reaching the machine's clipboard
         put: 'function',
+        // copied(handler({ text, source })) -> off: the text of each copy or cut key put with `source`, what the page
+        // set for it or else what is selected
+        copied: 'function',
         // machine(source): the source of the machine's own pointer and keyboard from now on, which a key of theirs a
         // page tells carries
         machine: 'function',
