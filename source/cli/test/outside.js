@@ -1346,12 +1346,12 @@ async function run({
         };
         const stood = await until(async () => {
             const now = await item();
-            return now && /2/.test(now.name) && now;
+            return now && /3/.test(now.name) && now;
         }, 6000);
         await desktopShot('seats-item');
         check(
-            'outside: while seats sit beside the first the status bar has the Seats item, with their count',
-            /^Seats\b/.test(stood?.name ?? '') && /2/.test(stood.text),
+            'outside: while seats sit beside the first the status bar has the Seats item, counting every seat',
+            /^Seats\b/.test(stood?.name ?? '') && /3/.test(stood.text),
             JSON.stringify(stood || (await item()))
         );
         const view = await shown();
