@@ -2639,9 +2639,10 @@ async function webPageChecks({ LAYOUT, createDesktop }, check) {
 // Where a page's dialog stands (model/dialog.js): over the whole content of a window, over a page shown in a part of
 // it cut to what shows it, nowhere for a page in no window or one shown outside what shows it, moved as its page is,
 // kept where it was while its page shows nowhere, and up until it is withdrawn; and a page's picker, its list under
-// its control, its rows, the option a press or the keys pick, and the page it covers.
+// its control, its rows, the option a press or the keys pick, and the page it covers; and a date picker's month, its
+// days, those its control rules out, the turn of its month, the date a press picks and the arrows.
 function dialogChecks({ createDialogs, partsOf, partAt, answerOf, keyed, covers, waitsOn }, check) {
-    const dialogs = createDialogs();
+    const dialogs = createDialogs({ today: () => '2026-12-05' });
     const content = { x: 0, y: 28, width: 400, height: 300 };
     const asked = (ask, kind = 'confirm') => ({ ask, kind, message: 'Sure?', value: '', from: 'A' });
     const whole = dialogs.ask(asked(1), { window: 7, content });
@@ -2823,6 +2824,76 @@ function dialogChecks({ createDialogs, partsOf, partAt, answerOf, keyed, covers,
         'a picker covers the page that asked it alone, which does not wait on it',
         !covers(low, false) && covers(low, true) && !waitsOn(low) && waitsOn(whole),
         ''
+    );
+
+    const dated = (ask, more) => ({
+        ask,
+        kind: 'date',
+        name: 'Day',
+        type: 'date',
+        value: '',
+        min: '',
+        max: '',
+        step: '',
+        rect: control,
+        from: 'A',
+        ...more,
+    });
+    const labels = (picker) => picker.options.filter(({ disabled }) => !disabled).map(({ label }) => label);
+    const march = dialogs.ask(dated(30, { value: '2026-03-14', max: '2026-03-20' }), { window: 7, content });
+    const days = partsOf(march).rows;
+    check(
+        "a date picker opens on its control's month, its days in order, its date selected, one past its max disabled",
+        march.options.length === 31 &&
+            march.options[13].label === '2026-03-14' &&
+            march.options[13].selected &&
+            march.at === 13 &&
+            labels(march).at(-1) === '2026-03-20' &&
+            JSON.stringify(march.rect) === JSON.stringify({ x: 20, y: 124, width: 204, height: 204 }) &&
+            days[0].rect.x === 24 &&
+            days[0].rect.y === 124 + 4 + 28 &&
+            days[13].rect.x === 24 + 6 * 28,
+        { rect: march.rect, options: march.options }
+    );
+    const stepped7 = dialogs.ask(dated(31, { step: '7', min: '2026-12-02' }), { window: 7, content });
+    const local = dialogs.ask(dated(32, { type: 'datetime-local', value: '2026-02-03T09:30', step: '7' }), {
+        window: 7,
+        content,
+    });
+    check(
+        "one with no date opens on today's month; a date's step counts days from its min; a datetime-local's day",
+        labels(stepped7).join() === '2026-12-02,2026-12-09,2026-12-16,2026-12-23,2026-12-30' &&
+            stepped7.at === -1 &&
+            local.options.length === 28 &&
+            local.options[2].selected &&
+            labels(local).length === 28,
+        { stepped: labels(stepped7), local: local.options }
+    );
+    const head = partsOf(stepped7);
+    const turned = dialogs.turn(31, partAt(stepped7, middle(head.buttons[1].rect)));
+    const before = dialogs.turn(31, 'dialog-previous');
+    check(
+        'its buttons turn it to the month after, across a year, and before, and pick nothing',
+        turned.options[0].label === '2027-01-01' &&
+            labels(turned)[0] === '2027-01-06' &&
+            before.options[0].label === '2026-12-01' &&
+            answerOf(stepped7, 'dialog-next') === null &&
+            dialogs.turn(20, 'dialog-next') === null &&
+            JSON.stringify(head.title) ===
+                JSON.stringify({ rect: { x: 52, y: 128, width: 140, height: 28 }, year: 2026, month: 11 }),
+        { turned: turned.options[0], before: before.options[0], title: head.title }
+    );
+    const picked = [19, 24].map((day) => answerOf(march, partAt(march, middle(days[day].rect))));
+    const arrowed = [dialogs.step(30, 'ArrowRight').at, dialogs.step(30, 'ArrowLeft').at, dialogs.step(30, 'ArrowUp').at];
+    check(
+        'a press on a day picks its date, one on a disabled day nothing; the arrows move a day and a week',
+        JSON.stringify(picked) === JSON.stringify([{ value: '2026-03-20' }, null]) &&
+            arrowed.join() === '14,13,6' &&
+            dialogs.step(30, 'ArrowDown').at === 13 &&
+            dialogs.step(30, 'ArrowDown') === null &&
+            JSON.stringify(answerOf(dialogs.of(30), keyed(dialogs.of(30), 'Enter'))) === '{"value":"2026-03-14"}' &&
+            !waitsOn(march),
+        { picked, arrowed }
     );
 }
 
