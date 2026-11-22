@@ -7,8 +7,8 @@
 
 import Foundation
 
-// What a control of a page asks of its picker, as deckit's script posts it: its options in order and its rect in its
-// frame, each as JavaScript is told it.
+// What a control of a page asks of its picker, as deckit's script posts it: its name, its options in order and its
+// rect in its frame, each as JavaScript is told it.
 struct PickerAsk: Decodable {
     struct Option: Decodable {
         // MARK: - Property
@@ -36,6 +36,7 @@ struct PickerAsk: Decodable {
     }
 
     // MARK: - Property
+    let name: String
     let options: [Option]
     let rect: Rect
 }

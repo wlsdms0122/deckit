@@ -23,10 +23,10 @@ import CNodeAPI
 // key taken; and `certificate` ({ url, host, error, fingerprint, subject, issuer }), true for a certificate trusted
 // though the Mac does not. Asked, answered later through `reply`: `permission` ({ origin, permissions, reply }),
 // `dialog` ({ kind, message, value, origin, reply }), what the page asks and waits on (PageDialog), of which it draws
-// nothing, `picker` ({ kind, options, rect, origin, reply }), what a control of the page opens to pick from, which the
-// page does not wait on (menuless), `unhandled` ({ code, key, meta, control, alt, shift, reply }), a key pressed that
-// the page did not handle, true for one taken from the rest of the app, and, for a page made with a scheme of its own,
-// `request` (SchemeHandler).
+// nothing, `picker` ({ kind, name, options, rect, origin, reply }), what a control of the page opens to pick from,
+// which the page does not wait on (menuless), `unhandled` ({ code, key, meta, control, alt, shift, reply }), a key
+// pressed that the page did not handle, true for one taken from the rest of the app, and, for a page made with a
+// scheme of its own, `request` (SchemeHandler).
 @MainActor
 final class WebPage: NSObject {
     // MARK: - Property
@@ -45,9 +45,9 @@ final class WebPage: NSObject {
     // frame prevents those before any listener hears them, so none opens; the event tells each world only what that
     // world's listeners did to it, and goes on to them as before. An element is told by its tag, not its class: one
     // made in another document, as a window's content is, keeps that document's. In deckit's world the `select` is
-    // focused and its picker asked of the page (`picker`): its options and its rect in the frame. The answer, an
-    // option's index or null, selects that option where it is not disabled nor selected already, and the page hears
-    // `input` then `change`, not trusted.
+    // focused and its picker asked of the page (`picker`): its name, as a reading names it, its options and its rect
+    // in the frame. The answer, an option's index or null, selects that option where it is not disabled nor selected
+    // already, and the page hears `input` then `change`, not trusted.
     private static func menuless(asks: Bool) -> String {
         """
         (() => {
@@ -64,11 +64,19 @@ final class WebPage: NSObject {
             const opens = ({ type, target, button, key }) =>
                 target.localName === 'select' && !target.multiple && target.size <= 1 && !target.disabled &&
                 (type === 'mousedown' ? button === 0 : key === ' ');
+            const flat = (text) => String(text ?? '').replace(/\\s+/g, ' ').trim();
+            const nameOf = (select) => {
+                const by = select.getAttribute('aria-labelledby')?.split(/\\s+/);
+                const named = by?.map((id) => select.getRootNode().getElementById?.(id)?.textContent ?? '').join(' ');
+                return flat(named) || flat(select.getAttribute('aria-label')) || flat(select.labels[0]?.textContent) ||
+                    flat(select.getAttribute('title'));
+            };
             const pick = async (select) => {
                 select.focus();
                 const options = [...select.options];
                 const { x, y, width, height } = select.getBoundingClientRect();
                 const index = await webkit.messageHandlers.\(pickers).postMessage(JSON.stringify({
+                    name: nameOf(select),
                     options: options.map((option) => ({
                         label: option.label,
                         group: option.parentElement.localName === 'optgroup' ? option.parentElement.label : null,
@@ -851,6 +859,7 @@ extension WebPage {
         self.picker = picker
         emitter.emit("picker", [
             "kind": picker.kind,
+            "name": asked.name,
             "options": asked.options.map(\.value),
             "rect": asked.rect.value,
             "origin": picker.origin,
