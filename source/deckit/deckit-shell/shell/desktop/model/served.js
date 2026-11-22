@@ -45,6 +45,11 @@ const EVENTS = Object.freeze({
         types: Object.freeze(['resize']),
         fields: Object.freeze({ width: 'integer', height: 'integer' }),
     }),
+    // Plain text pasted from the seat's clipboard, which its party holds.
+    clipboard: Object.freeze({
+        types: Object.freeze(['paste']),
+        fields: Object.freeze({ text: 'string?' }),
+    }),
 });
 
 // The outputs read, each with the fields it is asked with beside `of`.
@@ -63,6 +68,8 @@ const READS = Object.freeze({
 const TELLS = Object.freeze({
     // The desktop changed: the mark it is at now.
     changes: Object.freeze({ fields: Object.freeze({ mark: 'integer' }), on: false }),
+    // The text a key of the seat's copied or cut, for the clipboard its party holds.
+    clipboard: Object.freeze({ fields: Object.freeze({ text: 'string' }), on: true }),
 });
 
 export { EVENTS, READS, TELLS };

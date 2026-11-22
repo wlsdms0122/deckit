@@ -1180,6 +1180,17 @@ function seatChecks({ LAYOUT, DOCK, createDesktop }, check) {
             localKey() === 3,
         JSON.stringify({ mine, yours, typed, puts: desk.puts })
     );
+    const pasted = desk.enter(you, { event: 'clipboard', type: 'paste', text: 'ab' });
+    desk.copied('cd', you.source);
+    desk.copied('ef', 'of-none');
+    check(
+        "a seat's paste is put where its keys go, and the text a key of a seat's copied is told to that seat alone",
+        pasted.to === 2 &&
+            putIn('content-2', 's2').at(-1) === 'paste' &&
+            JSON.stringify(desk.seats.told.filter(({ of }) => of === 'clipboard')) ===
+                JSON.stringify([{ seat: 's2', of: 'clipboard', text: 'cd' }]),
+        { pasted, puts: desk.puts, told: desk.seats.told }
+    );
     // A child laid over the content of window 1, in a region of it: the seat's keys go to the page it pressed last.
     const over = { name: 'page-c', mod: 'c' };
     desk.children.runs = [{ run: { mod: { id: 'c' }, state: 'running', summary: { view: true } }, page: over }];
@@ -1876,8 +1887,8 @@ function routeChecks(ROUTING, check) {
     const { routeOf, placeOf, noCount, waits, hovers, hovered, raises } = ROUTING;
     check(
         'each kind of event has its route by the table, and what is no kind has none',
-        ['pointer', 'key', 'text', 'act', undefined].map((event) => routeOf({ event })).join() ===
-            'place,keyboard,keyboard,,' && routeOf(null) === null,
+        ['pointer', 'key', 'text', 'clipboard', 'act', undefined].map((event) => routeOf({ event })).join() ===
+            'place,keyboard,keyboard,keyboard,,' && routeOf(null) === null,
         JSON.stringify(ROUTING.ROUTES)
     );
     check(
@@ -4608,7 +4619,7 @@ function desktopOver(
     let resized = () => {};
     const desktopPage = { name: 'desktop' };
     const closed = []; // the ids of the windows the desktop asked the shell's windows to close
-    const heard = { requests: null, monitor: null, chords: null, press: null, carried: null };
+    const heard = { requests: null, monitor: null, chords: null, press: null, carried: null, copied: null };
     // What the desktop served deckit of the dialogs, the asks it refused, which nothing withdraws here, and those it
     // answered, `[ask, value]`, each withdrawn then as deckit does.
     const dialogs = { served: null, refused: [], answered: [] };
@@ -4746,6 +4757,7 @@ function desktopOver(
             listen: (handler) => (heard.carried = handler),
             put: (page, { source, ...event }) => puts.push({ page: page.name, event, source }),
             machine: (source) => machine.push(source),
+            copied: (handler) => (heard.copied = handler),
         },
         read,
         deckit,
@@ -4850,6 +4862,7 @@ function desktopOver(
         enter: (seat, event) => seats.served.input(seat, { ...event, source: seat.source }),
         machine,
         carried: (event) => heard.carried(event),
+        copied: (text, source) => heard.copied({ text, source }),
         dialogs,
         seats,
         closed,
