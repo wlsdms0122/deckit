@@ -24,6 +24,7 @@ const USAGE = [
     '       deckit seat scroll <x>,<y> | <ref> <dx>,<dy>',
     '       deckit seat key <chord>      (Enter, Meta+KeyS, ArrowDown)',
     '       deckit seat type <text>',
+    '       deckit seat paste <text>',
     '       deckit seat watch',
     '       deckit seat asking [on | off]',
     "(each takes --home <folder>, deckit's folder, and all but attach and asking --as <user>)",
@@ -194,13 +195,16 @@ const ASKS = {
     },
     type: async (seat, [text]) =>
         void (await seat.request('seat/input', { event: 'text', type: 'insert', text: text ?? refuse() })),
+    paste: async (seat, [text]) =>
+        void (await seat.request('seat/input', { event: 'clipboard', type: 'paste', text: text ?? refuse() })),
     // A line an output told, until interrupted: the host says that the desktop changed, and what changed is asked
-    // then.
+    // then, or the text a key of the seat copied or cut.
     watch: async (seat) => {
         let asked = Promise.resolve();
         const changes = async () => console.log((await seat.request('seat/read', { of: 'changes' })).text);
-        seat.on('seat/output', ({ of }) => {
+        seat.on('seat/output', ({ of, text }) => {
             if (of === 'changes') asked = asked.then(changes).catch(() => {});
+            if (of === 'clipboard') asked = asked.then(() => console.log(`clipboard ${JSON.stringify(text)}`));
         });
         await seat.request('seat/watch', { of: 'changes', on: true });
         const interrupted = new Promise((resolve) => process.once('SIGINT', resolve));
