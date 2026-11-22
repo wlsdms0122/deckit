@@ -126,7 +126,7 @@ const STYLE = `
         border: 0 solid var(--deckit-glass-tertiary);
         opacity: 0;
         pointer-events: none;
-        transition: opacity var(--deckit-press) var(--deckit-press-curve);
+        transition: opacity var(--deckit-press-fade) var(--deckit-press-curve);
     }
     .deckit-window-handle[data-shown] { opacity: 1; }
     .deckit-window-handle:not([data-edge*='-']) { background: var(--deckit-glass-tertiary); border-radius: ${HANDLE.thickness / 2}px; }
