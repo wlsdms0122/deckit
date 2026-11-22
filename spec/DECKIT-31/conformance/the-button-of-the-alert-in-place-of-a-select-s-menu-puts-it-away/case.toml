@@ -1,0 +1,59 @@
+case = 29
+name = "the-button-of-the-alert-in-place-of-a-select-s-menu-puts-it-away"
+note = "The button of the alert shown in place of a select's menu puts it away, and the page hears nothing of it. mod-a opens main, the window 1 at 283, 107, 720 by 480, whose content holds the select Fruit at 20, 100, 200 by 30, showing one option at a time: Apple, selected, then Pear, each valued by its label in lower case. The page opens https://said.test/<type>/<value> outside the app for each input and change it hears. The desktop is the base shell, 1280 by 800, and ada sits at s1. ada presses the select at 403, 222, which shows the alert, and then presses its button w1.dialog.ok: the window reads its document again, the select in it, and the page heard no input and no change."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 403, y = 222, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 403, y = 222, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", ref = "w1.dialog.ok", button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", ref = "w1.dialog.ok", button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w1" }
+part = "text"
+
+[step.expect]
+answers = "window w1 \"mod-a\" mod-a at 283,107 720x480 [key s1] mark \u001A\n  button \"Close\" w1.close\n  button \"Minimize\" w1.minimize\n  button \"Zoom\" w1.zoom\n  titlebar w1.bar\n  document 1 content 720x480\n    combobox \"Fruit\" \u001A"
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = []

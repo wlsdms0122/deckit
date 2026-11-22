@@ -1,0 +1,41 @@
+case = 29
+name = "a-press-on-a-select-shows-an-alert-and-opens-nothing-else"
+note = "A press on a select that shows one option at a time opens nothing of the engine's, and the window shows an alert that the control is not supported. mod-a opens main, the window 1 at 283, 107, 720 by 480, whose content holds the select Fruit at 20, 100, 200 by 30, showing one option at a time: Apple, selected, then Pear, each valued by its label in lower case. The page opens https://said.test/<type>/<value> outside the app for each input and change it hears. The desktop is the base shell, 1280 by 800, and ada sits at s1. ada presses the select at 403, 222 and reads the window: after the title bar the alert, from mod-a, with the message This control is not supported yet. and its button OK; the document is read as one that waits on its dialog, so it is left out."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 403, y = 222, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 403, y = 222, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "window", window = "w1" }
+part = "text"
+
+[step.expect]
+answers = "window w1 \"mod-a\" mod-a at 283,107 720x480 [key s1] mark \u001A\n  button \"Close\" w1.close\n  button \"Minimize\" w1.minimize\n  button \"Zoom\" w1.zoom\n  titlebar w1.bar\n  text \"mod-a\" w1.dialog.from\n  text \"This control is not supported yet.\" w1.dialog.message\n  button \"OK\" w1.dialog.ok"
