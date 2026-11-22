@@ -23,10 +23,10 @@ import CNodeAPI
 // key taken; and `certificate` ({ url, host, error, fingerprint, subject, issuer }), true for a certificate trusted
 // though the Mac does not. Asked, answered later through `reply`: `permission` ({ origin, permissions, reply }),
 // `dialog` ({ kind, message, value, origin, reply }), what the page asks and waits on (PageDialog), of which it draws
-// nothing, `picker` ({ kind, name, options, rect, origin, reply }), what a control of the page opens to pick from,
-// which the page does not wait on (menuless), `unhandled` ({ code, key, meta, control, alt, shift, reply }), a key
-// pressed that the page did not handle, true for one taken from the rest of the app, and, for a page made with a
-// scheme of its own, `request` (SchemeHandler).
+// nothing, `picker` ({ kind, name, rect, origin, reply }, `options` of a `select`, `type`, `value`, `min`, `max`,
+// `step` of a `date`), what a control of the page opens to pick from, which the page does not wait on (menuless),
+// `unhandled` ({ code, key, meta, control, alt, shift, reply }), a key pressed that the page did not handle, true for
+// one taken from the rest of the app, and, for a page made with a scheme of its own, `request` (SchemeHandler).
 @MainActor
 final class WebPage: NSObject {
     // MARK: - Property
@@ -40,14 +40,16 @@ final class WebPage: NSObject {
     private static let interruptedByPolicy = (domain: "WebKitErrorDomain", code: 102)
     // The options of a clipboard event a seat's copy, cut or paste makes, carrying the transfer `data`.
     private static let clipboardEvent = "{ clipboardData: data, bubbles: true, cancelable: true, composed: true }"
-    // WebKit opens a menu of its own on a press whose `contextmenu` the page did not prevent, and on a press of the
-    // main button or Space on a `select` that shows one option at a time, which only the machine's screen shows. Every
-    // frame prevents those before any listener hears them, so none opens; the event tells each world only what that
-    // world's listeners did to it, and goes on to them as before. An element is told by its tag, not its class: one
-    // made in another document, as a window's content is, keeps that document's. In deckit's world the `select` is
-    // focused and its picker asked of the page (`picker`): its name, as a reading names it, its options and its rect
-    // in the frame. The answer, an option's index or null, selects that option where it is not disabled nor selected
-    // already, and the page hears `input` then `change`, not trusted.
+    // WebKit opens a menu of its own on a press whose `contextmenu` the page did not prevent, on a press of the main
+    // button or Space on a `select` that shows one option at a time, and a picker window on a click of the main button
+    // or Space on an `input` of a date, which only the machine's screen shows. Every frame prevents those before any
+    // listener hears them, so none opens; the event tells each world only what that world's listeners did to it, and
+    // goes on to them as before. An element is told by its tag, not its class: one made in another document, as a
+    // window's content is, keeps that document's. In deckit's world the control is focused and its picker asked of the
+    // page (`picker`): its kind, its name, as a reading names it, its rect in the frame, and what its kind holds. The
+    // answer picks: of a `select` an option's index, which selects that option where it is not disabled nor selected
+    // already; of a `date` a date, yyyy-mm-dd, which becomes the control's value, a `datetime-local` keeping its time,
+    // or midnight where it has none. Where it changed, the page hears `input` then `change`, not trusted.
     private static func menuless(asks: Bool) -> String {
         """
         (() => {
@@ -61,42 +63,77 @@ final class WebPage: NSObject {
                 });
                 prevent.call(event);
             };
-            const opens = ({ type, target, button, key }) =>
-                target.localName === 'select' && !target.multiple && target.size <= 1 && !target.disabled &&
-                (type === 'mousedown' ? button === 0 : key === ' ');
-            const flat = (text) => String(text ?? '').replace(/\\s+/g, ' ').trim();
-            const nameOf = (select) => {
-                const by = select.getAttribute('aria-labelledby')?.split(/\\s+/);
-                const named = by?.map((id) => select.getRootNode().getElementById?.(id)?.textContent ?? '').join(' ');
-                return flat(named) || flat(select.getAttribute('aria-label')) || flat(select.labels[0]?.textContent) ||
-                    flat(select.getAttribute('title'));
+            const kinds = {
+                select: {
+                    press: 'mousedown',
+                    is: (control) => control.localName === 'select' && !control.multiple && control.size <= 1,
+                    ask: (select) => {
+                        const options = [...select.options];
+                        return {
+                            fields: {
+                                options: options.map((option) => ({
+                                    label: option.label,
+                                    group: option.parentElement.localName === 'optgroup' ?
+                                        option.parentElement.label : null,
+                                    disabled: option.matches(':disabled'),
+                                    selected: option.selected
+                                }))
+                            },
+                            picked: (index) => {
+                                const option = options[index];
+                                if (!option || option.selected || option.matches(':disabled')) return false;
+                                option.selected = true;
+                                return true;
+                            }
+                        };
+                    }
+                },
+                date: {
+                    press: 'click',
+                    is: (control) => control.localName === 'input' && ['date', 'datetime-local'].includes(control.type),
+                    ask: (input) => ({
+                        fields: {
+                            type: input.type, value: input.value, min: input.min, max: input.max, step: input.step
+                        },
+                        picked: (date) => {
+                            if (typeof date !== 'string') return false;
+                            const time = input.value.split('T')[1] || '00:00';
+                            const value = input.type === 'date' ? date : date + 'T' + time;
+                            if (value === input.value) return false;
+                            input.value = value;
+                            return true;
+                        }
+                    })
+                }
             };
-            const pick = async (select) => {
-                select.focus();
-                const options = [...select.options];
-                const { x, y, width, height } = select.getBoundingClientRect();
-                const index = await webkit.messageHandlers.\(pickers).postMessage(JSON.stringify({
-                    name: nameOf(select),
-                    options: options.map((option) => ({
-                        label: option.label,
-                        group: option.parentElement.localName === 'optgroup' ? option.parentElement.label : null,
-                        disabled: option.matches(':disabled'),
-                        selected: option.selected
-                    })),
-                    rect: { x, y, width, height }
+            const kindOf = ({ type, target, button, key }) => Object.keys(kinds).find((kind) =>
+                kinds[kind].is(target) && !target.disabled && !target.readOnly &&
+                (type === 'keydown' ? key === ' ' : type === kinds[kind].press && button === 0));
+            const flat = (text) => String(text ?? '').replace(/\\s+/g, ' ').trim();
+            const nameOf = (control) => {
+                const by = control.getAttribute('aria-labelledby')?.split(/\\s+/);
+                const named = by?.map((id) => control.getRootNode().getElementById?.(id)?.textContent ?? '').join(' ');
+                return flat(named) || flat(control.getAttribute('aria-label')) ||
+                    flat(control.labels[0]?.textContent) || flat(control.getAttribute('title'));
+            };
+            const pick = async (kind, control) => {
+                control.focus();
+                const { fields, picked } = kinds[kind].ask(control);
+                const { x, y, width, height } = control.getBoundingClientRect();
+                const answer = await webkit.messageHandlers.\(pickers).postMessage(JSON.stringify({
+                    kind, name: nameOf(control), rect: { x, y, width, height }, ...fields
                 }));
-                const option = options[index];
-                if (!option || option.selected || option.matches(':disabled')) return;
-                option.selected = true;
-                select.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-                select.dispatchEvent(new Event('change', { bubbles: true }));
+                if (!picked(answer)) return;
+                control.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+                control.dispatchEvent(new Event('change', { bubbles: true }));
             };
             addEventListener('contextmenu', (event) => event.isTrusted && take(event), true);
-            for (const type of ['mousedown', 'keydown']) {
+            for (const type of ['mousedown', 'click', 'keydown']) {
                 addEventListener(type, (event) => {
-                    if (!event.isTrusted || !opens(event)) return;
+                    const kind = event.isTrusted && kindOf(event);
+                    if (!kind) return;
                     take(event);
-                    \(asks ? "pick(event.target);" : "")
+                    \(asks ? "pick(kind, event.target);" : "")
                 }, true);
             }
         })();
@@ -844,8 +881,8 @@ extension WebPage {
         ])
     }
 
-    // The picker a control asks (menuless), put to JavaScript as `picker`, answered by the index of the option picked,
-    // anything else the refusal. One asked before it is refused.
+    // The picker a control asks (menuless), put to JavaScript as `picker`, answered by the index of the option picked
+    // of a `select`, the date picked of a `date`, anything else the refusal. One asked before it is refused.
     private func askPicker(
         _ text: String,
         frame: WKFrameInfo,
@@ -854,17 +891,18 @@ extension WebPage {
         guard let asked = try? JSONDecoder().decode(PickerAsk.self, from: Data(text.utf8)) else {
             return reply(nil, nil)
         }
-        let picker = PageDialog(kind: "select", message: "", frame: frame) { answer in reply(answer.index, nil) }
+        let picker = PageDialog(kind: asked.kind, message: "", frame: frame) { answer in
+            reply(asked.kind == "date" ? answer.string : answer.index, nil)
+        }
         self.picker?.refuse()
         self.picker = picker
-        emitter.emit("picker", [
+        emitter.emit("picker", asked.fields.merging([
             "kind": picker.kind,
             "name": asked.name,
-            "options": asked.options.map(\.value),
             "rect": asked.rect.value,
             "origin": picker.origin,
             "reply": Reply { node, arguments in picker.reply(node, arguments.first) }
-        ])
+        ]) { _, own in own })
     }
 
     // Every picture still being taken handed what the page drew last, as a page that waits or is closed draws no more.
@@ -897,8 +935,8 @@ extension WebPage {
 }
 
 // A dialog a page asks, `kind` `alert`, `confirm`, `prompt` or `leave`, put to JavaScript as `dialog`, or its picker,
-// `select`, put as `picker`, answered once, by `reply` or refused: `answered` is handed what JavaScript replied, a
-// value that is no boolean, string or whole number for the refusal, which each kind reads as its own.
+// `select` or `date`, put as `picker`, answered once, by `reply` or refused: `answered` is handed what JavaScript
+// replied, a value that is no boolean, string or whole number for the refusal, which each kind reads as its own.
 @MainActor
 private final class PageDialog {
     struct Answer {

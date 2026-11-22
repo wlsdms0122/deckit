@@ -7,8 +7,9 @@
 
 import Foundation
 
-// What a control of a page asks of its picker, as deckit's script posts it: its name, its options in order and its
-// rect in its frame, each as JavaScript is told it.
+// What a control of a page asks of its picker, as deckit's script posts it: its kind, its name and its rect in its
+// frame; of a `select` its options in order, of a `date` the control's type, value, `min`, `max` and `step`, each as
+// JavaScript is told it.
 struct PickerAsk: Decodable {
     struct Option: Decodable {
         // MARK: - Property
@@ -36,7 +37,20 @@ struct PickerAsk: Decodable {
     }
 
     // MARK: - Property
+    let kind: String
     let name: String
-    let options: [Option]
     let rect: Rect
+    let options: [Option]?
+    let type: String?
+    let value: String?
+    let min: String?
+    let max: String?
+    let step: String?
+
+    // The fields of its kind, as JavaScript is told them.
+    var fields: [String: Any?] {
+        kind == "date"
+            ? ["type": type, "value": value, "min": min, "max": max, "step": step]
+            : ["options": options?.map(\.value) ?? []]
+    }
 }
