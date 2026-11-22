@@ -1,6 +1,6 @@
 case = 26
 name = "a-window-key-for-two-seats-keeps-the-focus-as-one-of-them-makes-another-window-key"
-note = "mod-a opens main, the window 1 at 283, 107, and then second, the window 2 at 307, 131, each 720 by 480, neither key as it opens, and filled by a text field it focuses as the window becomes key, and opens https://said.test/<name>/<event> outside the app as a field hears focus or blur. ada, at s1, and bob, at s2, each press at 290, 300, where main alone lies: main is the key window of both. ada then presses at 1010, 300, where second alone lies: second is the key window of s1, main's field hears focus and then second's, and main's, in the key window of s2 still, hears no blur."
+note = "mod-a opens main, the window 1 at 283, 107, and then second, the window 2 at 307, 131, each 720 by 480, neither key as it opens, and filled by a text field it focuses as the window becomes key, and opens https://said.test/<name>/<event> outside the app as a field hears focus or blur. ada, at s1, and bob, at s2, each press at 290, 300, where main alone lies: main is the key window of both. ada then presses at 1020, 300, where second alone lies: second is the key window of s1, main's field hears focus and then second's, and main's, in the key window of s2 still, hears no blur."
 
 [host]
 base = "shell"
@@ -58,16 +58,16 @@ params = { event = "pointer", type = "up", x = 290, y = 300, button = 0, count =
 input = "ask"
 party = "p"
 method = "seat/input"
-params = { event = "pointer", type = "down", x = 1010, y = 300, button = 0, count = 1 }
+params = { event = "pointer", type = "down", x = 1020, y = 300, button = 0, count = 1 }
 
 [step.expect]
-answers = { over = 2, key = true, at = { x = 1010, y = 300 } }
+answers = { over = 2, key = true, at = { x = 1020, y = 300 } }
 
 [[step]]
 input = "ask"
 party = "p"
 method = "seat/input"
-params = { event = "pointer", type = "up", x = 1010, y = 300, button = 0, count = 1 }
+params = { event = "pointer", type = "up", x = 1020, y = 300, button = 0, count = 1 }
 
 [[step]]
 look = "opened"

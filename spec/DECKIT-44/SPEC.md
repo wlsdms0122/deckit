@@ -18,11 +18,11 @@ Ada sits from outside beside the person at the machine. The member `shell.seats`
 The seats mod declares no item: it sets one with `set` of the status bar's exports, as [the status bar](../DECKIT-42/SPEC.md) fixes it, while it is attached to a shell and more than one seat is open, and takes it away with `remove` as one alone is or as it is detached. It sets the item each time what `seats.list()` answers changes, and as the status bar connects:
 
 - `name` is `Seats`, `icon` `users`, a glyph of the kit, and `command` `show`;
-- `count` is the number of open seats less one;
+- `count` is the number of open seats;
 - `tone` is `plain`;
 - `label` is, for a while as a seat opens after the mod first read the seats, the name of its seat's user, cut to 24 characters, the last of them `…` where the name is longer; and empty otherwise, or once that seat closes.
 
-So the item counts the seats beside one.
+So the item counts the rows of its view.
 
 ### The command
 
@@ -62,7 +62,7 @@ A row stands while its seat is open, and goes as the shell tells that it closed.
 
 - A row for each user that waits to sit, where any seat answers the ask. Who sits is the machine's, as [users and seats](../DECKIT-38/SPEC.md) part every state, and a press in the view is any seat's input in the shared state, so a seat from outside would admit or refuse another; the host asks whoever is at the machine.
 - An item that stands always. Alone at the desktop there is no one to count; a press on it would open an empty view.
-- A count of every open seat. One seat is always open where the host app shows a desktop; the seats beside it are what a seat wants told.
+- A count of the seats beside one. The view lists every open seat, and a count of fewer than its rows says what no list holds.
 - A row that says which seat is the machine's. The shell tells no mod which seat is the machine's, and the view tells it no seat either.
 
 ## Notes

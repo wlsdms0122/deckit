@@ -8,15 +8,16 @@ export const setup = CHANNEL.pageToMain(
     {},
     { reply: true, sync: true, guard: CHANNEL.GUARD.ANY }
 );
-// `{ windows: [{ id, frame, key, rings, bar, title, dialogs }], panels: [{ id, edge, frame, radius }], seats,
-// following, drop, strip, dock, down }`: the windows on the screen of the seat whose view the host window shows, the local
-// seat's or that of the seat it follows, `frame` on the stage, `key` whether it is that seat's key window, `rings`
-// the names of the colours of the seats whose key window it is (seat colours of the kit's token), `bar` its title bar
+// `{ windows: [{ id, frame, key, rings, handles, bar, title, dialogs }], panels: [{ id, edge, frame, radius }], seats,
+// following, drop, strip, dock, down }`: the windows on the screen of the seat whose view the host window shows, the
+// local seat's or that of the seat it follows, `frame` on the stage, `key` whether it is that seat's key window,
+// `rings` the names of the colours of the seats whose key window it is (seat colours of the kit's token), `handles` the
+// edges (model/layout.js EDGES) in whose reach the pointer of a seat is, each once, `bar` its title bar
 // (model/layout.js barOf), `title` what the title bar the shell draws over a titled window's content holds, or null for
-// a window whose content draws its own, `dialogs` those its pages ask, `{ ask, kind, name, message, from, value,
-// rect, parts }` from the window's top left (model/dialog.js partsOf), a picker's `name` its control's; `panels`, the
-// panel windows that stand, at their edge, 'top' in the strip, or with `edge` null as a view, as they lie from the
-// bottom, the material drawn under each at its frame, rounded by `radius`;
+// a window whose content draws its own, `dialogs` those its pages ask, `{ ask, kind, message, from, value, rect,
+// parts }` from the window's top left (model/dialog.js partsOf); `panels`, the panel windows that stand, at their
+// edge, 'top' in the strip, or with `edge` null as a view, as they lie from the bottom, the material drawn under each
+// at its frame, rounded by `radius`;
 // `seats`, `[{ id, name, colour, at, buttons, shown, under, named, typing }]`, every
 // seat at the desktop: its user's name, its colour's name, where its pointer is on the stage, or the mark at the
 // stage's edge toward it where it is outside the camera shown (model/marks.js cursorOn), or null before it was

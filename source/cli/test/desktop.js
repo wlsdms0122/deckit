@@ -4,20 +4,20 @@
 // the key window, and a frame no smaller than its minimum; which mods may activate for a seat (model/activation): the
 // mod its input reaches and those asked along the chain, until its next input, and the mods that ask for its attention;
 // and where windows go (model/layout): a new one cascaded from the key window or centred, a restored one kept
-// reachable, a resize held to the minimum, a drag kept under the host's strip as it goes, zoom to the desktop but the
-// Dock's sliver, and the frame's parts; a seat's camera (model/camera): where it opens, its size, a pan, the points it
-// reaches, the move to a window made key and what is laid on its screen; and the desktop (desktop/main) over stand-ins for what connect answers, the
-// shell's pages and a stage: the pages laid in the local seat's order, no window key at start, the keyboard and the
-// host's title following its key window, a window brought forward in front and key, the host window coming up, only by
-// a mod that may activate, and right behind the key window, its mod asking for attention, by one that may not, a window
-// ordered front or opened without taking the keyboard, the shell's keys, a frame restored and remembered by the
-// window's name, a mod's windows brought in front for a seat from the Dock, the Dock's pointer room, a zoomed window
-// and any other keeping its frame as the host window changes size, and a titled window's content under the
-// title bar the shell draws, its title told and its drag, and the panel windows in the host's bar: placed right to left
-// in the order they opened, laid over the desktop's page, told no title bar, never key, pressed with the key window
-// left key, whatever edge it names; and the anchors a window's mod tells, with the panel
-// windows that stand under them. Exits 1 with a line for each check that failed. The packages are ES modules, so they
-// are imported as such.
+// reachable, a resize held to the minimum, a drag kept under the host's strip as it goes, placement in the desktop but
+// the Dock's sliver and zoom in the desktop but a side's reach, and the frame's parts; a seat's camera (model/camera):
+// where it opens, its size, a pan, the points it reaches, the move to a window made key and what is laid on its screen;
+// and the desktop (desktop/main) over stand-ins for what connect answers, the shell's pages and a stage: the pages laid
+// in the local seat's order, no window key at start, the keyboard and the host's title following its key window, a
+// window brought forward in front and key, the host window coming up, only by a mod that may activate, and right behind
+// the key window, its mod asking for attention, by one that may not, a window ordered front or opened without taking
+// the keyboard, the shell's keys, a frame restored and remembered by the window's name, a mod's windows brought in
+// front for a seat from the Dock, the Dock's pointer room, a zoomed window taking the tile area again and any other
+// keeping its frame as the host window changes size, and a titled window's content under the title bar the shell draws,
+// its title told and its drag, and the panel windows in the host's bar: placed right to left in the order they opened,
+// laid over the desktop's page, told no title bar, never key, pressed with the key window left key, whatever edge it
+// names; and the anchors a window's mod tells, with the panel windows that stand under them. Exits 1 with a line for
+// each check that failed. The packages are ES modules, so they are imported as such.
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -465,15 +465,27 @@ async function main() {
         LAYOUT.zoomedIn(desktop).x === DOCK.SLIVER && LAYOUT.zoomedIn(desktop).width === 1000 - DOCK.SLIVER,
         LAYOUT.zoomedIn(desktop)
     );
+    check(
+        "tiled or zoomed, a window leaves a side's reach along each side of the desktop",
+        JSON.stringify(LAYOUT.tiledIn({ x: 0, y: 28, width: 1000, height: 700 })) ===
+            JSON.stringify({ x: 8, y: 36, width: 984, height: 684 }),
+        LAYOUT.tiledIn({ x: 0, y: 28, width: 1000, height: 700 })
+    );
     const parts = LAYOUT.partsOf({ x: 100, y: 100, width: 300, height: 200 });
     const right = parts.edges.find(({ edge }) => edge === 'right').rect;
+    const holds = ({ x, y, width, height }, at) => at.x >= x && at.x < x + width && at.y >= y && at.y < y + height;
+    // 3 left of the top right corner's point and 6 above it: in the top side's reach and in the corner's square.
+    const corner = parts.edges.find(({ rect }) => holds(rect, { x: 345, y: 42 }));
     check(
-        "a frame's surface takes the window and its shadow, its edges outside the window, its buttons at its top left",
+        "a frame's surface takes the window and its shadow, its sides' reaches 8 outside the window, a corner's the " +
+            'square 24 about its point, which wins over a side, its buttons at its top left',
         parts.rect.x === 100 - LAYOUT.SHADOW &&
             parts.rect.width === 300 + 2 * LAYOUT.SHADOW &&
             parts.edges.length === 8 &&
             right.x === LAYOUT.SHADOW + 300 &&
-            right.width === LAYOUT.EDGE &&
+            right.width === 8 &&
+            corner?.edge === 'top-right' &&
+            corner.rect.width === 24 &&
             parts.buttons.x === 100 &&
             parts.buttons.width === 78,
         parts
@@ -764,20 +776,19 @@ async function main() {
     check("the desktop's page telling no material takes them off", materials().length === 0, materials());
 
     desk.desktop.zoom(two);
-    const zoomedFrame = desk.frameOf(2);
     desk.resize({ width: 1400, height: 900 });
     check(
-        "a zoomed window keeps its frame as the host window, the local seat's camera, changes size",
-        JSON.stringify(desk.frameOf(2)) === JSON.stringify(zoomedFrame),
+        "a zoomed window takes the tile area again as the host window, the local seat's camera, changes size",
+        JSON.stringify(desk.frameOf(2)) === JSON.stringify({ x: 8, y: 36, width: 1384, height: 856 }),
         desk.frameOf(2)
     );
 
-    desk.pageFrames(3, { x: 1300, y: 700, width: 300, height: 200 });
+    desk.pageFrames(3, { x: 1300, y: 600, width: 300, height: 200 });
     desk.resize({ width: 800, height: 500 });
     check(
-        'as the host window shrinks, a frame out of reach stays where it is, and a zoomed one too',
-        JSON.stringify(desk.frameOf(3)) === JSON.stringify({ x: 1300, y: 700, width: 300, height: 200 }) &&
-            JSON.stringify(desk.frameOf(2)) === JSON.stringify(zoomedFrame),
+        'as the host window shrinks, a frame out of reach stays where it is, and a zoomed one takes the tile area',
+        JSON.stringify(desk.frameOf(3)) === JSON.stringify({ x: 1300, y: 600, width: 300, height: 200 }) &&
+            JSON.stringify(desk.frameOf(2)) === JSON.stringify({ x: 8, y: 36, width: 784, height: 456 }),
         [desk.frameOf(3), desk.frameOf(2)]
     );
 
@@ -900,6 +911,12 @@ async function main() {
             .filter(({ page }) => /^(page|content)-/.test(page.name))
             .map(({ page, rect, spread = null }) => [page.name, { rect, spread }])
     );
+    const pageClips = Object.fromEntries(
+        desk
+            .laid()
+            .filter(({ page }) => /^page-/.test(page.name))
+            .map(({ page, rect, clip = null }) => [page.name, { rect, clip }])
+    );
     desk.desktop.closePanel(lonePanel);
     check(
         'a page whose front window is a panel window is laid at that panel with its overlay over the whole stage, ' +
@@ -913,6 +930,14 @@ async function main() {
             'content-23' in spreads &&
             'page-a' in spreads,
         spreads
+    );
+    check(
+        'a page whose front window is a normal one is laid cut to its rounded corners, as its content is, so what it ' +
+            'presents over the window is cut there too; one at a panel window is not',
+        JSON.stringify(pageClips['page-a']?.clip) ===
+            JSON.stringify({ ...pageClips['page-a']?.rect, cornerRadius: LAYOUT.RADIUS }) &&
+            pageClips['page-c']?.clip === null,
+        pageClips
     );
     const panelTold = desk.desktop.stateOf(firstPanel);
     desk.desktop.pressPanel(firstPanel);
@@ -1110,6 +1135,14 @@ function overlayChecks(createOverlay, check) {
             JSON.stringify(frames[0]) === JSON.stringify({ x: 0, y: 0, width: 400, height: 300 }),
         { spread, frames }
     );
+    const clip = { ...rect, cornerRadius: 16 };
+    const cut = OVERLAY.withOverlays([{ page, rect, clip }]).at(-1);
+    check(
+        'a page laid cut to a clip has its overlay cut to it too',
+        JSON.stringify(cut) ===
+            JSON.stringify({ page: surface, rect, clip, input: [{ x: 10, y: 20, width: 100, height: 50 }] }),
+        cut
+    );
     tell([]);
     const plain = OVERLAY.withOverlays([{ page, rect }]);
     check(
@@ -1179,6 +1212,25 @@ function seatChecks({ LAYOUT, DOCK, createDesktop }, check) {
             putIn('content-2', 's2').join() === 'down,up,KeyB' &&
             localKey() === 3,
         JSON.stringify({ mine, yours, typed, puts: desk.puts })
+    );
+    const reached = desk.desktop.control.windows().find((one) => one.id === 2).frame;
+    const hover = (seat, x, y) => desk.enter(seat, { event: 'pointer', type: 'move', x, y, buttons: [] });
+    const handlesOf = (id) =>
+        desk
+            .page()
+            .windows.find((one) => one.id === id)
+            ?.handles.join();
+    hover(you, reached.x + reached.width + 4, reached.y + 100);
+    hover(me, reached.x - 4, reached.y - 4);
+    const handlesBoth = handlesOf(2);
+    hover(you, 50, 750);
+    const handlesOne = handlesOf(2);
+    hover(me, 50, 750);
+    check(
+        "a window shows a handle at each side or corner in whose reach a seat's pointer is, whichever seat, and none " +
+            'once the pointers leave',
+        handlesBoth === 'top-left,right' && handlesOne === 'top-left' && handlesOf(2) === '',
+        { both: handlesBoth, one: handlesOne, none: handlesOf(2) }
     );
     const pasted = desk.enter(you, { event: 'clipboard', type: 'paste', text: 'ab' });
     desk.copied('cd', you.source);
@@ -1617,8 +1669,8 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
     const area = { x: 6, y: 28, width: 1195, height: 773 };
     const tiles = Object.fromEntries(LAYOUT.TILES.map((name) => [name, LAYOUT.tileOf(name, area)]));
     check(
-        'the halves and the quarters split the zoom area flush, the left and top taking half rounded, the rest the ' +
-            'other, and the whole tile is the zoom area',
+        'the halves and the quarters split the tile area flush, the left and top taking half rounded, the rest the ' +
+            'other, and the whole tile is the tile area',
         same(tiles.left, { x: 6, y: 28, width: 598, height: 773 }) &&
             same(tiles.right, { x: 604, y: 28, width: 597, height: 773 }) &&
             same(tiles['top-left'], { x: 6, y: 28, width: 598, height: 387 }) &&
@@ -1641,7 +1693,7 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
     ];
     const dropped = drops.map(([point]) => LAYOUT.dropAt(point, area));
     check(
-        "a drag let go with the pointer at the zoom area's left or right side, or past it, takes that half, at a " +
+        "a drag let go with the pointer at the tile area's left or right side, or past it, takes that half, at a " +
             'corner along it that quarter, at its top the whole of it, and anywhere else none',
         drops.every(([, tile], at) => dropped[at] === tile),
         dropped
@@ -1661,7 +1713,7 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
     const edge = LAYOUT.snapped({ x: 10, y: 33, width: 200, height: 100 }, all, [], area);
     const apart = LAYOUT.snapped({ x: 95, y: 600, width: 300, height: 100 }, all, [other], area);
     check(
-        "a window lines up with the side alike of one it meets across a gap, lands on the zoom area's edges, and " +
+        "a window lines up with the side alike of one it meets across a gap, lands on the tile area's edges, and " +
             'meets no window it is not beside',
         same(aligned, { x: 400, y: 400, width: 200, height: 100 }) &&
             same(edge, { x: 6, y: 28, width: 200, height: 100 }) &&
@@ -1694,7 +1746,7 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
     const filled = manager.frameOf(1);
     manager.zoom('me', 1, area);
     check(
-        'a tiled window is not zoomed, keeps the frame it had before its first tile, fills the zoom area as it ' +
+        'a tiled window is not zoomed, keeps the frame it had before its first tile, fills the tile area as it ' +
             'zooms and goes back to its tile zoomed again',
         same(tiled, tiles['top-right']) &&
             same(filled, area) &&
@@ -1702,6 +1754,27 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
             manager.tileNameOf(1) === 'top-right' &&
             same(manager.standardFrameOf(1), own),
         { tiled, filled, back: manager.frameOf(1), kept: manager.standardFrameOf(1) }
+    );
+    const wider = { ...area, width: 1395 };
+    const wideTiles = Object.fromEntries(LAYOUT.TILES.map((name) => [name, LAYOUT.tileOf(name, wider)]));
+    manager.addSeat('you');
+    manager.retake('you', wider);
+    const others = manager.frameOf(1);
+    manager.retake('me', wider);
+    const retaken = manager.frameOf(1);
+    manager.zoom('me', 1, area);
+    manager.retake('me', area);
+    const zoomedBack = manager.frameOf(1);
+    manager.zoom('me', 1, area);
+    check(
+        "a tiled window takes its tile again as the camera of the seat that tiled it changes size, not another's, " +
+            'zoomed takes the area again and its tile there, and keeps its frame before',
+        same(others, tiles['top-right']) &&
+            same(retaken, wideTiles['top-right']) &&
+            same(zoomedBack, area) &&
+            same(manager.frameOf(1), tiles['top-right']) &&
+            same(manager.standardFrameOf(1), own),
+        { others, retaken, zoomedBack, back: manager.frameOf(1), kept: manager.standardFrameOf(1) }
     );
     manager.untile('me', 1);
     check(
@@ -1819,7 +1892,7 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
     );
     const before = listed();
     desk.press('tileLeft', one.surface);
-    const zone = LAYOUT.zoomedIn(LAYOUT.desktopOf({ width: 1200, height: 800 }, 0));
+    const zone = LAYOUT.tiledIn(LAYOUT.desktopOf({ width: 1200, height: 800 }, 0));
     const leftTile = LAYOUT.tileOf('left', zone);
     const midway = () => desk.frameOf(1);
     run(40);
@@ -1860,7 +1933,7 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
     desk.pagePointer(1, 'bar', 'move', { x: zone.x - pointer - 30, y: 300 });
     desk.pagePointer(1, 'bar', 'up', { x: zone.x - pointer - 30, y: 300 });
     check(
-        "a window dragged with the pointer at the zoom area's left side shows the half it takes there, none away " +
+        "a window dragged with the pointer at the tile area's left side shows the half it takes there, none away " +
             'from it, and takes it as it is let go',
         same(shown, { tile: 'left', frame: leftTile }) &&
             hidden === null &&
@@ -2638,12 +2711,9 @@ async function webPageChecks({ LAYOUT, createDesktop }, check) {
 
 // Where a page's dialog stands (model/dialog.js): over the whole content of a window, over a page shown in a part of
 // it cut to what shows it, nowhere for a page in no window or one shown outside what shows it, moved as its page is,
-// kept where it was while its page shows nowhere, and up until it is withdrawn; and a page's picker, its list under
-// its control, its rows, the option a press or the keys pick, and the page it covers; and a date picker's month, its
-// days, those its control rules out, the turn of its month, the date a press picks and the arrows; and a colour
-// picker's palette, the one selected, its cells, the colour a press picks and the arrows.
-function dialogChecks({ createDialogs, partsOf, partAt, answerOf, keyed, covers, waitsOn }, check) {
-    const dialogs = createDialogs({ today: () => '2026-12-05' });
+// kept where it was while its page shows nowhere, and up until it is withdrawn.
+function dialogChecks({ createDialogs, partsOf, partAt, answerOf, keyed, covers }, check) {
+    const dialogs = createDialogs();
     const content = { x: 0, y: 28, width: 400, height: 300 };
     const asked = (ask, kind = 'confirm') => ({ ask, kind, message: 'Sure?', value: '', from: 'A' });
     const whole = dialogs.ask(asked(1), { window: 7, content });
@@ -2769,168 +2839,6 @@ function dialogChecks({ createDialogs, partsOf, partAt, answerOf, keyed, covers,
         "a content's dialog covers every page laid over it, a laid page's the page that asked it alone",
         covered.join() === 'true,true,false',
         covered
-    );
-
-    const option = (label, group = null, more = {}) => ({ label, group, disabled: false, selected: false, ...more });
-    const options = [
-        option('Apple', null, { selected: true }),
-        option('Orange', 'Citrus'),
-        option('Lime', 'Citrus', { disabled: true }),
-        option('Pear'),
-    ];
-    const control = { x: 20, y: 100, width: 200, height: 30 };
-    const picker = dialogs.ask(
-        { ask: 20, kind: 'select', name: 'Fruit', options, rect: control, from: 'A' },
-        { window: 7, content, rect: { x: 10, y: 0, width: 300, height: 300 } }
-    );
-    const rows = partsOf(picker).rows;
-    check(
-        "a picker's list stands under its control, wide as the control, a row for each option and each group",
-        JSON.stringify(picker.rect) === JSON.stringify({ x: 30, y: 158, width: 200, height: 148 }) &&
-            picker.at === 0 &&
-            rows.map((row) => row.group ?? row.label).join() === 'Apple,Citrus,Orange,Lime,Pear' &&
-            rows[2].grouped &&
-            !rows[4].grouped &&
-            rows[2].rect.y === 158 + 4 + 2 * 28,
-        { rect: picker.rect, rows }
-    );
-    const low = dialogs.ask(
-        { ask: 21, kind: 'select', name: 'Fruit', options, rect: { ...control, y: 250 }, from: 'A' },
-        { window: 7, content }
-    );
-    check(
-        'a list that would pass the bottom of what shows its page is raised to end there',
-        low.rect.y + low.rect.height === content.y + content.height,
-        low.rect
-    );
-    const pressed = [2, 1, 3].map((row) => answerOf(picker, partAt(picker, middle(rows[row].rect))));
-    check(
-        'a press on an option picks its index, and one on a group or a disabled option nothing',
-        JSON.stringify(pressed) === JSON.stringify([{ value: 1 }, null, null]) &&
-            partAt(picker, middle(rows[2].rect)) === 'dialog-option-2',
-        pressed
-    );
-    const stepped = [dialogs.step(20, 'ArrowDown').at, dialogs.step(20, 'ArrowDown').at, dialogs.step(20, 'ArrowDown')];
-    const back = dialogs.step(20, 'ArrowUp').at;
-    check(
-        'the arrows move from option to option past one disabled, Return picks the one moved to, Escape puts it away',
-        stepped.join() === '1,3,' &&
-            back === 1 &&
-            JSON.stringify(answerOf(dialogs.of(20), keyed(dialogs.of(20), 'Enter'))) === '{"value":1}' &&
-            JSON.stringify(answerOf(picker, keyed(picker, 'Escape'))) === '{"value":null}' &&
-            dialogs.step(1, 'ArrowDown') === null,
-        { stepped, back }
-    );
-    check(
-        'a picker covers the page that asked it alone, which does not wait on it',
-        !covers(low, false) && covers(low, true) && !waitsOn(low) && waitsOn(whole),
-        ''
-    );
-
-    const dated = (ask, more) => ({
-        ask,
-        kind: 'date',
-        name: 'Day',
-        type: 'date',
-        value: '',
-        min: '',
-        max: '',
-        step: '',
-        rect: control,
-        from: 'A',
-        ...more,
-    });
-    const labels = (picker) => picker.options.filter(({ disabled }) => !disabled).map(({ label }) => label);
-    const march = dialogs.ask(dated(30, { value: '2026-03-14', max: '2026-03-20' }), { window: 7, content });
-    const days = partsOf(march).rows;
-    check(
-        "a date picker opens on its control's month, its days in order, its date selected, one past its max disabled",
-        march.options.length === 31 &&
-            march.options[13].label === '2026-03-14' &&
-            march.options[13].selected &&
-            march.at === 13 &&
-            labels(march).at(-1) === '2026-03-20' &&
-            JSON.stringify(march.rect) === JSON.stringify({ x: 20, y: 124, width: 204, height: 204 }) &&
-            days[0].rect.x === 24 &&
-            days[0].rect.y === 124 + 4 + 28 &&
-            days[13].rect.x === 24 + 6 * 28,
-        { rect: march.rect, options: march.options }
-    );
-    const stepped7 = dialogs.ask(dated(31, { step: '7', min: '2026-12-02' }), { window: 7, content });
-    const local = dialogs.ask(dated(32, { type: 'datetime-local', value: '2026-02-03T09:30', step: '7' }), {
-        window: 7,
-        content,
-    });
-    check(
-        "one with no date opens on today's month; a date's step counts days from its min; a datetime-local's day",
-        labels(stepped7).join() === '2026-12-02,2026-12-09,2026-12-16,2026-12-23,2026-12-30' &&
-            stepped7.at === -1 &&
-            local.options.length === 28 &&
-            local.options[2].selected &&
-            labels(local).length === 28,
-        { stepped: labels(stepped7), local: local.options }
-    );
-    const head = partsOf(stepped7);
-    const turned = dialogs.turn(31, partAt(stepped7, middle(head.buttons[1].rect)));
-    const before = dialogs.turn(31, 'dialog-previous');
-    check(
-        'its buttons turn it to the month after, across a year, and before, and pick nothing',
-        turned.options[0].label === '2027-01-01' &&
-            labels(turned)[0] === '2027-01-06' &&
-            before.options[0].label === '2026-12-01' &&
-            answerOf(stepped7, 'dialog-next') === null &&
-            dialogs.turn(20, 'dialog-next') === null &&
-            JSON.stringify(head.title) ===
-                JSON.stringify({ rect: { x: 52, y: 128, width: 140, height: 28 }, year: 2026, month: 11 }),
-        { turned: turned.options[0], before: before.options[0], title: head.title }
-    );
-    const picked = [19, 24].map((day) => answerOf(march, partAt(march, middle(days[day].rect))));
-    const arrowed = [
-        dialogs.step(30, 'ArrowRight').at,
-        dialogs.step(30, 'ArrowLeft').at,
-        dialogs.step(30, 'ArrowUp').at,
-    ];
-    check(
-        'a press on a day picks its date, one on a disabled day nothing; the arrows move a day and a week',
-        JSON.stringify(picked) === JSON.stringify([{ value: '2026-03-20' }, null]) &&
-            arrowed.join() === '14,13,6' &&
-            dialogs.step(30, 'ArrowDown').at === 13 &&
-            dialogs.step(30, 'ArrowDown') === null &&
-            JSON.stringify(answerOf(dialogs.of(30), keyed(dialogs.of(30), 'Enter'))) === '{"value":"2026-03-14"}' &&
-            !waitsOn(march),
-        { picked, arrowed }
-    );
-
-    const coloured = (ask, value) => ({ ask, kind: 'color', name: 'Colour', value, rect: control, from: 'A' });
-    const red = dialogs.ask(coloured(40, '#cf1717'), { window: 7, content });
-    const unheld = dialogs.ask(coloured(41, '#010203'), { window: 7, content });
-    const swatches = partsOf(red).rows;
-    check(
-        "a colour picker holds its palette, the control's colour selected where it holds it, laid in cells by rows",
-        red.options.length === 50 &&
-            red.options
-                .filter(({ selected }) => selected)
-                .map(({ label }) => label)
-                .join() === '#cf1717' &&
-            red.at === 30 &&
-            unheld.at === -1 &&
-            unheld.options.every(({ selected, disabled }) => !selected && !disabled) &&
-            JSON.stringify(red.rect) === JSON.stringify({ x: 20, y: 158, width: 288, height: 148 }) &&
-            JSON.stringify(swatches[30].rect) === JSON.stringify({ x: 24, y: 162 + 3 * 28, width: 28, height: 28 }) &&
-            !waitsOn(red),
-        { rect: red.rect, at: red.at, first: red.options[0] }
-    );
-    const swatched = answerOf(red, partAt(red, middle(swatches[11].rect)));
-    check(
-        'a press on a colour picks its colour, one outside the palette nothing; the arrows move a colour and a row',
-        JSON.stringify(swatched) === JSON.stringify({ value: red.options[11].label }) &&
-            answerOf(red, 'dialog-option-51') === null &&
-            dialogs.step(40, 'ArrowUp').at === 20 &&
-            dialogs.step(40, 'ArrowRight').at === 21 &&
-            dialogs.step(41, 'ArrowLeft') === null &&
-            JSON.stringify(answerOf(dialogs.of(40), keyed(dialogs.of(40), 'Enter'))) ===
-                JSON.stringify({ value: red.options[21].label }),
-        { swatched }
     );
 }
 
@@ -3781,6 +3689,7 @@ function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
     });
     desk.openSurfaces(1);
     const pointer = (type, at, more = {}) => ({ event: 'pointer', type, ...at, button: 0, count: 1, ...more });
+    const alone = desk.page().windows[0].rings;
     const [first, second] = [desk.sit('s1'), desk.sit('s2')];
     const coloursNow = () => desk.page().seats.map(({ id, colour }) => `${id} ${colour}`);
     const sat = coloursNow();
@@ -3839,9 +3748,10 @@ function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
         desk.told()
     );
     check(
-        "a window is told the colour of each seat whose key window it is, and none where it is no seat's",
-        ringed.join() === '' && desk.page().windows[0].rings.join() === 'orange',
-        [ringed, desk.page().windows]
+        "a window is told the colour of each seat whose key window it is, none where it is no seat's, and none while " +
+            'one seat sits alone',
+        alone.join() === '' && ringed.join() === '' && desk.page().windows[0].rings.join() === 'orange',
+        [alone, ringed, desk.page().windows]
     );
     desk.enter(second, pointer('up', middle));
     desk.leave(second);
@@ -3854,6 +3764,10 @@ function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
 
 // What marks a seat on the viewer's screen: the model's answers, and what the desktop's page is told of them.
 async function marksChecks({ MARKS, LAYOUT, DOCK, createDesktop }, check) {
+    check(
+        'the marks that tell seats apart are drawn while more than one seat sits',
+        !MARKS.apart(0) && !MARKS.apart(1) && MARKS.apart(2) && MARKS.apart(3)
+    );
     const rect = (x, y, width, height) => ({ x, y, width, height });
     const [back, front] = [
         { id: 1, frame: rect(0, 0, 100, 100) },

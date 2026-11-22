@@ -2,10 +2,9 @@ import * as DOCK from '../../dock/model/dock.js';
 
 // MARK: - Property
 // A window's frame: the margin its shadow takes around it, as far as the key window's shadow reaches below it, the
-// band outside its edge that resizes it, the rounding of its corners, and its title bar's height where its mod gives
-// none, the kit's title bar's, a 32 control with 8 above and below.
+// rounding of its corners, and its title bar's height where its mod gives none, the kit's title bar's, a 32 control
+// with 8 above and below.
 const SHADOW = 48;
-const EDGE = 6;
 const RADIUS = 16;
 const TITLE_BAR = Object.freeze({ height: 48 });
 // The buttons in the title bar: close, minimize and zoom, their size and the room between them; the group's width; how
@@ -26,14 +25,24 @@ const CASCADE = 24;
 const KEPT = 64;
 // Where panel windows stand in the host's bar: in from its right end, and apart.
 const PANEL = Object.freeze({ margin: 8, gap: 8 });
-// The tiles a window takes in the zoom area: its halves, its quarters and the whole of it, which split it flush.
+// The tiles a window takes in the tile area: its halves, its quarters and the whole of it, which split it flush.
 const TILES = Object.freeze(['left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right', 'fill']);
-// Where a window dragged by its title bar is let go to take a tile: the pointer this near a side of the zoom area or
-// past it, the Dock's sliver and a hand's slack, and a corner as far along a side as a title bar may be kept across.
+// Where a window dragged by its title bar is let go to take a tile: the pointer this near a side of the tile area or
+// past it, a hand's slack, and a corner as far along a side as a title bar may be kept across.
 const DROP = Object.freeze({ edge: 8, corner: KEPT });
 // How near an edge of a window the hand moves or resizes comes to an edge it can meet before it lands there: as far as
 // a hand aiming at a line falls short or long of it, so it never holds a side the hand pulls on past that.
 const SNAP = 8;
+// How far out from a side of a window a press holds that side, a side's reach, and how wide the square about a
+// corner's point is that holds the corner.
+const REACH = 8;
+const CORNER = 24;
+// The sides and the corners a drag of which resizes a window, as partsOf names them.
+const EDGES = Object.freeze(['top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right']);
+// The handle a window shows at a side or a corner whose reach a pointer is in, drawn in its shadow's margin: at a side,
+// a capsule `length` long, `thickness` thick and `gap` out from the side; at a corner, an arc as thick, `gap` out from
+// the corner's rounding.
+const HANDLE = Object.freeze({ length: 40, thickness: 4, gap: 3 });
 
 // MARK: - Initializer
 // MARK: - Public
@@ -43,9 +52,20 @@ function desktopOf({ x = 0, y = 0, width, height }, strip) {
     return { x, y: y + strip, width, height: Math.max(0, height - strip) };
 }
 
-// Where a zoomed window goes: the desktop but the Dock's sliver.
+// Where a window is placed and brought into reach: the desktop but the Dock's sliver.
 function zoomedIn(desktop) {
     return { ...desktop, x: desktop.x + DOCK.SLIVER, width: Math.max(0, desktop.width - DOCK.SLIVER) };
+}
+
+// Where a zoomed window goes and what its tiles split: the desktop but a side's reach along each of its sides, so every
+// edge of a window there can be held; the Dock's sliver lies in that margin.
+function tiledIn(desktop) {
+    return {
+        x: desktop.x + REACH,
+        y: desktop.y + REACH,
+        width: Math.max(0, desktop.width - 2 * REACH),
+        height: Math.max(0, desktop.height - 2 * REACH),
+    };
 }
 
 // A window's title bar from what it opened with: `style` 'unified', the content under a transparent bar that is its
@@ -160,8 +180,10 @@ function resized(from, edge, dx, dy, minimum) {
 }
 
 // The parts of a window's frame at `frame` with the title bar `bar`: `rect`, the frame's own surface, grown by its
-// shadow; `window`, the window in that surface; `edges`, the bands that resize it, each `{ edge, rect }` in the
-// surface; and `buttons`, the room of the title bar's buttons, on the desktop, the bar up to its area.
+// shadow; `window`, the window in that surface; `edges`, the reaches that resize it, each `{ edge, rect }` in the
+// surface, the corners' first, as they win where they meet a side's, a corner's square partly in the window, where
+// the content, laid over the frame, takes a press first; and `buttons`, the room of the title bar's buttons, on the
+// desktop, the bar up to its area.
 function partsOf(frame, bar = DEFAULT_BAR) {
     const rect = {
         x: frame.x - SHADOW,
@@ -170,18 +192,19 @@ function partsOf(frame, bar = DEFAULT_BAR) {
         height: frame.height + 2 * SHADOW,
     };
     const window = { x: SHADOW, y: SHADOW, width: frame.width, height: frame.height };
-    const outer = SHADOW - EDGE;
+    const outer = SHADOW - REACH;
     const band = (edge, x, y, width, height) => ({ edge, rect: { x, y, width, height } });
+    const square = (edge, x, y) => band(edge, x - CORNER / 2, y - CORNER / 2, CORNER, CORNER);
     const far = { x: SHADOW + frame.width, y: SHADOW + frame.height };
     const edges = [
-        band('top', SHADOW, outer, frame.width, EDGE),
-        band('bottom', SHADOW, far.y, frame.width, EDGE),
-        band('left', outer, SHADOW, EDGE, frame.height),
-        band('right', far.x, SHADOW, EDGE, frame.height),
-        band('top-left', outer, outer, EDGE, EDGE),
-        band('top-right', far.x, outer, EDGE, EDGE),
-        band('bottom-left', outer, far.y, EDGE, EDGE),
-        band('bottom-right', far.x, far.y, EDGE, EDGE),
+        square('top-left', SHADOW, SHADOW),
+        square('top-right', far.x, SHADOW),
+        square('bottom-left', SHADOW, far.y),
+        square('bottom-right', far.x, far.y),
+        band('top', SHADOW, outer, frame.width, REACH),
+        band('bottom', SHADOW, far.y, frame.width, REACH),
+        band('left', outer, SHADOW, REACH, frame.height),
+        band('right', far.x, SHADOW, REACH, frame.height),
     ];
     const buttons = { x: frame.x, y: frame.y, width: bar.areaX, height: bar.height };
     return { rect, window, edges, buttons };
@@ -215,7 +238,7 @@ function titleBarOf(frame, bar = DEFAULT_BAR) {
     return { x: SHADOW, y: SHADOW, width: frame.width, height: bar.height };
 }
 
-// The frame of the tile `name`, one of TILES, in the zoom area `area`: the left half takes half its width rounded,
+// The frame of the tile `name`, one of TILES, in the tile area `area`: the left half takes half its width rounded,
 // the right half what is left, the top quarters half its height rounded and the bottom ones what is left.
 function tileOf(name, area) {
     if (name === 'fill') return rounded(area);
@@ -233,7 +256,7 @@ function tileOf(name, area) {
 }
 
 // The tile a window dragged by its title bar takes let go with the pointer at `point` on the stage, or null: a half
-// at the zoom area's left or right side, a quarter at its corner along that side, and the whole of it at its top.
+// at the tile area's left or right side, a quarter at its corner along that side, and the whole of it at its top.
 function dropAt({ x, y }, area) {
     const left = x <= area.x + DROP.edge;
     const right = x >= area.x + area.width - DROP.edge;
@@ -247,7 +270,7 @@ function dropAt({ x, y }, area) {
 }
 
 // The frame a hand moves or resizes with each of its `sides` that comes within SNAP of an edge it can meet landing on
-// the nearest: a side of the zoom area `area`, or a side of a window in `others` beside it, one across a gap no wider
+// the nearest: a side of the tile area `area`, or a side of a window in `others` beside it, one across a gap no wider
 // than SNAP, met by the side facing it or lined up with the side alike. A move names all four sides and moves the
 // frame whole; a resize moves the sides it names, never below `minimum`. Between the edges it follows as it is.
 function snapped(frame, sides, others, area, minimum = MINIMUM) {
@@ -295,7 +318,6 @@ function rounded({ x, y, width, height }) {
 
 export {
     SHADOW,
-    EDGE,
     RADIUS,
     TITLE_BAR,
     BUTTONS,
@@ -306,11 +328,16 @@ export {
     TILES,
     DROP,
     SNAP,
+    REACH,
+    CORNER,
+    EDGES,
+    HANDLE,
     barOf,
     buttonsOf,
     guideOf,
     desktopOf,
     zoomedIn,
+    tiledIn,
     minimumOf,
     placed,
     kept,

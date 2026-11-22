@@ -30,18 +30,22 @@ export function createOverlay({ deckit, web, PAGES, KEY }) {
         PROTOCOL.take.on((_payload, sender) => take(sender));
     }
 
-    // What is laid (STAGE.lay), and over it the overlay of each page laid that shows anything, at the page's rect or
-    // at its `spread`, a wider rect on the stage, taking the pointer where it draws what takes it, each over the
-    // materials of what it draws as glass, cut to it. Each page laid with an overlay hears where that is.
+    // What is laid (STAGE.lay), and over it the overlay of each page laid that shows anything, at the page's rect and
+    // cut to its clip, or at its `spread`, a wider rect on the stage, taking the pointer where it draws what takes it,
+    // each over the materials of what it draws as glass, cut to it. Each page laid with an overlay hears where that is.
     function withOverlays(laid) {
-        const over = laid.flatMap(({ page, rect, spread }) => {
+        const over = laid.flatMap(({ page, rect, clip, spread }) => {
             if (!page || !rect) return [];
             const at = spread ?? rect;
             tellFrame(page, { x: at.x - rect.x, y: at.y - rect.y, width: at.width, height: at.height });
             const surface = shownOver(page);
             if (!surface) return [];
             const { regions, materials } = overlays.get(page);
-            return [...materials.flatMap((each) => materialIn(at, each)), { page: surface, rect: at, input: regions }];
+            const cut = clip && !spread ? { clip } : {};
+            return [
+                ...materials.flatMap((each) => materialIn(at, each)),
+                { page: surface, rect: at, ...cut, input: regions },
+            ];
         });
         return [...laid.map(({ spread: _spread, ...each }) => each), ...over];
     }

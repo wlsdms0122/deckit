@@ -93,7 +93,7 @@ function desktop({ desktop: size, mark, seats, dock, menu = null, windows, panel
 function window({ window: own, mark, parts, documents }) {
     return [
         `${windowLine(own)} mark ${mark}`,
-        ...parts.map((part) => indented(1 + part.depth, elementLine(part))),
+        ...parts.map((part) => indented(1, elementLine(part))),
         ...documents.flatMap(({ lines, ...document }) => [
             indented(1, documentLine(document)),
             ...lines.map((line) => indented(2 + line.depth, elementLine(line))),

@@ -97,7 +97,7 @@ No other window is listed.
 
 ```
 window     = ( window-line / panel-line ) " mark " count
-             *( LF "  " element *( LF "    " *"  " element ) ) *( LF "  " document-line *( LF "    " *"  " element ) )
+             *( LF "  " element ) *( LF "  " document-line *( LF "    " *"  " element ) )
 document-line = "document " count " " part [ " " quoted ] " " size
 part       = "content" / "child" / "overlay" / "web"
 ```
@@ -112,13 +112,10 @@ The first line is the window's line of the desktop's reading, with the mark. Und
 | that dialog's message | `text` | the message | `w<id>.dialog.message` |
 | a prompt's field, with the state `value` and its text as it reads now, as *What an element reads as* writes a value | `textbox` | none | `w<id>.dialog.field` |
 | each of its buttons, left to right | `button` | `OK`, `Cancel`, `Leave`, `Stay` | `w<id>.dialog.ok`, `.cancel`, `.leave`, `.stay` |
-| the picker up in it, as [windows](../DECKIT-31/SPEC.md) fixes a page's pickers, the one opened last where there are more | `listbox` | the control's name, as *What an element reads as* names it | `w<id>.picker` |
-| under it, for a `date` picker, its buttons to the month before and the month after | `button` | `Previous`, `Next` | `w<id>.picker.previous`, `.next` |
-| under it, each of its options in order, with the state `disabled` where it is and `selected` for the one selected, an option of a group under the group's line | `option`; `group` | its label, for a day its whole date as a `date` control's value writes it, for a colour its colour as a `color` control's value writes it; the group's label | `w<id>.picker.<n>`, `n` counting the options from 1; a group has none |
 
-A button that is not enabled, as [windows](../DECKIT-31/SPEC.md) fixes when one is, has the state `disabled`. A part writes no count, and a picker lists all its options. A panel window lists no part.
+A button that is not enabled, as [windows](../DECKIT-31/SPEC.md) fixes when one is, has the state `disabled`. A panel window lists no part.
 
-Then comes each **document** the window shows, from the one that lies lowest to the one on top, and after them those of the web pages shown inside them: its number, the `part` it is, for a `child` the id of the mod whose page it is, and the size of its page. `content` is the window's content, `child` a page another mod lays into [a region](../DECKIT-36/SPEC.md) of it, `overlay` what a page presents over itself, and `web` [a web page](../DECKIT-25/SPEC.md) shown inside one of them. A document's number is a count the shell gives a document as a reading, or an answer of `changes`, first lists it, in the order it lists them: the first document any lists is 1, and each one listed after that has none is given the next. A number once given stays the document's while its page shows that document; a page that loads another document has a new number as that one is next listed, and a page no reading has listed has none. Under each document come its elements, as *What an element reads as* gives them, an element under the element that holds it. A document whose page cannot be read is left out. A page that waits on its dialog runs nothing, so its document is not read while it waits: the window leaves it out and reads the dialog's parts in its place, `changes` tells nothing of it, and a `ref` of an element in it is refused with kind `REFUSED`, as the element is there and its page waits. It reads again, with what changed in it, once its dialog is answered or gone.
+Then comes each **document** the window shows, from the one that lies lowest to the one on top, and after them those of the web pages shown inside them: its number, the `part` it is, for a `child` the id of the mod whose page it is, and the size of its page. `content` is the window's content, `child` a page another mod lays into [a region](../DECKIT-36/SPEC.md) of it, `overlay` what a page presents over itself, and `web` [a web page](../DECKIT-25/SPEC.md) shown inside one of them. A document's number is a count the shell gives a document as a reading, or an answer of `changes`, first lists it, in the order it lists them: the first document any lists is 1, and each one listed after that has none is given the next. A number once given stays the document's while its page shows that document; a page that loads another document has a new number as that one is next listed, and a page no reading has listed has none. Under each document come its elements, as *What an element reads as* gives them, an element under the element that holds it. A document whose page cannot be read is left out. A page that waits on its dialog runs nothing, so its document is not read while it waits: the window leaves it out and reads the dialog's parts in its place, `changes` tells nothing of it, and a `ref` of an element in it is refused with kind `REFUSED`, as the element is there and its page waits. It reads again, with what changed in it, once its dialog is answered or gone. The alert a window shows in place of what the web engine would show of a page, as [windows](../DECKIT-31/SPEC.md) fixes it, reads as an `alert` the page asked, and while it is up its page is read as a page that waits on its dialog is.
 
 ### A node
 
@@ -191,8 +188,7 @@ An element that names a node and has no role reads as `generic`.
 ### Refs
 
 ```
-ref        = window-id "." ( "close" / "minimize" / "zoom" / "bar" / "edge." edge / "dialog." dialog-part
-                         / "picker" [ "." ( count / "previous" / "next" ) ] )
+ref        = window-id "." ( "close" / "minimize" / "zoom" / "bar" / "edge." edge / "dialog." dialog-part )
            / "dock." mod-id
            / "dock-menu." ( "open" / "keep" / "quit" )
            / count "." count
@@ -207,7 +203,6 @@ A **ref** names one thing a seat can point at, and is the same string for every 
 | `w<id>.close`, `.minimize`, `.zoom` | that button of the title bar of the normal window `w<id>` |
 | `w<id>.bar` | the title bar of that window |
 | `w<id>.dialog.<part>` | that part of the dialog up in that window, as *A window* lists it |
-| `w<id>.picker`, `w<id>.picker.<n>`, `.previous`, `.next` | the picker up in that window, its option `n`, and its buttons, as *A window* lists them |
 | `w<id>.edge.<edge>` | the edge or the corner of that window a drag resizes it by, as [windows](../DECKIT-31/SPEC.md) names them; no reading lists it |
 | `dock.<mod>` | the item of the Dock of the mod `<mod>` |
 | `dock-menu.open`, `.keep`, `.quit` | a choice of the menu of an item of the Dock, while that menu is open for the seat: the one that opens or shows the app, the one that keeps it in the Dock or takes it out, and the one that quits it |
@@ -221,7 +216,7 @@ A ref **names nothing** where it is of none of these forms, or names what is not
 
 The **mark** is one count for the desktop, 0 as the host app starts. It goes up by 1:
 
-- as a line of the desktop's reading would read otherwise for some seat, or one is added or leaves, where a seat's pointer is and `(you)` apart, and as a part of a dialog or a picker in a window on its screen does, the dialog or the picker going up or away among them: any number of lines that change together raise it once;
+- as a line of the desktop's reading would read otherwise for some seat, or one is added or leaves, where a seat's pointer is and `(you)` apart, and as a part of a dialog in a window on its screen does, the dialog going up or away among them: any number of lines that change together raise it once;
 - as a document a window shows is first heard of, or tells that what it shows changed.
 
 Every reading and every answer of `changes` carries the mark as it was made.
@@ -275,7 +270,7 @@ With `format` `json` a reading answers `{ data, mark }`, `data` a table that hol
 
 A window's table is `{ kind, id, title, mod, frame, key, minimized, zoomed, tile }`: `kind` `window`, `id` its `window-id`, `frame` table `{ x, y, width, height }`, `key` a seat's id or null, `minimized` and `zoomed` booleans, `tile` a tile's name or null. A panel window's is `{ kind, id, title, mod, edge, frame, key }`, `kind` `panel`, `edge` `top` where it stands at that edge. A `rect` is a table `{ x, y, width, height }` on the desktop.
 
-**A window:** `{ window, parts, documents, mark }`: `window` its table; `parts` an array of `{ depth, role, name, states, ref }`, `depth` 0 for a line right under the window, and `name` and `ref` written where the part has one; `documents` an array of `{ document, part, name, width, height, lines }`, `document` its number, `name` written for a `child`, and `lines` an array of an element's table.
+**A window:** `{ window, parts, documents, mark }`: `window` its table; `parts` an array of `{ role, name, states, ref }`, `name` written where the part has one; `documents` an array of `{ document, part, name, width, height, lines }`, `document` its number, `name` written for a `child`, and `lines` an array of an element's table.
 
 An element's table is `{ depth, role, name, length, states, items, inView, below, ref }`: `depth` an integer, 0 for a line right under its document; `states` an array of strings, each as the text writes it; and each of `name`, `length`, the whole length of a name that was cut, `items`, `inView` and `below` written where the text writes it. A line of `text` has no `states` and no `ref`.
 

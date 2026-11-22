@@ -33,4 +33,4 @@ action = "zoom"
 look = "windows"
 
 [step.expect]
-answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 6, y = 52, width = 1274, height = 748 }, key = true, minimized = false }]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 8, y = 60, width = 1264, height = 732 }, key = true, minimized = false }]

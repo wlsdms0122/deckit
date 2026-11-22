@@ -22,11 +22,10 @@ import CNodeAPI
 // download (WebDownload), or nothing to cancel it; `key` ({ type, code, key, meta, control, alt, shift }), true for a
 // key taken; and `certificate` ({ url, host, error, fingerprint, subject, issuer }), true for a certificate trusted
 // though the Mac does not. Asked, answered later through `reply`: `permission` ({ origin, permissions, reply }),
-// `dialog` ({ kind, message, value, origin, reply }), what the page asks and waits on (PageDialog), of which it draws
-// nothing, `picker` ({ kind, name, rect, origin, reply }, `options` of a `select`, `type`, `value`, `min`, `max`,
-// `step` of a `date`, `value` of a `color`), what a control of the page opens to pick from, which the page does not
-// wait on (menuless), `unhandled` ({ code, key, meta, control, alt, shift, reply }), a key pressed that the page did
-// not handle, true for one taken from the rest of the app, and, for a page made with a scheme of its own, `request`
+// `dialog` ({ kind, message, value, origin, reply }), what the page asks and waits on (PageDialog), or an alert in
+// place of what WebKit would show of it outside its view, which it does not wait on (menuless), of which it draws
+// nothing, `unhandled` ({ code, key, meta, control, alt, shift, reply }), a key pressed that the page did not handle,
+// true for one taken from the rest of the app, and, for a page made with a scheme of its own, `request`
 // (SchemeHandler).
 @MainActor
 final class WebPage: NSObject {
@@ -34,25 +33,24 @@ final class WebPage: NSObject {
     // The world deckit's own scripts run in, apart from the page's, which sees none of them.
     static let deckitWorld = WKContentWorld.world(name: "deckit")
     private static let messages = "deckit"
-    private static let pickers = "picker"
+    private static let unsupported = "unsupported"
+    // The message of the alert shown in place of what WebKit would show of a page outside its view.
+    private static let unsupportedMessage = "This control is not supported yet."
     // What a page may go to itself, beside a scheme of its own; any other scheme is an app's.
     private static let webSchemes: Set<String> = ["http", "https", "about", "data", "blob", "file", "javascript"]
     // WebKit's code for a load its navigation's policy turned into something else, a download.
     private static let interruptedByPolicy = (domain: "WebKitErrorDomain", code: 102)
     // The options of a clipboard event a seat's copy, cut or paste makes, carrying the transfer `data`.
     private static let clipboardEvent = "{ clipboardData: data, bubbles: true, cancelable: true, composed: true }"
-    // WebKit opens a menu of its own on a press whose `contextmenu` the page did not prevent, on a press of the main
-    // button or Space on a `select` that shows one option at a time, and a picker window on a click of the main button
-    // or Space on an `input` of a date or a colour, which only the machine's screen shows. Every frame prevents those
-    // before any listener hears them, so none opens; the event tells each world only what that world's listeners did
-    // to it, and goes on to them as before. An element is told by its tag, not its class: one made in another document,
-    // as a window's content is, keeps that document's. In deckit's world the control is focused and its picker asked
-    // of the page (`picker`): its kind, its name, as a reading names it, its rect in the frame, and what its kind
-    // holds. The answer picks: of a `select` an option's index, which selects that option where it is not disabled nor
-    // selected already; of a `date` a date, yyyy-mm-dd, which becomes the control's value, a `datetime-local` keeping
-    // its time, or midnight where it has none; of a `color` a colour, #rrggbb, which becomes the control's value. Where
-    // it changed, the page hears `input` then `change`, not trusted.
-    private static func menuless(asks: Bool) -> String {
+    // WebKit opens a menu of its own on a press whose `contextmenu` the page did not prevent, and on a press of the
+    // main button or Space on a `select` that shows one option at a time; and a window of its own on a click of the
+    // main button or Space on an `input` of type `date`, `datetime-local` or `color` that is not read-only. Only the
+    // machine's screen would show them. Every frame prevents those before any listener hears them, so none opens; the
+    // event tells each world only what that world's listeners did to it, and goes on to them as before. An element is
+    // told by its tag, not its class: one made in another document, as a window's content is, keeps that document's.
+    // In deckit's world each press or key held but `contextmenu` posts `unsupported`, for the alert shown in place of
+    // what it would open. `showPicker()` of such an `input`, which opens its window whatever is prevented, throws.
+    private static func menuless(posts: Bool) -> String {
         """
         (() => {
             const prevent = Event.prototype.preventDefault;
@@ -65,89 +63,23 @@ final class WebPage: NSObject {
                 });
                 prevent.call(event);
             };
-            const kinds = {
-                select: {
-                    press: 'mousedown',
-                    is: (control) => control.localName === 'select' && !control.multiple && control.size <= 1,
-                    ask: (select) => {
-                        const options = [...select.options];
-                        return {
-                            fields: {
-                                options: options.map((option) => ({
-                                    label: option.label,
-                                    group: option.parentElement.localName === 'optgroup' ?
-                                        option.parentElement.label : null,
-                                    disabled: option.matches(':disabled'),
-                                    selected: option.selected
-                                }))
-                            },
-                            picked: (index) => {
-                                const option = options[index];
-                                if (!option || option.selected || option.matches(':disabled')) return false;
-                                option.selected = true;
-                                return true;
-                            }
-                        };
-                    }
-                },
-                date: {
-                    press: 'click',
-                    is: (control) => control.localName === 'input' && ['date', 'datetime-local'].includes(control.type),
-                    ask: (input) => ({
-                        fields: {
-                            type: input.type, value: input.value, min: input.min, max: input.max, step: input.step
-                        },
-                        picked: (date) => {
-                            if (typeof date !== 'string') return false;
-                            const time = input.value.split('T')[1] || '00:00';
-                            const value = input.type === 'date' ? date : date + 'T' + time;
-                            if (value === input.value) return false;
-                            input.value = value;
-                            return true;
-                        }
-                    })
-                },
-                color: {
-                    press: 'click',
-                    is: (control) => control.localName === 'input' && control.type === 'color',
-                    ask: (input) => ({
-                        fields: { value: input.value },
-                        picked: (color) => {
-                            if (typeof color !== 'string' || color === input.value) return false;
-                            input.value = color;
-                            return true;
-                        }
-                    })
-                }
-            };
-            const kindOf = ({ type, target, button, key }) => Object.keys(kinds).find((kind) =>
-                kinds[kind].is(target) && !target.disabled && !target.readOnly &&
-                (type === 'keydown' ? key === ' ' : type === kinds[kind].press && button === 0));
-            const flat = (text) => String(text ?? '').replace(/\\s+/g, ' ').trim();
-            const nameOf = (control) => {
-                const by = control.getAttribute('aria-labelledby')?.split(/\\s+/);
-                const named = by?.map((id) => control.getRootNode().getElementById?.(id)?.textContent ?? '').join(' ');
-                return flat(named) || flat(control.getAttribute('aria-label')) ||
-                    flat(control.labels[0]?.textContent) || flat(control.getAttribute('title'));
-            };
-            const pick = async (kind, control) => {
-                control.focus();
-                const { fields, picked } = kinds[kind].ask(control);
-                const { x, y, width, height } = control.getBoundingClientRect();
-                const answer = await webkit.messageHandlers.\(pickers).postMessage(JSON.stringify({
-                    kind, name: nameOf(control), rect: { x, y, width, height }, ...fields
-                }));
-                if (!picked(answer)) return;
-                control.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-                control.dispatchEvent(new Event('change', { bubbles: true }));
+            const windowed = ['date', 'datetime-local', 'color'];
+            const opens = ({ type, target, button, key }) =>
+                (type === 'keydown' ? key === ' ' :
+                    button === 0 && type === (target.localName === 'select' ? 'mousedown' : 'click')) &&
+                (target.localName === 'select' ? !target.multiple && target.size <= 1 :
+                    target.localName === 'input' && !target.readOnly && windowed.includes(target.type));
+            const { showPicker } = HTMLInputElement.prototype;
+            HTMLInputElement.prototype.showPicker = function () {
+                if (windowed.includes(this.type)) throw new DOMException('Not supported', 'NotSupportedError');
+                return showPicker.call(this);
             };
             addEventListener('contextmenu', (event) => event.isTrusted && take(event), true);
             for (const type of ['mousedown', 'click', 'keydown']) {
                 addEventListener(type, (event) => {
-                    const kind = event.isTrusted && kindOf(event);
-                    if (!kind) return;
+                    if (!event.isTrusted || !opens(event)) return;
                     take(event);
-                    \(asks ? "pick(kind, event.target);" : "")
+                    \(posts ? "webkit.messageHandlers.\(unsupported).postMessage('');" : "")
                 }, true);
             }
         })();
@@ -164,8 +96,6 @@ final class WebPage: NSObject {
     private var requested: URL?
     // The dialogs the page waits on, each refused as the page closes, so no handler is left uncalled.
     private var dialogs: [PageDialog] = []
-    // The picker up, refused as another is asked or the page closes.
-    private var picker: PageDialog?
     // A page that waits on its dialog runs nothing, so it draws nothing new: what it drew last that came back is kept,
     // and a picture of it while it waits is that, as a page under a dialog shows frozen.
     private var drawnLast: CGImage?
@@ -201,13 +131,16 @@ final class WebPage: NSObject {
         self.adopt = adopt
         self.keep = keep
         super.init()
-        for name in [Self.messages, Self.pickers] {
-            configuration.userContentController.addScriptMessageHandler(
-                MessageRelay(to: self),
-                contentWorld: Self.deckitWorld,
-                name: name
-            )
-        }
+        configuration.userContentController.addScriptMessageHandler(
+            MessageRelay(to: self),
+            contentWorld: Self.deckitWorld,
+            name: Self.messages
+        )
+        configuration.userContentController.addScriptMessageHandler(
+            MessageRelay(to: self),
+            contentWorld: Self.deckitWorld,
+            name: Self.unsupported
+        )
         view.navigationDelegate = self
         view.uiDelegate = self
         view.onFocus = { [weak self] in
@@ -400,8 +333,6 @@ final class WebPage: NSObject {
     func close() {
         for dialog in dialogs { dialog.refuse() }
         dialogs = []
-        picker?.refuse()
-        picker = nil
         handDrawnLast()
         for observation in observations { observation.invalidate() }
         observations = []
@@ -414,8 +345,9 @@ final class WebPage: NSObject {
         emitter.release()
     }
 
-    // What deckit's scripts post, as text, from any frame of the page, and the reply its post's promise takes: told
-    // with the frame's origin, whether it is the main frame, `evaluate(source, world)`, which runs `source` in that
+    // What deckit's scripts post on `name`, from any frame of the page, and the reply its post's promise takes. One on
+    // `unsupported` shows its alert (alertUnsupported) and is replied null; any other, as text, is told with the
+    // frame's origin, whether it is the main frame, `evaluate(source, world)`, which runs `source` in that
     // frame as `evaluate` does, its value dropped, and `answer(text)`, the reply, nothing for null. JavaScript answers
     // true for one it answers later; any other is replied null at once. A reply runs no script, so it gives the page
     // no user gesture, as `evaluate` gives it one (WebKit's own).
@@ -425,8 +357,11 @@ final class WebPage: NSObject {
         from frame: WKFrameInfo,
         reply: @escaping @MainActor @Sendable (Any?, String?) -> Void
     ) {
+        if name == Self.unsupported {
+            reply(nil, nil)
+            return alertUnsupported(from: frame)
+        }
         guard let text = body as? String else { return reply(nil, nil) }
-        if name == Self.pickers { return askPicker(text, frame: frame, reply: reply) }
         var replied = false
         let answer = Reply { node, arguments in
             guard !replied else { return }
@@ -589,7 +524,7 @@ final class WebPage: NSObject {
     private static func add(_ scripts: [UserScript], to controller: WKUserContentController) {
         for world in [WKContentWorld.page, deckitWorld] {
             controller.addUserScript(WKUserScript(
-                source: menuless(asks: world == deckitWorld),
+                source: menuless(posts: world == deckitWorld),
                 injectionTime: .atDocumentStart,
                 forMainFrameOnly: false,
                 in: world
@@ -895,29 +830,16 @@ extension WebPage {
         ])
     }
 
-    // The picker a control asks (menuless), put to JavaScript as `picker`, answered by the index of the option picked
-    // of a `select`, the date or colour picked of a `date` or a `color`, anything else the refusal. One asked before it
-    // is refused.
-    private func askPicker(
-        _ text: String,
-        frame: WKFrameInfo,
-        reply: @escaping @MainActor @Sendable (Any?, String?) -> Void
-    ) {
-        guard let asked = try? JSONDecoder().decode(PickerAsk.self, from: Data(text.utf8)) else {
-            return reply(nil, nil)
-        }
-        let picker = PageDialog(kind: asked.kind, message: "", frame: frame) { answer in
-            reply(asked.kind == "select" ? answer.index : answer.string, nil)
-        }
-        self.picker?.refuse()
-        self.picker = picker
-        emitter.emit("picker", asked.fields.merging([
-            "kind": picker.kind,
-            "name": asked.name,
-            "rect": asked.rect.value,
-            "origin": picker.origin,
-            "reply": Reply { node, arguments in picker.reply(node, arguments.first) }
-        ]) { _, own in own })
+    // The alert shown in place of what WebKit would show of the page outside its view (menuless), put to JavaScript as
+    // `dialog`. The page does not wait on it, so it is not among `dialogs`, and its answer goes nowhere.
+    private func alertUnsupported(from frame: WKFrameInfo) {
+        emitter.emit("dialog", [
+            "kind": "alert",
+            "message": Self.unsupportedMessage,
+            "value": "",
+            "origin": Self.serialized(frame.securityOrigin),
+            "reply": Reply { _, _ in }
+        ])
     }
 
     // Every picture still being taken handed what the page drew last, as a page that waits or is closed draws no more.
@@ -949,16 +871,14 @@ extension WebPage {
     }
 }
 
-// A dialog a page asks, `kind` `alert`, `confirm`, `prompt` or `leave`, put to JavaScript as `dialog`, or its picker,
-// `select`, `date` or `color`, put as `picker`, answered once, by `reply` or refused: `answered` is handed what
-// JavaScript replied, a value that is no boolean, string or whole number for the refusal, which each kind reads as
-// its own.
+// A dialog a page asks, `kind` `alert`, `confirm`, `prompt` or `leave`, put to JavaScript as `dialog` and answered
+// once, by `reply` or refused: `answered` is handed what JavaScript replied, a value that is no boolean or string for
+// the refusal, which each kind reads as its own.
 @MainActor
 private final class PageDialog {
     struct Answer {
         var bool: Bool?
         var string: String?
-        var index: Int?
     }
 
     let kind: String
@@ -984,11 +904,7 @@ private final class PageDialog {
     var isAnswered: Bool { answered == nil }
 
     func reply(_ node: Node, _ value: napi_value?) {
-        settle(Answer(
-            bool: value.flatMap { try? node.bool($0) },
-            string: value.flatMap { try? node.string($0) },
-            index: value.flatMap { try? node.integer($0) }
-        ))
+        settle(Answer(bool: value.flatMap { try? node.bool($0) }, string: value.flatMap { try? node.string($0) }))
     }
 
     func refuse() {

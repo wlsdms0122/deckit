@@ -183,12 +183,9 @@ export function createWebKit({ path, folder, LOG, containerOf, always = [], post
                         () => payload.reply(false)
                     );
                     return undefined;
-                case 'dialog':
-                case 'picker': {
-                    // `dialog(page, question)` answers what the page is replied, of its dialog, `{ kind, message,
-                    // value, origin }`, or of its picker, which it does not wait on, `{ kind, name, rect, origin }` and
-                    // `options` of a `select`, `type`, `value`, `min`, `max`, `step` of a `date`, `value` of a
-                    // `color`; no member, or a rejection, replies the refusal.
+                case 'dialog': {
+                    // `dialog(page, { kind, message, value, origin })` answers what the page is replied; no member,
+                    // or a rejection, replies the refusal.
                     const { reply, ...question } = payload;
                     Promise.resolve(delegate.dialog?.(page, question)).then(
                         (answer) => reply(answer),

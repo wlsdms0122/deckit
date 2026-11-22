@@ -38,7 +38,7 @@ const STYLE = `
         padding: 12px 36px 12px 12px;
         border-radius: var(--deckit-radius-card);
         background: var(--deckit-elevated);
-        box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
+        box-shadow: var(--deckit-rim);
         cursor: default;
     }
     /* Both views lie on the material the shell draws: the center's head and the empty record on it, the rows and

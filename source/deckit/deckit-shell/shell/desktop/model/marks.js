@@ -88,4 +88,10 @@ function sharesOf(count, at) {
     return [(100 * at) / count, (100 * (count - at - 1)) / count];
 }
 
-export { NAME, RING, MARK, topAt, underOf, cursorOn, nameLeft, ringOf, glides, sharesOf };
+// Whether the marks that tell seats apart, each seat's cursor and the ring round its key window, are drawn: while more
+// than one of `count` seats sits.
+function apart(count) {
+    return count > 1;
+}
+
+export { NAME, RING, MARK, topAt, underOf, cursorOn, nameLeft, ringOf, glides, sharesOf, apart };

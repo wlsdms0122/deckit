@@ -2,10 +2,8 @@
 // pages are whose and the mods' names: refused at once before it is served, for a mod's own page, for a page that runs
 // no mod, for a page that is no mod's, and for a page with a dialog up; handed up with who asks, the site's origin of a
 // web page and the mod's name of any other; answered once by the first answer, of its kind; refused as asked; and
-// withdrawn and refused as its page closes, loads another document, or its process ends; and a page's picker, handed
-// up with what its kind holds and its rect, replied an option's index, a date or a colour, withdrawn as its page asks
-// again.
-// Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
+// withdrawn and refused as its page closes, loads another document, or its process ends. Exits 1 with a line for each
+// check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -133,68 +131,6 @@ async function main() {
     const again = answer(content, question('confirm'));
     served.answer(asked[asked.length - 1].ask, true);
     check('a page asks again once its dialog is no longer up', (await again) === true, '');
-
-    const options = [{ label: 'Apple', group: null, disabled: false, selected: true }];
-    const rect = { x: 20, y: 100, width: 200, height: 30 };
-    const picked = answer(content, { kind: 'select', name: 'Fruit', options, rect, origin: 'deckit://notes.mod' });
-    const pick = asked[asked.length - 1];
-    check(
-        'a picker is handed up with its name, options and rect',
-        JSON.stringify(pick) ===
-            JSON.stringify({
-                ask: pick.ask,
-                page: content,
-                kind: 'select',
-                name: 'Fruit',
-                options,
-                rect,
-                from: 'Notes',
-            }),
-        pick
-    );
-    served.answer(pick.ask, 'Apple');
-    check("a picker is replied an option's index alone", (await picked) === undefined, '');
-    const first = answer(content, { kind: 'select', options, rect });
-    const firstAsk = asked[asked.length - 1].ask;
-    const later = answer(content, question('confirm'));
-    served.answer(asked[asked.length - 1].ask, true);
-    check(
-        'a picker up is withdrawn as its page asks again, and the next is handed up',
-        (await first) === undefined && withdrawn.includes(firstAsk) && (await later) === true,
-        withdrawn
-    );
-    const kept = answer(content, question('confirm'));
-    const keptAsk = asked[asked.length - 1].ask;
-    const behind = answer(content, { kind: 'select', options, rect });
-    served.answer(keptAsk, true);
-    check('a dialog up refuses a picker its page asks', behind === undefined && (await kept) === true, '');
-    const chosen = answer(content, { kind: 'select', options, rect });
-    served.answer(asked[asked.length - 1].ask, 0);
-    check('a picker is replied the index picked', (await chosen) === 0, '');
-    const control = { type: 'date', value: '2026-03-14', min: '', max: '2026-03-20', step: '' };
-    const dated = answer(content, { kind: 'date', name: 'Day', ...control, rect, origin: 'deckit://notes.mod' });
-    const day = asked[asked.length - 1];
-    const { ask: _ask, page: _page, ...handed } = day;
-    served.answer(day.ask, '2026-03-20');
-    check(
-        'a date picker is handed up with its control and replied a date',
-        JSON.stringify(handed) === JSON.stringify({ kind: 'date', name: 'Day', ...control, rect, from: 'Notes' }) &&
-            (await dated) === '2026-03-20',
-        handed
-    );
-    const undated = answer(content, { kind: 'date', ...control, rect });
-    served.answer(asked[asked.length - 1].ask, 14);
-    check('a date picker is replied a date alone', (await undated) === undefined, '');
-    const coloured = answer(content, { kind: 'color', name: 'Colour', value: '#010203', rect });
-    const colour = asked[asked.length - 1];
-    served.answer(colour.ask, '#a0b0c0');
-    const named = answer(content, { kind: 'color', name: 'Colour', value: '#010203', rect });
-    served.answer(asked[asked.length - 1].ask, 'red');
-    check(
-        'a colour picker is handed up with its value and replied a colour alone',
-        colour.value === '#010203' && (await coloured) === '#a0b0c0' && (await named) === undefined,
-        colour
-    );
     await tick();
 
     if (failed.length) {

@@ -2265,8 +2265,8 @@ async function walk({
         // another mod's window is key, right behind the key window, not key, its Dock item asking for attention until
         // a click on it brings the window front as the key window; the next, opened as the active mod, in front as the
         // key window, cascaded from it; each at the size it gives, told as it appears and becomes key. ⌘` brings the
-        // other in front, ⌘M puts the key window into the mod's Dock item, which brings it back, zoom fills the desktop
-        // but the Dock's sliver and the page sees its content resized, ⌘W closes the key window, and the mod runs on
+        // other in front, ⌘M puts the key window into the mod's Dock item, which brings it back, zoom fills the tile
+        // area and the page sees its content resized, ⌘W closes the key window, and the mod runs on
         // with none until its Dock item calls its reopen(), which finds the window where it was left.
         {
             const send = (type, detail) =>
@@ -2418,8 +2418,8 @@ async function walk({
                 !!restored,
                 JSON.stringify(await userWindows())
             );
-            // The zoom button fills the desktop but the Dock's sliver, and the page's ResizeObserver sees the content
-            // so; pressed again it gives the window its frame back.
+            // The zoom button fills the tile area, the desktop but 8 along each side, and the page's ResizeObserver
+            // sees the content so; pressed again it gives the window its frame back.
             const front = await atRest(async () => (await userWindows()).at(-1));
             const buttons = await pageById((await stackNow()).find(({ name }) => name === `buttons-${front?.id}`)?.id);
             const area = await desktopLaid();
@@ -2427,14 +2427,19 @@ async function walk({
             const sizeName = 'size' + (front?.id === one?.id ? 'one' : 'two');
             const framesBefore = Number(await mark(windowed, 'frames'));
             await buttons?.press('[data-button="zoom"]');
-            const zoomedIn = { x: 6, y: strip, width: area?.rect.width - 6, height: area?.rect.height - strip };
+            const zoomedIn = {
+                x: 8,
+                y: strip + 8,
+                width: area?.rect.width - 16,
+                height: area?.rect.height - strip - 16,
+            };
             const zoomed = await until(async () => near((await userWindows()).at(-1)?.rect, zoomedIn), 3000);
             const seen = await until(
                 async () => (await mark(windowed, sizeName)) === `${zoomedIn.width}x${zoomedIn.height}`,
                 2000
             );
             check(
-                "the zoom button fills the desktop but the Dock's sliver",
+                'the zoom button fills the tile area',
                 zoomed,
                 JSON.stringify({ now: (await userWindows()).at(-1)?.rect, zoomedIn })
             );
@@ -2450,7 +2455,7 @@ async function walk({
                 unzoomed,
                 JSON.stringify((await userWindows()).at(-1)?.rect)
             );
-            // A shell key tiles the key window into the left half of the zoom area, flush with it; the one that
+            // A shell key tiles the key window into the left half of the tile area, flush with it; the one that
             // restores puts it back at its frame.
             const leftHalf = { ...zoomedIn, width: Math.round(zoomedIn.width / 2) };
             await (await keyContent())?.key('ArrowLeft', 'ArrowLeft', CTRL | ALT, 37);
@@ -2458,7 +2463,7 @@ async function walk({
             await (await keyContent())?.key('ArrowDown', 'ArrowDown', CTRL | ALT, 40);
             const untiled = await until(async () => near((await userWindows()).at(-1)?.rect, front?.rect), 3000);
             check(
-                'a shell key tiles the key window into the left half of the zoom area, and the one that restores puts ' +
+                'a shell key tiles the key window into the left half of the tile area, and the one that restores puts ' +
                     'it back at its frame',
                 tiled && untiled,
                 JSON.stringify({ tiled, leftHalf, now: (await userWindows()).at(-1)?.rect, frame: front?.rect })
@@ -2598,20 +2603,20 @@ async function walk({
             await send('test-window-close', 'tall');
             await until(async () => !(await userWindows()).length, 3000);
         }
-        // The Browser's window dragged by its toolbar with the pointer to the zoom area's left side and let go there
+        // The Browser's window dragged by its toolbar with the pointer to the tile area's left side and let go there
         // takes the left half of it, flush; the shell key that restores gives it back the size it had.
         if (dragFrom) {
             await show('browser');
             const laid = await desktopLaid();
             const top = await desktop.evaluate(`document.querySelector('.deckit-desktop-strip').offsetHeight`);
-            const zoomArea = { x: 6, y: top, width: laid?.rect.width - 6, height: laid?.rect.height - top };
-            const leftHalf = { ...zoomArea, width: Math.round(zoomArea.width / 2) };
+            const tileArea = { x: 8, y: top + 8, width: laid?.rect.width - 16, height: laid?.rect.height - top - 16 };
+            const leftHalf = { ...tileArea, width: Math.round(tileArea.width / 2) };
             const before = await atRest(browserFrame);
             const contentId = (await windowsNow()).find(({ mod }) => mod === 'browser')?.content;
             const mouse = (type, { x, y }) =>
                 main(`return webkit.sendMouse(${contentId}, ${JSON.stringify({ type, x, y })})`);
             // The pointer on the desktop, held still as the window moves under it: where it is in the page.
-            const pointer = { x: zoomArea.x, y: Math.round(zoomArea.y + zoomArea.height / 2) };
+            const pointer = { x: tileArea.x, y: Math.round(tileArea.y + tileArea.height / 2) };
             const inPage = (frame) => ({ x: pointer.x - frame.x, y: pointer.y - frame.y });
             await mouse('down', dragFrom);
             await mouse('dragged', inPage(before));
@@ -2698,7 +2703,7 @@ async function walk({
                 return now?.width === before?.width && now.height === before.height;
             }, 3000);
             check(
-                "a window dragged to the zoom area's left side and let go there takes its left half, and the key " +
+                "a window dragged to the tile area's left side and let go there takes its left half, and the key " +
                     'that restores gives it back its size',
                 dropped && back,
                 JSON.stringify({ dropped, leftHalf, before, now: await browserFrame() })

@@ -1,3 +1,5 @@
+import { tileOf } from './layout.js';
+
 // MARK: - Initializer
 // MARK: - Public
 // The desktop's windows as every seat shares them, each with its frame and its minimum size, and each seat's own: its
@@ -7,8 +9,8 @@
 // Frames are `{ x, y, width, height }`, never below the window's `minimum` `{ width, height }`.
 function createWindowManager() {
     // MARK: - Property
-    // id -> { frame, minimum, zoomed, tiled }: `zoomed` the frame zoom left, or null; `tiled` `{ name, before }`, the
-    // tile it is in and the frame it had before, or null
+    // id -> { frame, minimum, zoomed, tiled, of }: `zoomed` the frame zoom left, or null; `tiled` `{ name, before }`,
+    // the tile it is in and the frame it had before, or null; `of` the seat whose camera its tile or zoom is of
     const windows = new Map();
     const seats = new Map(); // seat -> { order, key, minimized }
 
@@ -26,7 +28,7 @@ function createWindowManager() {
     // A window opens, `by` a seat: right behind each seat's key window, or in front for a seat with none. A seat it is
     // brought forward for orders it front.
     function open(_by, id, { frame, minimum }) {
-        windows.set(id, { frame: fitted(frame, minimum), minimum, zoomed: null, tiled: null });
+        windows.set(id, { frame: fitted(frame, minimum), minimum, zoomed: null, tiled: null, of: null });
         for (const seat of seats.values()) seat.order = behindKey(seat, id);
     }
 
@@ -89,25 +91,29 @@ function createWindowManager() {
         window.frame = fitted(frame, window.minimum);
         window.zoomed = null;
         window.tiled = null;
+        window.of = null;
     }
 
     // Zoomed to `area`, or back to the frame it had before: a tiled window fills it and goes back to its tile.
-    function zoom(_by, id, area) {
+    function zoom(by, id, area) {
         const window = windows.get(id);
         if (!window) return;
         const back = window.zoomed;
         window.zoomed = back ? null : window.frame;
         window.frame = back ?? fitted(area, window.minimum);
+        if (!back) window.of = by;
+        else if (!window.tiled) window.of = null;
     }
 
     // In the tile `name` at `frame`, not zoomed: the frame it had before it took a tile is kept for its return.
-    function tile(_by, id, name, frame) {
+    function tile(by, id, name, frame) {
         const window = windows.get(id);
         if (!window) return;
         const before = window.tiled?.before ?? window.zoomed ?? window.frame;
         window.tiled = { name, before };
         window.zoomed = null;
         window.frame = fitted(frame, window.minimum);
+        window.of = by;
     }
 
     // Out of its tile, at the frame it had before it took one, or at `frame` where it is given.
@@ -117,6 +123,19 @@ function createWindowManager() {
         window.frame = fitted(frame ?? window.tiled.before, window.minimum);
         window.tiled = null;
         window.zoomed = null;
+        window.of = null;
+    }
+
+    // `by`'s camera changed size: each window tiled or zoomed in it takes its tile of `area`, the tile area of that
+    // camera as it now stands, or `area` itself, again; a zoomed one that is tiled goes back to its tile there. The
+    // frame it had before is kept.
+    function retake(by, area) {
+        for (const window of windows.values()) {
+            if (window.of !== by) continue;
+            const tile = window.tiled && fitted(tileOf(window.tiled.name, area), window.minimum);
+            if (window.zoomed && tile) window.zoomed = tile;
+            window.frame = window.zoomed ? fitted(area, window.minimum) : tile;
+        }
     }
 
     // The windows on `seat`'s screen, back to front, without those it minimized: `[{ id, frame }]`.
@@ -201,6 +220,7 @@ function createWindowManager() {
         zoom,
         tile,
         untile,
+        retake,
         viewOf,
         keyOf,
         orderOf,

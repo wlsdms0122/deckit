@@ -7,8 +7,8 @@
 
 import WebKit
 
-// What deckit's scripts post in any frame, handed to their page with the frame and the reply to the post. WebKit holds
-// its handler, which holds the page only weakly, so a page is let go with its view.
+// What deckit's scripts post in any frame, handed to their page with the handler's name, the frame and the reply to
+// the post. WebKit holds its handler, which holds the page only weakly, so a page is let go with its view.
 @MainActor
 final class MessageRelay: NSObject, WKScriptMessageHandlerWithReply {
     // MARK: - Property

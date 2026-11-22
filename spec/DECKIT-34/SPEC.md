@@ -79,7 +79,7 @@ The shell has these keys, in this order:
 | `tileBottomRight` | `Tile Window to Bottom Right Quarter` | `{ code = "KeyK", control = true, alt = true }` | as `tileLeft` does, the tile `bottom-right` |
 | `restoreWindow` | `Restore Window` | `{ code = "ArrowDown", control = true, alt = true }` | sets the desktop's key window, where it is tiled, back at its frame before, as *Tiles* says, tiled no more |
 
-The keys that tile hold Control and Option, under one hand: an arrow for a half, the whole zoom area and the way back, and for a quarter the letter at that corner of the square the keys U, I, J and K make.
+The keys that tile hold Control and Option, under one hand: an arrow for a half, the whole tile area and the way back, and for a quarter the letter at that corner of the square the keys U, I, J and K make.
 
 Each is bound to the keystroke a mod set it to, or to none where one set none, and else to its default. As the host app starts, the shell holds the chord of each key bound to one in the table before any mod's run starts. A shell key **runs** where its chord is pressed while the keyboard is on the desktop, as [activation](../DECKIT-32/SPEC.md) fixes where the keyboard is, and the page it was pressed in did not handle the key; it does what the table says, and nothing where the desktop has no key window. A shell key pressed in an overlay window that holds the keyboard does nothing.
 
