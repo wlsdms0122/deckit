@@ -1121,6 +1121,14 @@ function overlayChecks(createOverlay, check) {
             JSON.stringify(frames[0]) === JSON.stringify({ x: 0, y: 0, width: 400, height: 300 }),
         { spread, frames }
     );
+    const clip = { ...rect, cornerRadius: 16 };
+    const cut = OVERLAY.withOverlays([{ page, rect, clip }]).at(-1);
+    check(
+        'a page laid cut to a clip has its overlay cut to it too',
+        JSON.stringify(cut) ===
+            JSON.stringify({ page: surface, rect, clip, input: [{ x: 10, y: 20, width: 100, height: 50 }] }),
+        cut
+    );
     tell([]);
     const plain = OVERLAY.withOverlays([{ page, rect }]);
     check(
