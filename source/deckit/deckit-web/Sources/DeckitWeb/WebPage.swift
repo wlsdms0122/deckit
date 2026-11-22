@@ -22,7 +22,8 @@ import CNodeAPI
 // download (WebDownload), or nothing to cancel it; `key` ({ type, code, key, meta, control, alt, shift }), true for a
 // key taken; and `certificate` ({ url, host, error, fingerprint, subject, issuer }), true for a certificate trusted
 // though the Mac does not. Asked, answered later through `reply`: `permission` ({ origin, permissions, reply }),
-// `dialog` ({ kind, message, value, origin, reply }), what the page asks and waits on (PageDialog), of which it draws
+// `dialog` ({ kind, message, value, origin, reply }), what the page asks and waits on (PageDialog), or an alert in
+// place of what WebKit would show of it outside its view, which it does not wait on (menuless), of which it draws
 // nothing, `unhandled` ({ code, key, meta, control, alt, shift, reply }), a key pressed that the page did not handle,
 // true for one taken from the rest of the app, and, for a page made with a scheme of its own, `request`
 // (SchemeHandler).
@@ -32,20 +33,28 @@ final class WebPage: NSObject {
     // The world deckit's own scripts run in, apart from the page's, which sees none of them.
     static let deckitWorld = WKContentWorld.world(name: "deckit")
     private static let messages = "deckit"
+    private static let unsupported = "unsupported"
+    // The message of the alert shown in place of what WebKit would show of a page outside its view.
+    private static let unsupportedMessage = "This control is not supported yet."
     // What a page may go to itself, beside a scheme of its own; any other scheme is an app's.
     private static let webSchemes: Set<String> = ["http", "https", "about", "data", "blob", "file", "javascript"]
     // WebKit's code for a load its navigation's policy turned into something else, a download.
     private static let interruptedByPolicy = (domain: "WebKitErrorDomain", code: 102)
     // The options of a clipboard event a seat's copy, cut or paste makes, carrying the transfer `data`.
     private static let clipboardEvent = "{ clipboardData: data, bubbles: true, cancelable: true, composed: true }"
-    // WebKit opens a menu of its own on a press whose `contextmenu` the page did not prevent, which only the machine's
-    // screen would show. Every frame prevents it before any listener hears it, so no press opens one; the event tells
-    // each world only what that world's listeners did to it, and goes on to them as before.
-    private static let menuless = """
+    // WebKit opens a menu of its own on a press whose `contextmenu` the page did not prevent, and on a press of the
+    // main button or Space on a `select` that shows one option at a time; and a window of its own on a click of the
+    // main button or Space on an `input` of type `date`, `datetime-local` or `color` that is not read-only. Only the
+    // machine's screen would show them. Every frame prevents those before any listener hears them, so none opens; the
+    // event tells each world only what that world's listeners did to it, and goes on to them as before. An element is
+    // told by its tag, not its class: one made in another document, as a window's content is, keeps that document's.
+    // In deckit's world each press or key held but `contextmenu` posts `unsupported`, for the alert shown in place of
+    // what it would open.
+    private static func menuless(posts: Bool) -> String {
+        """
         (() => {
             const prevent = Event.prototype.preventDefault;
-            addEventListener('contextmenu', (event) => {
-                if (!event.isTrusted) return;
+            const take = (event) => {
                 let prevented = false;
                 Object.defineProperties(event, {
                     preventDefault: { value() { prevented ||= event.cancelable; } },
@@ -53,9 +62,24 @@ final class WebPage: NSObject {
                     returnValue: { get: () => !prevented, set(value) { if (!value) event.preventDefault(); } }
                 });
                 prevent.call(event);
-            }, true);
+            };
+            const opens = ({ type, target, button, key }) =>
+                (type === 'keydown' ? key === ' ' :
+                    button === 0 && type === (target.localName === 'select' ? 'mousedown' : 'click')) &&
+                (target.localName === 'select' ? !target.multiple && target.size <= 1 :
+                    target.localName === 'input' && !target.readOnly &&
+                    ['date', 'datetime-local', 'color'].includes(target.type));
+            addEventListener('contextmenu', (event) => event.isTrusted && take(event), true);
+            for (const type of ['mousedown', 'click', 'keydown']) {
+                addEventListener(type, (event) => {
+                    if (!event.isTrusted || !opens(event)) return;
+                    take(event);
+                    \(posts ? "webkit.messageHandlers.\(unsupported).postMessage('');" : "")
+                }, true);
+            }
         })();
         """
+    }
 
     let id: Int
     let view: WebPageView
@@ -106,6 +130,11 @@ final class WebPage: NSObject {
             MessageRelay(to: self),
             contentWorld: Self.deckitWorld,
             name: Self.messages
+        )
+        configuration.userContentController.addScriptMessageHandler(
+            MessageRelay(to: self),
+            contentWorld: Self.deckitWorld,
+            name: Self.unsupported
         )
         view.navigationDelegate = self
         view.uiDelegate = self
@@ -311,16 +340,22 @@ final class WebPage: NSObject {
         emitter.release()
     }
 
-    // What deckit's scripts post, as text, from any frame of the page, and the reply its post's promise takes: told
-    // with the frame's origin, whether it is the main frame, `evaluate(source, world)`, which runs `source` in that
+    // What deckit's scripts post on `name`, from any frame of the page, and the reply its post's promise takes. One on
+    // `unsupported` shows its alert (alertUnsupported) and is replied null; any other, as text, is told with the
+    // frame's origin, whether it is the main frame, `evaluate(source, world)`, which runs `source` in that
     // frame as `evaluate` does, its value dropped, and `answer(text)`, the reply, nothing for null. JavaScript answers
     // true for one it answers later; any other is replied null at once. A reply runs no script, so it gives the page
     // no user gesture, as `evaluate` gives it one (WebKit's own).
     func received(
         _ body: Any,
+        named name: String,
         from frame: WKFrameInfo,
         reply: @escaping @MainActor @Sendable (Any?, String?) -> Void
     ) {
+        if name == Self.unsupported {
+            reply(nil, nil)
+            return alertUnsupported(from: frame)
+        }
         guard let text = body as? String else { return reply(nil, nil) }
         var replied = false
         let answer = Reply { node, arguments in
@@ -484,7 +519,7 @@ final class WebPage: NSObject {
     private static func add(_ scripts: [UserScript], to controller: WKUserContentController) {
         for world in [WKContentWorld.page, deckitWorld] {
             controller.addUserScript(WKUserScript(
-                source: menuless,
+                source: menuless(posts: world == deckitWorld),
                 injectionTime: .atDocumentStart,
                 forMainFrameOnly: false,
                 in: world
@@ -787,6 +822,18 @@ extension WebPage {
             "value": dialog.value,
             "origin": dialog.origin,
             "reply": reply
+        ])
+    }
+
+    // The alert shown in place of what WebKit would show of the page outside its view (menuless), put to JavaScript as
+    // `dialog`. The page does not wait on it, so it is not among `dialogs`, and its answer goes nowhere.
+    private func alertUnsupported(from frame: WKFrameInfo) {
+        emitter.emit("dialog", [
+            "kind": "alert",
+            "message": Self.unsupportedMessage,
+            "value": "",
+            "origin": Self.serialized(frame.securityOrigin),
+            "reply": Reply { _, _ in }
         ])
     }
 
