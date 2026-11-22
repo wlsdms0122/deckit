@@ -1,0 +1,59 @@
+case = 29
+name = "the-next-button-of-a-date-picker-turns-it-to-the-month-after"
+note = "The button Next of a date picker turns it to the month after. mod-a opens main, the window 1 at 283, 107, 720 by 480, whose content holds the date field Day at 20, 100, 200 by 30, valued 2026-03-14. The page opens https://said.test/<type>/<value> outside the app for each input and change it hears. The desktop is the base shell, 1280 by 800, and ada sits at s1. ada presses the field at 403, 222, which opens its picker, presses its button Next, w1.picker.next, and reads w1.picker.1 as a node: the option 2026-04-01, not selected; the page heard no input and no change."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 403, y = 222, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 403, y = 222, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", ref = "w1.picker.next", button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", ref = "w1.picker.next", button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/read"
+params = { of = "node", ref = "w1.picker.1" }
+part = "text"
+
+[step.expect]
+answers = "option \"2026-04-01\" w1.picker.1 at \u001A"
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = []
