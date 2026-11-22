@@ -8,8 +8,10 @@ const { SLIVER, WIDTH, RADIUS, CARD } = DOCK;
 // How long the Dock stays out once the pointer has left it.
 const HIDE_DELAY = 400;
 // An item: square, as wide as the card inside its padding, the icon 4px in from its edges; the running dot in the
-// card's padding beside it, its centre `dot` px from the card's edge.
+// card's padding beside it, its centre `dot` px from the card's edge, `running` across, or `asking` where its mod asks
+// for attention.
 const ITEM = Object.freeze({ size: CARD.item, inset: 4, dot: 4 });
+const DOT = Object.freeze({ running: 4, asking: 6 });
 // The card's padding around its items.
 const CARD_PADDING = CARD.padding;
 // How far right of the card, out, the name label stands.
@@ -81,15 +83,21 @@ const STYLE = `
     .deckit-dock-item[data-running]::after {
         content: '';
         position: absolute;
-        top: calc(50% - 2px);
-        left: ${ITEM.dot - 2 - CARD_PADDING}px;
-        width: 4px;
-        height: 4px;
+        top: calc(50% - ${DOT.running / 2}px);
+        left: ${ITEM.dot - DOT.running / 2 - CARD_PADDING}px;
+        width: ${DOT.running}px;
+        height: ${DOT.running}px;
         border-radius: var(--deckit-radius-round);
         background: var(--deckit-muted);
         transition: background-color var(--deckit-press-fade) var(--deckit-press-curve);
     }
-    .deckit-dock-item[data-attention]::after { background: var(--deckit-accent); }
+    .deckit-dock-item[data-attention]::after {
+        top: calc(50% - ${DOT.asking / 2}px);
+        left: ${ITEM.dot - DOT.asking / 2 - CARD_PADDING}px;
+        width: ${DOT.asking}px;
+        height: ${DOT.asking}px;
+        background: var(--deckit-accent);
+    }
     .deckit-dock-label {
         position: fixed;
         transform: translateY(-50%);
@@ -147,13 +155,13 @@ const STYLE = `
 // MARK: - Initializer
 // MARK: - Public
 // The Dock, drawn in the desktop's page at the desktop's left edge, centred down it and as tall as its items: the items
-// kept there, then those running only, each its mod's app icon, in the order main tells, the one a seat drags lifted.
-// A running item has a dot at the card's edge beside its icon, in the accent where its mod asks for attention, and the
-// active mod's item is marked; the item under the pointer has its name beside the card. It is in but for its sliver
-// until the pointer comes, and stays out while the pointer is over it, a press holds it or its menu is open; it goes
-// back in faster than it came out, and fades in where the system asks for reduced motion; `onOut(out)` hears it slide
-// out and back. Out and still, the card is glass, its colour a tint over a material laid under it, where the system
-// does not ask for less transparency, and so is the menu: `onGlass(materials)` hears `[{ material, x, y, width,
+// kept there, then those running only, each its mod's app icon, in the order main tells, the one a seat drags lifted. A
+// running item has a dot at the card's edge beside its icon, larger and in the accent where its mod asks for attention,
+// and the active mod's item is marked; the item under the pointer has its name beside the card. It is in but for its
+// sliver until the pointer comes, and stays out while the pointer is over it, a press holds it or its menu is open; it
+// goes back in faster than it came out, and fades in where the system asks for reduced motion; `onOut(out)` hears it
+// slide out and back. Out and still, the card is glass, its colour a tint over a material laid under it, where the
+// system does not ask for less transparency, and so is the menu: `onGlass(materials)` hears `[{ material, x, y, width,
 // height, cornerRadius }]`, the card's rounded at every corner and reaching past the desktop's left edge by its radius
 // so its square corners stay so, none as it slides. The page recognizes nothing: `onPointer(event)` hears what the
 // pointer does on the Dock and on the menu, `{ part: 'dock', type, x, y, button, count }` in the page, on the card as
