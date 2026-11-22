@@ -1,4 +1,5 @@
 import * as DOCK from '../../dock/model/dock.js';
+import * as TOKEN from '../../../../deckit-sdk/shell/ui/token/index.js';
 
 // MARK: - Property
 // A window's frame: the margin its shadow takes around it, as far as the key window's shadow reaches below it, the
@@ -23,8 +24,8 @@ const MINIMUM = Object.freeze({ width: DEFAULT_BAR.areaX + ROOM, height: TITLE_B
 const CASCADE = 24;
 // How much of a window's title bar stays on the desktop, so it can always be dragged back.
 const KEPT = 64;
-// Where panel windows stand in the host's bar: in from its right end, and apart.
-const PANEL = Object.freeze({ margin: 8, gap: 8 });
+// Where panel windows stand in the host's bar: in from its right end, a floating surface's margin, and apart.
+const PANEL = Object.freeze({ margin: TOKEN.FLOAT.margin, gap: 8 });
 // The tiles a window takes in the tile area: its halves, its quarters and the whole of it, which split it flush.
 const TILES = Object.freeze(['left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right', 'fill']);
 // Where a window dragged by its title bar is let go to take a tile: the pointer this near a side of the tile area or
