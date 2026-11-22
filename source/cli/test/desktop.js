@@ -3675,6 +3675,7 @@ function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
     });
     desk.openSurfaces(1);
     const pointer = (type, at, more = {}) => ({ event: 'pointer', type, ...at, button: 0, count: 1, ...more });
+    const alone = desk.page().windows[0].rings;
     const [first, second] = [desk.sit('s1'), desk.sit('s2')];
     const coloursNow = () => desk.page().seats.map(({ id, colour }) => `${id} ${colour}`);
     const sat = coloursNow();
@@ -3733,9 +3734,10 @@ function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
         desk.told()
     );
     check(
-        "a window is told the colour of each seat whose key window it is, and none where it is no seat's",
-        ringed.join() === '' && desk.page().windows[0].rings.join() === 'orange',
-        [ringed, desk.page().windows]
+        "a window is told the colour of each seat whose key window it is, none where it is no seat's, and none while " +
+            'one seat sits alone',
+        alone.join() === '' && ringed.join() === '' && desk.page().windows[0].rings.join() === 'orange',
+        [alone, ringed, desk.page().windows]
     );
     desk.enter(second, pointer('up', middle));
     desk.leave(second);
@@ -3748,6 +3750,10 @@ function drawnChecks({ COLOURS, LAYOUT, createDesktop }, check) {
 
 // What marks a seat on the viewer's screen: the model's answers, and what the desktop's page is told of them.
 async function marksChecks({ MARKS, LAYOUT, DOCK, createDesktop }, check) {
+    check(
+        'the marks that tell seats apart are drawn while more than one seat sits',
+        !MARKS.apart(0) && !MARKS.apart(1) && MARKS.apart(2) && MARKS.apart(3)
+    );
     const rect = (x, y, width, height) => ({ x, y, width, height });
     const [back, front] = [
         { id: 1, frame: rect(0, 0, 100, 100) },

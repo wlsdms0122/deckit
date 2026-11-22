@@ -1959,7 +1959,7 @@ export function createDesktop({
             ({ window }) => window.surface && !inBar.some((one) => one.window === window)
         );
         const backdrop = surface(PAGE.BACKDROP);
-        const cursors = hands.size > 1 && surface(PAGE.CURSORS);
+        const cursors = MARKS.apart(hands.size) && surface(PAGE.CURSORS);
         return {
             children,
             parts: {
@@ -2283,8 +2283,8 @@ export function createDesktop({
     // `{ windows, panels, seats, following, drop, strip, dock, down }`, as the desktop's page draws it, of the seat the
     // host window shows, each frame and point less the top left of the camera it shows (shownCamera). A window's frame
     // is key while the window holds that seat's keyboard: not while an overlay window or a view does, which update()
-    // tells as it takes or gives it back. Its `rings` are of every seat whose key window it is, and its `handles` the
-    // edges (LAYOUT.EDGES) in whose reach a seat's pointer is.
+    // tells as it takes or gives it back. Its `rings` are of every seat whose key window it is, while seats are told
+    // apart (MARKS.apart), and its `handles` the edges (LAYOUT.EDGES) in whose reach a seat's pointer is.
     function stateOfPage() {
         const seatScreen = shownScreen();
         const { seat, camera } = seatScreen;
@@ -2299,7 +2299,7 @@ export function createDesktop({
                 id,
                 frame: onScreen(frame),
                 key: id === key && !away(seat),
-                rings: MANAGER.seatsOf(id).map((each) => COLOURS.of(each)),
+                rings: MARKS.apart(hands.size) ? MANAGER.seatsOf(id).map((each) => COLOURS.of(each)) : [],
                 handles: [
                     ...new Set(
                         [...hands.values()].filter(({ reach }) => reach?.id === id).map(({ reach }) => reach.edge)
