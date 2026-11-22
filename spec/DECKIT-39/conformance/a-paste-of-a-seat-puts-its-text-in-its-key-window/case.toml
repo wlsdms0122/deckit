@@ -1,0 +1,46 @@
+case = 32
+name = "a-paste-of-a-seat-puts-its-text-in-its-key-window"
+note = "mod-a's code opens the window main, filled by a text field, and opens https://said.test/main/<event>/<what> outside the app for what its content hears: keydown with <code>, paste with the plain text it carries, copy and cut, and edited with the field's value after each input event. The desktop is the base shell's, 1280 by 800. ada sits at s1. It presses main and pastes ab by the event clipboard: main's content hears a paste of ab, and its field holds ab."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "clipboard", type = "paste", text = "ab" }
+
+[step.expect]
+answers = { to = 1 }
+
+[[step]]
+look = "opened"
+
+[step.expect]
+answers = [{ url = "https://said.test/main/paste/ab", activates = true }, { url = "https://said.test/main/edited/ab", activates = true }]
