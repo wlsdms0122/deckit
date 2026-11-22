@@ -1,6 +1,6 @@
 case = 18
-name = "tile-fill-fills-the-zoom-area"
-note = "Each mod's code opens the windows the case says in attach, and takes a chord, records or opens a window as the event <mod>:go tells it, opening https://said.test/take/<as>/held/<held> outside the app as a take answers, take/<as>/threw/<kind> as it is refused, chord/<as> as its chord is told, and rec/<code>/<modifiers> for each key it records, on the desktop of the base shell. mod-a opens main and x; the person presses in main and presses ctrl+alt+ArrowUp: main takes the tile fill, the zoom area."
+name = "tile-fill-fills-the-tile-area"
+note = "Each mod's code opens the windows the case says in attach, and takes a chord, records or opens a window as the event <mod>:go tells it, opening https://said.test/take/<as>/held/<held> outside the app as a take answers, take/<as>/threw/<kind> as it is refused, chord/<as> as its chord is told, and rec/<code>/<modifiers> for each key it records, on the desktop of the base shell. mod-a opens main and x; the person presses in main and presses ctrl+alt+ArrowUp: main takes the tile fill, the tile area."
 
 [host]
 base = "shell"
@@ -24,4 +24,4 @@ keystroke = { code = "ArrowUp", control = true, alt = true }
 look = "windows"
 
 [step.expect]
-answers = [{ mod = "mod-a", name = "x", level = "normal", frame = { x = 304, y = 133, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "main", level = "normal", frame = { x = 8, y = 8, width = 1264, height = 784 }, key = true, minimized = false }]
+answers = [{ mod = "mod-a", name = "x", level = "normal", frame = { x = 307, y = 131, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "main", level = "normal", frame = { x = 8, y = 8, width = 1264, height = 784 }, key = true, minimized = false }]

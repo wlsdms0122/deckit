@@ -1,6 +1,6 @@
 case = 17
-name = "a-window-moved-near-the-zoom-areas-edge-meets-it"
-note = "mod-a's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event mod-a:go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the desktop of the base shell, 1280 by 800, whose zoom area is { x = 6, y = 0, width = 1274, height = 800 }. The person presses on main, so mod-a may activate. A side a move brings 8 or less from the zoom area's side lands on it: the person drags main 273 left and 103 up, its top left then 4 right of and 4 below the zoom area's."
+name = "a-window-moved-near-the-tile-areas-edge-meets-it"
+note = "mod-a's code, in attach, opens the windows the case says, each with a callback for each of didAppear, didDisappear, didBecomeKey, didResignKey, didResize and didClose that opens https://said.test/<name>/<callback> outside the app, and opens a window or calls a member of one's handle as the event mod-a:go tells it, a refusal opening https://said.test/<name>/threw/<kind>, on the desktop of the base shell, 1280 by 800, whose zoom area is { x = 6, y = 0, width = 1274, height = 800 } and tile area { x = 8, y = 8, width = 1264, height = 784 }. The person presses on main, so mod-a may activate. A side a move brings 8 or less from the tile area's side lands on it: the person drags main 271 left and 95 up, its top left then 4 right of and 4 below the tile area's."
 
 [host]
 base = "shell"
@@ -21,10 +21,10 @@ input = "window"
 mod = "mod-a"
 name = "main"
 action = "move"
-by = { x = -273, y = -103 }
+by = { x = -271, y = -95 }
 
 [[step]]
 look = "windows"
 
 [step.expect]
-answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 6, y = 0, width = 720, height = 480 }, key = true, minimized = false }]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 8, y = 8, width = 720, height = 480 }, key = true, minimized = false }]

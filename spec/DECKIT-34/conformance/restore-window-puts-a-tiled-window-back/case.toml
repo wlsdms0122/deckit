@@ -24,7 +24,7 @@ keystroke = { code = "KeyI", control = true, alt = true }
 look = "windows"
 
 [step.expect]
-answers = [{ mod = "mod-a", name = "x", level = "normal", frame = { x = 304, y = 133, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "main", level = "normal", frame = { x = 640, y = 8, width = 632, height = 392 }, key = true, minimized = false }]
+answers = [{ mod = "mod-a", name = "x", level = "normal", frame = { x = 307, y = 131, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "main", level = "normal", frame = { x = 640, y = 8, width = 632, height = 392 }, key = true, minimized = false }]
 
 [[step]]
 input = "key"
@@ -34,4 +34,4 @@ keystroke = { code = "ArrowDown", control = true, alt = true }
 look = "windows"
 
 [step.expect]
-answers = [{ mod = "mod-a", name = "x", level = "normal", frame = { x = 304, y = 133, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "main", level = "normal", frame = { x = 280, y = 109, width = 720, height = 480 }, key = true, minimized = false }]
+answers = [{ mod = "mod-a", name = "x", level = "normal", frame = { x = 307, y = 131, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "main", level = "normal", frame = { x = 283, y = 107, width = 720, height = 480 }, key = true, minimized = false }]
