@@ -444,7 +444,7 @@ function boot(theme, channels) {
         const place = (node, { x, y, width, height }) =>
             Object.assign(node.style, { left: x + 'px', top: y + 'px', width: width + 'px', height: height + 'px' });
         for (const dialog of dialogs) {
-            const picks = dialog.kind === 'select';
+            const picks = 'list' in dialog.parts;
             if (!cards.has(dialog.ask))
                 cards.set(dialog.ask, (picks ? pickerOf : dialogOf)(id, asks.document, { ...dialog, key }));
             const made = cards.get(dialog.ask);
@@ -528,18 +528,55 @@ function boot(theme, channels) {
     }
 
     // The rows of `picker` drawn in its list anew where they changed: a group's label as a row that is not enabled,
-    // and each option, the one moved to marked active.
+    // and each option, the one moved to marked active; of a date picker, its month's name and its two buttons over its
+    // days, each where its parts place it in the list, a day by its number.
     function drawPicker(page, made, picker, place) {
         place(made.list, picker.parts.list);
-        const rows = JSON.stringify(picker.parts.rows);
+        const rows = JSON.stringify(picker.parts);
         if (rows === made.rows) return;
         made.rows = rows;
+        const { list, title, buttons = [] } = picker.parts;
+        const within = (node, { x, y, width, height }) =>
+            Object.assign(node.style, {
+                position: 'absolute',
+                left: x - list.x + 'px',
+                top: y - list.y + 'px',
+                width: width + 'px',
+                height: height + 'px',
+                padding: '0',
+                justifyContent: 'center',
+                textAlign: 'center',
+            });
+        const head = buttons.map(({ name, label, rect }) => {
+            const button = element(page, 'button', 'deckit-button deckit-icon-button');
+            button.type = 'button';
+            button.dataset.size = 'small';
+            button.dataset.dialogPart = `dialog-${name}`;
+            button.setAttribute('aria-label', label);
+            button.textContent = name === 'next' ? '\u203A' : '\u2039';
+            within(button, rect);
+            return button;
+        });
+        if (title) {
+            const named = element(page, 'span', 'deckit-menu-label');
+            const month = new Date(Date.UTC(2000, title.month));
+            month.setUTCFullYear(title.year);
+            named.textContent = month.toLocaleDateString(undefined, {
+                month: 'long',
+                year: 'numeric',
+                timeZone: 'UTC',
+            });
+            within(named, title.rect);
+            head.unshift(named);
+        }
         made.list.replaceChildren(
+            ...head,
             ...picker.parts.rows.map((row) => {
                 const drawn = element(page, 'div', 'deckit-menu-row');
                 const label = element(page, 'span', 'deckit-menu-label');
-                label.textContent = row.group ?? row.label;
+                label.textContent = row.group ?? (title ? String(Number(row.label.slice(8))) : row.label);
                 drawn.append(label);
+                if (title) within(drawn, row.rect);
                 if (row.group !== undefined || row.disabled) drawn.setAttribute('aria-disabled', 'true');
                 if (row.group !== undefined) return drawn;
                 drawn.setAttribute('role', 'option');
