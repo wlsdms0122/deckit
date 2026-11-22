@@ -798,8 +798,9 @@ const inside = (point, { x, y, width, height }) =>
 
 // The views of the mods laid over the regions of the windows, back to front: on the desktop and in its bar, then in
 // each overlay window, each `{ mod, parent, window, frame }`: the child's id, the mod and the name of the window, and
-// the rect it is laid at on the screen, cut to the window's frame. A mod's page laid cut to a window's frame is a
-// child's view; the window's content is a page of its own.
+// the rect it is laid at on the screen, cut to the window's frame. A mod's page laid cut to another mod's window's
+// frame is a child's view; one laid cut to its own window's is where what it presents lies, and the window's content
+// is a page of its own.
 function regionsSeen() {
     const pages = new Map(deckit.mods.runs().map(({ run, page }) => [page, run.mod.id]));
     const cut = (rect, clip) => {
@@ -813,7 +814,7 @@ function regionsSeen() {
     const desktop = laid.flatMap(({ page, rect, clip }) => {
         const window =
             clip && windows.find(({ frame }) => ['x', 'y', 'width', 'height'].every((k) => frame[k] === clip[k]));
-        if (!pages.has(page) || !window) return [];
+        if (!pages.has(page) || !window || pages.get(page) === window.mod) return [];
         return [{ mod: pages.get(page), parent: window.mod, window: window.name, frame: cut(rect, clip) }];
     });
     const overlays = floating.flatMap(({ control, frame: { x: left, y: top }, holder }) =>
