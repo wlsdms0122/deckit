@@ -1,14 +1,11 @@
 import * as LISTENER from '../../../deckit-sdk/deckit/listener/index.js';
 
-// The kinds of a picker, which its page does not wait on.
-const PICKERS = Object.freeze(['select', 'date']);
-
-// What a page asks and waits on, its dialog (`alert`, `confirm`, `prompt`, `leave`), and its picker (`select`,
-// `date`), which it does not wait on, as deckit keeps them: answered through the environment's one answer
-// (`pages.dialogs`, MAIN.pages), one a page at a time, and refused at once for a mod's own page and a page that runs
-// no mod, which ask nothing of a seat. A picker up is withdrawn as its page asks again; a dialog up refuses what its
-// page asks. One up is withdrawn and refused as its page closes, loads another document, or its process ends.
-// `IDENTITY` knows which page is whose, `CATALOG` a mod's name, and `pages` is the environment's.
+// What a page asks and waits on, its dialog (`alert`, `confirm`, `prompt`, `leave`), and its picker (`select`), which
+// it does not wait on, as deckit keeps them: answered through the environment's one answer (`pages.dialogs`,
+// MAIN.pages), one a page at a time, and refused at once for a mod's own page and a page that runs no mod, which ask
+// nothing of a seat. A picker up is withdrawn as its page asks again; a dialog up refuses what its page asks. One up is
+// withdrawn and refused as its page closes, loads another document, or its process ends. `IDENTITY` knows which page
+// is whose, `CATALOG` a mod's name, and `pages` is the environment's.
 export function createDialog({ IDENTITY, CATALOG, pages }) {
     // MARK: - Property
     const up = new Map(); // ask -> { page, settle(reply), off() }
@@ -25,13 +22,13 @@ export function createDialog({ IDENTITY, CATALOG, pages }) {
 
     // serve({ whose, asked, withdrawn }), once: what shows the dialogs. `whose(page) -> { mod, web } | null` names the
     // mod whose window content or web page a page is, `web` whether it is a web page, or null for none. `asked(dialog)`
-    // is told each dialog up, `{ ask, page, kind, message, value, from }`, or picker, `{ ask, page, kind, name, rect,
-    // from }` with `options` of a `select`, `type`, `value`, `min`, `max`, `step` of a `date` (as the environment hands
-    // them), `ask` its number and `from` who asks as a person reads it, the site's origin of a web page and the mod's
-    // name of any other; `withdrawn(ask)` is told as it is no longer up, answered, refused or withdrawn. Answers
-    // `{ answer(ask, value), refuse(ask) }`: the first answer is the page's, `value` what it is replied (a boolean for
-    // `confirm` and `leave`, the text or null for `prompt`, an option's index for `select`, a date for `date`), and a
-    // later one, or one for no dialog up, does nothing. Until it is served, every dialog is refused.
+    // is told each dialog up, `{ ask, page, kind, message, value, from }`, or picker, `{ ask, page, kind, name,
+    // options, rect, from }` (as the environment hands them), `ask` its number and `from` who asks as a
+    // person reads it, the site's origin of a web page and the mod's name of any other; `withdrawn(ask)` is told as it
+    // is no longer up, answered, refused or withdrawn. Answers `{ answer(ask, value), refuse(ask) }`: the first
+    // answer is the page's, `value` what it is replied (a boolean for `confirm` and `leave`, the text or null for
+    // `prompt`, an option's index for `select`), and a later one, or one for no dialog up, does nothing. Until it is
+    // served, every dialog is refused.
     function serve({ whose, asked, withdrawn }) {
         if (served) throw new Error('[deckit] the dialogs are served once');
         served = {
@@ -46,11 +43,11 @@ export function createDialog({ IDENTITY, CATALOG, pages }) {
     }
 
     // MARK: - Private
-    // A dialog the environment hands, `{ kind, message, value, origin }`, or a picker, as the environment hands one: a
-    // promise of its reply, undefined for the refusal.
-    function heard(page, { kind, message, value, origin, name: named, options, rect, type, min, max, step }) {
+    // A dialog the environment hands, `{ kind, message, value, origin }`, or a picker, `{ kind, name, options, rect,
+    // origin }`: a promise of its reply, undefined for the refusal.
+    function heard(page, { kind, message, value, origin, name: named, options, rect }) {
         if (!served || IDENTITY.modOf(page) || IDENTITY.pageNameOf(page)) return undefined;
-        if (PICKERS.includes(up.get(asking.get(page))?.kind)) settle(asking.get(page), undefined);
+        if (up.get(asking.get(page))?.kind === 'select') settle(asking.get(page), undefined);
         if (asking.has(page)) return undefined;
         const owner = served.whose(page);
         const name = owner && CATALOG.mods().find((mod) => mod.id === owner.mod)?.manifest.name;
@@ -62,22 +59,21 @@ export function createDialog({ IDENTITY, CATALOG, pages }) {
             const off = pages.watch(page, { destroyed: withdraw, ended: withdraw, gone: withdraw });
             up.set(ask, { page, kind, settle: resolve, off });
             asking.set(page, ask);
-            const asked = {
-                select: { name: String(named), options, rect },
-                date: { name: String(named), type, value, min, max, step, rect },
-            }[kind] ?? { message: String(message), value: String(value) };
+            const asked =
+                kind === 'select'
+                    ? { name: String(named), options, rect }
+                    : { message: String(message), value: String(value) };
             served.asked(Object.freeze({ ask, page, kind, ...asked, from }));
         });
     }
 
     // The reply to a dialog of its kind: a boolean for `confirm` and `leave`, a string or null for `prompt`, a whole
-    // number for `select`, a date, yyyy-mm-dd, for `date`, and anything else the refusal.
+    // number for `select`, and anything else the refusal.
     function kept(held, value) {
         if (!held) return undefined;
         if (held.kind === 'confirm' || held.kind === 'leave') return typeof value === 'boolean' ? value : undefined;
         if (held.kind === 'prompt') return typeof value === 'string' || value === null ? value : undefined;
         if (held.kind === 'select') return Number.isInteger(value) ? value : undefined;
-        if (held.kind === 'date') return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined;
         return undefined;
     }
 

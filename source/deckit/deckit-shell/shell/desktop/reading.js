@@ -23,14 +23,15 @@ const FRAME = 16;
 // what the desktop keeps; a window, the parts the shell draws of it and each document it shows as the environment
 // reads it; what is under one ref; what changed since a mark; and a picture. Refs: a window is `w<id>`, its parts
 // `w<id>.close`, `.minimize`, `.zoom`, `.bar`, `.edge.<name>`, its dialog's `.dialog.<part>` and its picker's
-// `.picker`, `.picker.<n>`, `.picker.previous` and `.picker.next`, an item of the Dock `dock.<mod>`, and an element
-// `<document>.<n>`, the same for every seat: `n` as the environment numbers the element, and `<document>` a count the
-// shell gives a document as a seat is first told of it, in the order it is listed, whichever page answered first. A
-// page that waits on its dialog runs nothing, so it is not read until it is answered: its window reads the dialog's
-// parts. The mark is one count for the desktop: it goes up as a line of the desktop, or a part of a window's dialog or
-// picker, reads otherwise for some seat, a pointer's place apart, and as a document tells that what it shows changed.
-// `READ` reads a page (environment: SHELL `read`), `OVERLAY` is the pages' overlays, `web` what the web engine
-// answered, `deckit` what connect answered, and `desk` is what the desktop keeps and answers of itself.
+// `.picker` and `.picker.<n>`, an item of the Dock
+// `dock.<mod>`, and an element `<document>.<n>`, the same for every seat: `n` as the environment numbers the element,
+// and `<document>` a count the shell gives a document as a seat is first told of it, in the order it is listed,
+// whichever page answered first. A page that waits on its dialog runs nothing, so it is not read until it is
+// answered: its window reads the dialog's parts. The mark is one count for the desktop: it goes up as a line of the
+// desktop, or a part of a window's dialog or picker, reads otherwise for some seat, a pointer's place apart, and as a
+// document tells that what it shows changed. `READ` reads a page (environment: SHELL `read`), `OVERLAY` is the
+// pages' overlays, `web` what the web engine answered, `deckit` what connect answered, and `desk` is what the desktop
+// keeps and answers of itself.
 export function createReading({ READ, OVERLAY, web, deckit, desk }) {
     // MARK: - Property
     // a document's number as the environment has it -> { page, born, first, pairs }: the mark and the reader's count
@@ -475,25 +476,17 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
     }
 
     // The picker opened last in the normal window `id`: its listbox `w<id>.picker`, named by its control, and under it
-    // a date picker's buttons, `w<id>.picker.previous` and `.next`, and each of its options in order,
-    // `w<id>.picker.<n>` from 1, an option of a group under the group's line, which has no ref; `rect` on the desktop.
+    // each of its options in order, `w<id>.picker.<n>` from 1, an option of a group under the group's line, which has
+    // no ref; `rect` on the desktop.
     function pickerPartsOf(id) {
         const picker = desk.windows.has(id) && desk.dialogsIn(id).findLast((one) => !DIALOG.waitsOn(one));
         if (!picker) return [];
         const frame = desk.MANAGER.frameOf(id);
         const on = ({ x, y, width, height }) => ({ x: frame.x + x, y: frame.y + y, width, height });
-        const { list, rows, buttons = [] } = DIALOG.partsOf(picker);
+        const { list, rows } = DIALOG.partsOf(picker);
         const ref = `w${id}.picker`;
         return [
             { depth: 0, role: 'listbox', name: picker.name, states: [], ref, rect: on(list) },
-            ...buttons.map(({ name, label, rect }) => ({
-                depth: 1,
-                role: 'button',
-                name: label,
-                states: [],
-                ref: `${ref}.${name}`,
-                rect: on(rect),
-            })),
             ...rows.map(({ rect, group, index, label, disabled, selected, grouped }) =>
                 group !== undefined
                     ? { depth: 1, role: 'group', name: group, states: [], rect: on(rect) }
@@ -537,8 +530,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
             return { line, rect: DOCK_MODEL.tileOf(desk.area(seat), items, mod), window: null, by };
         }
         const [, window, name, edge] =
-            /^w(\d+)\.(close|minimize|zoom|bar|dialog\.[a-z]+|picker(?:\.[a-z\d]+)?|edge\.([a-z-]+))$/.exec(ref) ??
-            [];
+            /^w(\d+)\.(close|minimize|zoom|bar|dialog\.[a-z]+|picker(?:\.\d+)?|edge\.([a-z-]+))$/.exec(ref) ?? [];
         const id = Number(window);
         if (window === undefined || !desk.windows.has(id)) return null;
         const { rect: listed = null, ...line } = partsOf(id).find((part) => part.ref === ref) ?? {};
