@@ -25,4 +25,4 @@ method = "seat/read"
 params = { of = "node", ref = "w1.edge.top-left" }
 
 [step.expect]
-answers = { text = "edge \"top-left\" w1.edge.top-left at 277,101 6x6", mark = 7 }
+answers = { text = "edge \"top-left\" w1.edge.top-left at 271,95 24x24", mark = 7 }
