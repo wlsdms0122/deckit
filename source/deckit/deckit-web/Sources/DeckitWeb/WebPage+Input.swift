@@ -76,11 +76,9 @@ extension WebPage {
     }
 
     // `event` put into the page for what `source` names: what the page tells of it carries `source`, and a key the
-    // document does not handle is handed back to this page alone (InputMonitor). The edits of each event put are one
-    // step of the page's undo (closeEdits).
+    // document does not handle is handed back to this page alone (InputMonitor).
     func put(_ event: Put, source: String, through input: InputMonitor) throws {
         let window = try shownWindow()
-        view.closeEdits()
         switch event {
         case let .pointer(pointer):
             try put(pointer, source: source, in: window)

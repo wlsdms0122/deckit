@@ -31,7 +31,7 @@ final class WebPageView: WKWebView {
     private var covered = false // whether the pointer has left it for a page laid over it
     private var gated: [ObjectIdentifier: (area: NSTrackingArea, gate: TrackingGate)] = [:] // WebKit's area -> its gate
     // The edits WebKit registers, the view's alone: every page in a window would otherwise share the window's.
-    private let undos = Undos()
+    private let undos = UndoManager()
     override var undoManager: UndoManager? { undos }
 
     // MARK: - Initializer
@@ -105,12 +105,6 @@ final class WebPageView: WKWebView {
 
     @objc func redo(_ sender: Any?) {
         undos.redo()
-    }
-
-    // The edits made since the last event closed as one step of the view's undo. The app closes them after each event
-    // it handles; an event put into the page is not one of them.
-    func closeEdits() {
-        if undos.groupingLevel > 0 { undos.endUndoGrouping() }
     }
 
     override func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
@@ -211,15 +205,6 @@ final class WebPageView: WKWebView {
             return
         }
         super.mouseMoved(with: outside)
-    }
-}
-
-// An undo manager that opens a group for an edit made while none is open. Grouping by the app's events opens one only
-// once in each such event, so a group closed by hand (closeEdits) would take no edit until the app's next event.
-private final class Undos: UndoManager {
-    override func registerUndo(withTarget target: Any, selector: Selector, object anObject: Any?) {
-        if groupingLevel == 0 { beginUndoGrouping() }
-        super.registerUndo(withTarget: target, selector: selector, object: anObject)
     }
 }
 
