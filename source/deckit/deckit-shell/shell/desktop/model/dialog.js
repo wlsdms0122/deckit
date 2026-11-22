@@ -29,11 +29,26 @@ const LIST = Object.freeze({ row: 28, padding: 4, width: 160 });
 // A date picker's month: a day's cell, square, px, and its grid, a week to a row, six rows under the row of its name
 // and its buttons, so every month takes the same rect.
 const MONTH = Object.freeze({ cell: 28, week: 7, weeks: 6 });
+// A colour picker's palette, its options in order, a row to `columns` of them: a row of greys, then rows of hues, a
+// shade to a row, light to dark. Each is drawn in a cell as a day's.
+const PALETTE = Object.freeze({
+    columns: 10,
+    colours: Object.freeze(
+        [
+            '#ffffff #e6e6e6 #cccccc #b3b3b3 #999999 #808080 #666666 #4d4d4d #333333 #000000',
+            '#f7baba #f7d9ba #f7edba #baf7ba #baf7e8 #baedf7 #bad4f7 #babaf7 #debaf7 #f7bae3',
+            '#ed5e5e #eda65e #edd55e #5eed5e #5eedc9 #5ed5ed #5e9aed #5e5eed #b25eed #ed5ebe',
+            '#cf1717 #cf7317 #cfb017 #17cf17 #17cfa1 #17b0cf #1763cf #1717cf #8217cf #cf1791',
+            '#810e0e #81470e #816d0e #0e810e #0e8164 #0e6d81 #0e3e81 #0e0e81 #510e81 #810e5a',
+        ].flatMap((row) => row.split(' '))
+    ),
+});
 const DAY = 86400000;
 // The kinds of a picker, which its page does not wait on, and how far the arrows move in each, in options.
 const STEPS = Object.freeze({
     select: { ArrowUp: -1, ArrowDown: 1 },
     date: { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -MONTH.week, ArrowDown: MONTH.week },
+    color: { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -PALETTE.columns, ArrowDown: PALETTE.columns },
 });
 const picks = (kind) => Object.hasOwn(STEPS, kind);
 const TURNS = Object.freeze({ previous: -1, next: 1 });
@@ -43,8 +58,9 @@ const TURNED = Object.freeze({ previous: 'Previous', next: 'Next' });
 // MARK: - Public
 // The dialogs up, by window, and where each stands in its window: plain data the shell draws from. A dialog is
 // `{ ask, kind, message, value, from }` as deckit hands it, or a picker, `{ ask, kind, name, rect, from }` with
-// `options` of a `select` and `type`, `value`, `min`, `max`, `step` of a `date`, `rect` its control's in its page, and
-// where its page shows, `at`, is what the shell knows of it, in the window's coordinates, from its frame's top left:
+// `options` of a `select`, `type`, `value`, `min`, `max`, `step` of a `date` and `value` of a `color`, `rect` its
+// control's in its page, and where its page shows, `at`, is what the shell knows of it, in the window's coordinates,
+// from its frame's top left:
 // - null: in no window, where it is refused;
 // - `{ window, content }`: the window's content, `content` its rect; the dialog covers it, `whole` true;
 // - `{ window, content, rect }`: a page shown in a part of it, `content` the rect of what shows the page (the window's
@@ -54,7 +70,8 @@ const TURNED = Object.freeze({ previous: 'Previous', next: 'Next' });
 // whole, kind, name, options, control, at, from }`: `rect` its list's, under its control, raised where it would pass
 // the bottom of what shows its page, `control` the rect it was asked with, and `at` the index of the option moved to,
 // first the one selected. A date picker's options are the days of the `month` it shows (monthOf), first that of its
-// control's date, or of `today()`, the day it is at the machine, yyyy-mm-dd, where it has none.
+// control's date, or of `today()`, the day it is at the machine, yyyy-mm-dd, where it has none. A colour picker's
+// options are its palette's colours, `{ label, disabled, selected }`, `label` the colour, selected the control's.
 function createDialogs({ today } = {}) {
     // MARK: - Property
     const up = new Map(); // ask -> the dialog, where it stands now
@@ -73,6 +90,10 @@ function createDialogs({ today } = {}) {
                 from,
             }),
             date: () => monthOf(dated(), monthIn(dayIn(value) ?? today())),
+            color: () => {
+                const colours = PALETTE.colours.map((label) => ({ label, disabled: false, selected: label === value }));
+                return { kind, name, value, options: colours, control: rect, at: PALETTE.colours.indexOf(value), from };
+            },
         }[kind]?.() ?? { kind, message, value, from };
         const place = placeOf(at, held);
         if (!place || up.has(id)) return null;
@@ -162,16 +183,17 @@ function createDialogs({ today } = {}) {
 // The rect of the list of `picker` whose page is at `page` in `content`, the content itself where none is given.
 function listOf({ kind, options, control }, content, page = { x: 0, y: 0 }) {
     const [x, y] = [content.x + page.x + control.x, content.y + page.y + control.y + control.height];
-    const { width, height } =
-        kind === 'date'
-            ? {
-                  width: 2 * LIST.padding + MONTH.week * MONTH.cell,
-                  height: 2 * LIST.padding + (1 + MONTH.weeks) * MONTH.cell,
-              }
-            : {
-                  width: Math.max(LIST.width, control.width),
-                  height: 2 * LIST.padding + rowsIn(options).length * LIST.row,
-              };
+    const grid = (columns, rows) => ({
+        width: 2 * LIST.padding + columns * MONTH.cell,
+        height: 2 * LIST.padding + rows * MONTH.cell,
+    });
+    const { width, height } = {
+        date: () => grid(MONTH.week, 1 + MONTH.weeks),
+        color: () => grid(PALETTE.columns, Math.ceil(PALETTE.colours.length / PALETTE.columns)),
+    }[kind]?.() ?? {
+        width: Math.max(LIST.width, control.width),
+        height: 2 * LIST.padding + rowsIn(options).length * LIST.row,
+    };
     const lowest = content.y + content.height - height;
     return { x, y: Math.max(content.y, Math.min(y, lowest)), width, height };
 }
@@ -244,10 +266,15 @@ function rowsOf({ rect, options, at }) {
 // The days of date picker `picker` where they are drawn, in its window's coordinates, a week to a row from Sunday
 // under the row of its name and buttons, each `{ rect, index, label, disabled, selected, grouped, at }` as rowsOf has
 // an option's.
-function daysOf({ rect, options, at }) {
-    const first = new Date(Date.parse(options[0].label)).getUTCDay();
+function daysOf(picker) {
+    return cellsOf(picker, MONTH.week, new Date(Date.parse(picker.options[0].label)).getUTCDay(), 1);
+}
+
+// The options of `picker` as cells, `columns` to a row, the first in column `first` of row `top`, each as daysOf
+// has it.
+function cellsOf({ rect, options, at }, columns, first, top) {
     return options.map(({ label, disabled, selected }, index) => {
-        const [column, row] = [(first + index) % MONTH.week, 1 + Math.floor((first + index) / MONTH.week)];
+        const [column, row] = [(first + index) % columns, top + Math.floor((first + index) / columns)];
         const place = {
             x: rect.x + LIST.padding + column * MONTH.cell,
             y: rect.y + LIST.padding + row * MONTH.cell,
@@ -277,11 +304,13 @@ function headOf({ rect, month }) {
 // Where the parts of `dialog` are drawn, in its window's coordinates: the card at the top centre of its rect, the
 // line that names who asks (`from`), the message with how many lines it takes, the field of a prompt, and each
 // button, `{ name, label, rect }`, left to right; of a picker, its `list` and its rows (rowsOf), and of a date picker
-// its days as its rows (daysOf), its `title` and its `buttons` (headOf).
+// its days as its rows (daysOf), its `title` and its `buttons` (headOf), and of a colour picker its palette's colours
+// as its rows, in cells as a date picker's days.
 function partsOf(dialog) {
     const { rect, kind, message } = dialog;
     if (kind === 'select') return { list: rect, rows: rowsOf(dialog) };
     if (kind === 'date') return { list: rect, rows: daysOf(dialog), ...headOf(dialog) };
+    if (kind === 'color') return { list: rect, rows: cellsOf(dialog, PALETTE.columns, 0, 0) };
     const { margin, padding, line } = CARD;
     const width = Math.max(0, Math.min(CARD.width, rect.width - 2 * margin));
     const inner = width - 2 * padding;
@@ -325,7 +354,8 @@ function partAt(dialog, point) {
 
 // What `dialog` is answered by its part `part` (partAt) pressed, `{ value }`, or null for a part that answers nothing:
 // `ok` done, true, or a prompt's text, `cancel` false or null, `leave` true and `stay` false; of a picker, an option
-// not disabled its index, of a date picker its date, and `away` null, which puts it away.
+// not disabled its index, of a date or colour picker its label, its date or colour, and `away` null, which puts it
+// away.
 function answerOf({ kind, value, options }, part) {
     const name = String(part).replace(/^dialog-/, '');
     if (picks(kind)) {
@@ -333,7 +363,7 @@ function answerOf({ kind, value, options }, part) {
         const option = number && options[number - 1];
         if (name === 'away') return { value: null };
         if (!option || option.disabled) return null;
-        return { value: kind === 'date' ? option.label : number - 1 };
+        return { value: kind === 'select' ? number - 1 : option.label };
     }
     if (!(BUTTONS[kind] ?? []).includes(name)) return null;
     if (name === 'ok') return { value: kind === 'prompt' ? value : true };
