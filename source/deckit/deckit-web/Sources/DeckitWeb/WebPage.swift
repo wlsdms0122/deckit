@@ -24,9 +24,10 @@ import CNodeAPI
 // though the Mac does not. Asked, answered later through `reply`: `permission` ({ origin, permissions, reply }),
 // `dialog` ({ kind, message, value, origin, reply }), what the page asks and waits on (PageDialog), of which it draws
 // nothing, `picker` ({ kind, name, rect, origin, reply }, `options` of a `select`, `type`, `value`, `min`, `max`,
-// `step` of a `date`), what a control of the page opens to pick from, which the page does not wait on (menuless),
-// `unhandled` ({ code, key, meta, control, alt, shift, reply }), a key pressed that the page did not handle, true for
-// one taken from the rest of the app, and, for a page made with a scheme of its own, `request` (SchemeHandler).
+// `step` of a `date`, `value` of a `color`), what a control of the page opens to pick from, which the page does not
+// wait on (menuless), `unhandled` ({ code, key, meta, control, alt, shift, reply }), a key pressed that the page did
+// not handle, true for one taken from the rest of the app, and, for a page made with a scheme of its own, `request`
+// (SchemeHandler).
 @MainActor
 final class WebPage: NSObject {
     // MARK: - Property
@@ -42,14 +43,15 @@ final class WebPage: NSObject {
     private static let clipboardEvent = "{ clipboardData: data, bubbles: true, cancelable: true, composed: true }"
     // WebKit opens a menu of its own on a press whose `contextmenu` the page did not prevent, on a press of the main
     // button or Space on a `select` that shows one option at a time, and a picker window on a click of the main button
-    // or Space on an `input` of a date, which only the machine's screen shows. Every frame prevents those before any
-    // listener hears them, so none opens; the event tells each world only what that world's listeners did to it, and
-    // goes on to them as before. An element is told by its tag, not its class: one made in another document, as a
-    // window's content is, keeps that document's. In deckit's world the control is focused and its picker asked of the
-    // page (`picker`): its kind, its name, as a reading names it, its rect in the frame, and what its kind holds. The
-    // answer picks: of a `select` an option's index, which selects that option where it is not disabled nor selected
-    // already; of a `date` a date, yyyy-mm-dd, which becomes the control's value, a `datetime-local` keeping its time,
-    // or midnight where it has none. Where it changed, the page hears `input` then `change`, not trusted.
+    // or Space on an `input` of a date or a colour, which only the machine's screen shows. Every frame prevents those
+    // before any listener hears them, so none opens; the event tells each world only what that world's listeners did
+    // to it, and goes on to them as before. An element is told by its tag, not its class: one made in another document,
+    // as a window's content is, keeps that document's. In deckit's world the control is focused and its picker asked
+    // of the page (`picker`): its kind, its name, as a reading names it, its rect in the frame, and what its kind
+    // holds. The answer picks: of a `select` an option's index, which selects that option where it is not disabled nor
+    // selected already; of a `date` a date, yyyy-mm-dd, which becomes the control's value, a `datetime-local` keeping
+    // its time, or midnight where it has none; of a `color` a colour, #rrggbb, which becomes the control's value. Where
+    // it changed, the page hears `input` then `change`, not trusted.
     private static func menuless(asks: Bool) -> String {
         """
         (() => {
@@ -101,6 +103,18 @@ final class WebPage: NSObject {
                             const value = input.type === 'date' ? date : date + 'T' + time;
                             if (value === input.value) return false;
                             input.value = value;
+                            return true;
+                        }
+                    })
+                },
+                color: {
+                    press: 'click',
+                    is: (control) => control.localName === 'input' && control.type === 'color',
+                    ask: (input) => ({
+                        fields: { value: input.value },
+                        picked: (color) => {
+                            if (typeof color !== 'string' || color === input.value) return false;
+                            input.value = color;
                             return true;
                         }
                     })
@@ -882,7 +896,8 @@ extension WebPage {
     }
 
     // The picker a control asks (menuless), put to JavaScript as `picker`, answered by the index of the option picked
-    // of a `select`, the date picked of a `date`, anything else the refusal. One asked before it is refused.
+    // of a `select`, the date or colour picked of a `date` or a `color`, anything else the refusal. One asked before it
+    // is refused.
     private func askPicker(
         _ text: String,
         frame: WKFrameInfo,
@@ -892,7 +907,7 @@ extension WebPage {
             return reply(nil, nil)
         }
         let picker = PageDialog(kind: asked.kind, message: "", frame: frame) { answer in
-            reply(asked.kind == "date" ? answer.string : answer.index, nil)
+            reply(asked.kind == "select" ? answer.index : answer.string, nil)
         }
         self.picker?.refuse()
         self.picker = picker
@@ -935,8 +950,9 @@ extension WebPage {
 }
 
 // A dialog a page asks, `kind` `alert`, `confirm`, `prompt` or `leave`, put to JavaScript as `dialog`, or its picker,
-// `select` or `date`, put as `picker`, answered once, by `reply` or refused: `answered` is handed what JavaScript
-// replied, a value that is no boolean, string or whole number for the refusal, which each kind reads as its own.
+// `select`, `date` or `color`, put as `picker`, answered once, by `reply` or refused: `answered` is handed what
+// JavaScript replied, a value that is no boolean, string or whole number for the refusal, which each kind reads as
+// its own.
 @MainActor
 private final class PageDialog {
     struct Answer {
