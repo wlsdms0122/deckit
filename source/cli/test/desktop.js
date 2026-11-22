@@ -742,8 +742,8 @@ async function main() {
     desk.fromPage('dock', { out: true });
     const out = inputOf();
     check(
-        "the desktop's page takes the pointer at the host's bar and the Dock's sliver down the edge, and its card too " +
-            'while it is out, never the rest of its column',
+        "the desktop's page takes the pointer at the host's bar and the Dock's sliver down the edge, and its card with " +
+            'the room between it and the edge while it is out, never the rest of its column',
         sliver.length === 2 &&
             sliver[0].height === 28 &&
             sliver[1].width === DOCK.SLIVER &&
@@ -751,7 +751,7 @@ async function main() {
             out.length === 3 &&
             out[1].width === DOCK.SLIVER &&
             out[2].x === 0 &&
-            out[2].width === DOCK.WIDTH &&
+            out[2].width === DOCK.EDGE + DOCK.WIDTH &&
             out[2].y > 28 &&
             out[2].height < sliver[1].height - 2 * DOCK.CARD.padding,
         { sliver, out }
@@ -1821,13 +1821,14 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
     const tall = DOCK.cardOf({ x: 0, y: 28, width: 1200, height: 100 }, items);
     check(
         "the Dock's card stands where its view lays it, centred down the desktop, no taller than the room in it",
-        same(cardAt, { x: 0, y: 350, width: DOCK.WIDTH, height: 129 }) &&
-            same(tall, { x: 0, y: 36, width: DOCK.WIDTH, height: 84 }),
+        same(cardAt, { x: DOCK.EDGE, y: 350, width: DOCK.WIDTH, height: 129 }) &&
+            same(tall, { x: DOCK.EDGE, y: 36, width: DOCK.WIDTH, height: 84 }),
         { cardAt, tall }
     );
     check(
         "a mod's Dock tile stands where the Dock's view lays it out, past the divider after the items kept",
-        same(tileAt, { x: 8, y: 423, width: 48, height: 48 }) && DOCK.tileOf({ x: 0, y: 0 }, items, 'c') === null,
+        same(tileAt, { x: DOCK.EDGE + 8, y: 423, width: 48, height: 48 }) &&
+            DOCK.tileOf({ x: 0, y: 0 }, items, 'c') === null,
         tileAt
     );
 
@@ -3935,7 +3936,7 @@ async function marksChecks({ MARKS, LAYOUT, DOCK, createDesktop }, check) {
             "host's bar, square, and the Dock, round by its card's corners and in but for its sliver",
         stage.some(({ x, y, height, radius }) => x === 0 && y === 0 && height === 28 && radius === 0) &&
             stage.some(
-                ({ x, width, radius }) => radius === DOCK.RADIUS && x + width === DOCK.SLIVER && width > DOCK.WIDTH
+                ({ x, width, radius }) => radius === DOCK.RADIUS && x + width === DOCK.SLIVER && width === DOCK.WIDTH
             ),
         stage
     );
@@ -3969,13 +3970,10 @@ async function marksChecks({ MARKS, LAYOUT, DOCK, createDesktop }, check) {
         DOCK.coverOf(rect(0, 28, 800, 600), false, []),
     ];
     check(
-        "the Dock covers its card while it is out and the card's sliver while it is in, its frame reaching past the " +
-            "desktop's left edge by its corners' radius",
+        "the Dock covers its card while it is out, every corner rounded, and the card's sliver while it is in",
         out.radius === DOCK.RADIUS &&
-            out.frame.x === -DOCK.RADIUS &&
-            out.frame.x + out.frame.width === card.x + card.width &&
-            out.frame.y === card.y &&
-            out.frame.height === card.height &&
+            JSON.stringify(out.frame) === JSON.stringify(card) &&
+            drawnIn.frame.width === card.width &&
             drawnIn.frame.x + drawnIn.frame.width === DOCK.SLIVER,
         { card, out, drawnIn }
     );

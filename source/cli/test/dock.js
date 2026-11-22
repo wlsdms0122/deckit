@@ -426,7 +426,7 @@ async function main() {
         "the menu stands beside the card, its top level with its item's, as tall as its entries, its rules and its " +
             'padding, each entry and rule under the last inside it',
         menu.item === 'd' &&
-            menu.frame.x === DOCK.WIDTH + DOCK.MENU.beside &&
+            menu.frame.x === DOCK.EDGE + DOCK.WIDTH + DOCK.MENU.beside &&
             menu.frame.y === DOCK.tileOf(desk, four, 'd').y &&
             menu.frame.width === DOCK.MENU.width &&
             menu.frame.height === 2 * DOCK.MENU.padding + tall(stacked) &&
