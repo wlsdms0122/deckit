@@ -2689,9 +2689,8 @@ async function webPageChecks({ LAYOUT, createDesktop }, check) {
 
 // Where a page's dialog stands (model/dialog.js): over the whole content of a window, over a page shown in a part of
 // it cut to what shows it, nowhere for a page in no window or one shown outside what shows it, moved as its page is,
-// kept where it was while its page shows nowhere, and up until it is withdrawn; and a page's picker, its list under
-// its control, its rows, the option a press or the keys pick, and the page it covers.
-function dialogChecks({ createDialogs, partsOf, partAt, answerOf, keyed, covers, waitsOn }, check) {
+// kept where it was while its page shows nowhere, and up until it is withdrawn.
+function dialogChecks({ createDialogs, partsOf, partAt, answerOf, keyed, covers }, check) {
     const dialogs = createDialogs();
     const content = { x: 0, y: 28, width: 400, height: 300 };
     const asked = (ask, kind = 'confirm') => ({ ask, kind, message: 'Sure?', value: '', from: 'A' });
@@ -2818,62 +2817,6 @@ function dialogChecks({ createDialogs, partsOf, partAt, answerOf, keyed, covers,
         "a content's dialog covers every page laid over it, a laid page's the page that asked it alone",
         covered.join() === 'true,true,false',
         covered
-    );
-
-    const option = (label, group = null, more = {}) => ({ label, group, disabled: false, selected: false, ...more });
-    const options = [
-        option('Apple', null, { selected: true }),
-        option('Orange', 'Citrus'),
-        option('Lime', 'Citrus', { disabled: true }),
-        option('Pear'),
-    ];
-    const control = { x: 20, y: 100, width: 200, height: 30 };
-    const picker = dialogs.ask(
-        { ask: 20, kind: 'select', name: 'Fruit', options, rect: control, from: 'A' },
-        { window: 7, content, rect: { x: 10, y: 0, width: 300, height: 300 } }
-    );
-    const rows = partsOf(picker).rows;
-    check(
-        "a picker's list stands under its control, wide as the control, a row for each option and each group",
-        JSON.stringify(picker.rect) === JSON.stringify({ x: 30, y: 158, width: 200, height: 148 }) &&
-            picker.at === 0 &&
-            rows.map((row) => row.group ?? row.label).join() === 'Apple,Citrus,Orange,Lime,Pear' &&
-            rows[2].grouped &&
-            !rows[4].grouped &&
-            rows[2].rect.y === 158 + 4 + 2 * 28,
-        { rect: picker.rect, rows }
-    );
-    const low = dialogs.ask(
-        { ask: 21, kind: 'select', name: 'Fruit', options, rect: { ...control, y: 250 }, from: 'A' },
-        { window: 7, content }
-    );
-    check(
-        'a list that would pass the bottom of what shows its page is raised to end there',
-        low.rect.y + low.rect.height === content.y + content.height,
-        low.rect
-    );
-    const pressed = [2, 1, 3].map((row) => answerOf(picker, partAt(picker, middle(rows[row].rect))));
-    check(
-        'a press on an option picks its index, and one on a group or a disabled option nothing',
-        JSON.stringify(pressed) === JSON.stringify([{ value: 1 }, null, null]) &&
-            partAt(picker, middle(rows[2].rect)) === 'dialog-option-2',
-        pressed
-    );
-    const stepped = [dialogs.step(20, 'ArrowDown').at, dialogs.step(20, 'ArrowDown').at, dialogs.step(20, 'ArrowDown')];
-    const back = dialogs.step(20, 'ArrowUp').at;
-    check(
-        'the arrows move from option to option past one disabled, Return picks the one moved to, Escape puts it away',
-        stepped.join() === '1,3,' &&
-            back === 1 &&
-            JSON.stringify(answerOf(dialogs.of(20), keyed(dialogs.of(20), 'Enter'))) === '{"value":1}' &&
-            JSON.stringify(answerOf(picker, keyed(picker, 'Escape'))) === '{"value":null}' &&
-            dialogs.step(1, 'ArrowDown') === null,
-        { stepped, back }
-    );
-    check(
-        'a picker covers the page that asked it alone, which does not wait on it',
-        !covers(low, false) && covers(low, true) && !waitsOn(low) && waitsOn(whole),
-        ''
     );
 }
 

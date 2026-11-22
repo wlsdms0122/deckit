@@ -458,9 +458,8 @@ function boot(theme, channels) {
     }
 
     // The dialogs the pages of window `id` ask, in its dialog's surface, from the window's top left: a dim over each
-    // one's rect and its card with who asks, the message, a prompt's field, and the buttons, as the state lays them;
-    // a picker as a menu of the kit at its list. The field's text is the state's, and what the person types in it is
-    // told to main as it is typed.
+    // one's rect and its card with who asks, the message, a prompt's field, and the buttons, as the state lays them.
+    // The field's text is the state's, and what the person types in it is told to main as it is typed.
     function drawDialogs(id, { asks, cards }, dialogs, key) {
         const up = new Set(dialogs.map(({ ask }) => ask));
         for (const [ask, made] of cards) {
@@ -471,14 +470,8 @@ function boot(theme, channels) {
         const place = (node, { x, y, width, height }) =>
             Object.assign(node.style, { left: x + 'px', top: y + 'px', width: width + 'px', height: height + 'px' });
         for (const dialog of dialogs) {
-            const picks = dialog.kind === 'select';
-            if (!cards.has(dialog.ask))
-                cards.set(dialog.ask, (picks ? pickerOf : dialogOf)(id, asks.document, { ...dialog, key }));
+            if (!cards.has(dialog.ask)) cards.set(dialog.ask, dialogOf(id, asks.document, { ...dialog, key }));
             const made = cards.get(dialog.ask);
-            if (picks) {
-                drawPicker(asks.document, made, dialog, place);
-                continue;
-            }
             place(made.dim, dialog.rect);
             place(made.card, dialog.parts.card);
             place(made.from, dialog.parts.from);
@@ -538,44 +531,6 @@ function boot(theme, channels) {
         if (made.field && key) made.field.focus();
         made.nodes = nodes;
         return made;
-    }
-
-    // What is drawn of one picker of window `id` in `page`: its list tells main of the pointer as a dialog's buttons
-    // do, the part under it the option's row.
-    function pickerOf(id, page, { ask, name }) {
-        const list = element(page, 'div', 'deckit-menu');
-        list.setAttribute('role', 'listbox');
-        list.setAttribute('aria-label', name ?? '');
-        const under = ({ clientX, clientY }) =>
-            page.elementFromPoint(clientX, clientY)?.closest('[data-dialog-part]')?.dataset.dialogPart ?? 'dialog';
-        forward(id, list, under, { takes: true, ask });
-        page.body.append(list);
-        ui.motion.appear(list);
-        return { list, rows: '', nodes: [list] };
-    }
-
-    // The rows of `picker` drawn in its list anew where they changed: a group's label as a row that is not enabled,
-    // and each option, the one moved to marked active.
-    function drawPicker(page, made, picker, place) {
-        place(made.list, picker.parts.list);
-        const rows = JSON.stringify(picker.parts.rows);
-        if (rows === made.rows) return;
-        made.rows = rows;
-        made.list.replaceChildren(
-            ...picker.parts.rows.map((row) => {
-                const drawn = element(page, 'div', 'deckit-menu-row');
-                const label = element(page, 'span', 'deckit-menu-label');
-                label.textContent = row.group ?? row.label;
-                drawn.append(label);
-                if (row.group !== undefined || row.disabled) drawn.setAttribute('aria-disabled', 'true');
-                if (row.group !== undefined) return drawn;
-                drawn.setAttribute('role', 'option');
-                drawn.setAttribute('aria-selected', String(!!row.selected));
-                drawn.dataset.dialogPart = `dialog-option-${row.index + 1}`;
-                drawn.toggleAttribute('data-active', row.at);
-                return drawn;
-            })
-        );
     }
 
     // Each panel window's material at its frame, rounded by its `radius`, and the backdrop cut away under it.

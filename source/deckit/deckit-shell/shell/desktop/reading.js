@@ -22,16 +22,15 @@ const FRAME = 16;
 // What a seat reads of the desktop: the desktop itself, the seats, the Dock and the windows in the seat's order, from
 // what the desktop keeps; a window, the parts the shell draws of it and each document it shows as the environment
 // reads it; what is under one ref; what changed since a mark; and a picture. Refs: a window is `w<id>`, its parts
-// `w<id>.close`, `.minimize`, `.zoom`, `.bar`, `.edge.<name>`, its dialog's `.dialog.<part>` and its picker's
-// `.picker` and `.picker.<n>`, an item of the Dock
+// `w<id>.close`, `.minimize`, `.zoom`, `.bar`, `.edge.<name>` and its dialog's `.dialog.<part>`, an item of the Dock
 // `dock.<mod>`, and an element `<document>.<n>`, the same for every seat: `n` as the environment numbers the element,
 // and `<document>` a count the shell gives a document as a seat is first told of it, in the order it is listed,
 // whichever page answered first. A page that waits on its dialog runs nothing, so it is not read until it is
 // answered: its window reads the dialog's parts. The mark is one count for the desktop: it goes up as a line of the
-// desktop, or a part of a window's dialog or picker, reads otherwise for some seat, a pointer's place apart, and as a
-// document tells that what it shows changed. `READ` reads a page (environment: SHELL `read`), `OVERLAY` is the
-// pages' overlays, `web` what the web engine answered, `deckit` what connect answered, and `desk` is what the desktop
-// keeps and answers of itself.
+// desktop, or a part of a window's dialog, reads otherwise for some seat, a pointer's place apart, and as a document
+// tells that what it shows changed. `READ` reads a page (environment: SHELL
+// `read`), `OVERLAY` is the pages' overlays, `web` what the web engine answered, `deckit` what connect answered,
+// and `desk` is what the desktop keeps and answers of itself.
 export function createReading({ READ, OVERLAY, web, deckit, desk }) {
     // MARK: - Property
     // a document's number as the environment has it -> { page, born, first, pairs }: the mark and the reader's count
@@ -379,9 +378,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
             ...(menu?.entries ?? []).map((entry) => [entry.ref, TEXT.entryLine(entry)]),
             ...[...windows, ...panels].flatMap((window) => [
                 [window.id, TEXT.windowLine(window)],
-                ...[...dialogPartsOf(idOf(window.id)), ...pickerPartsOf(idOf(window.id))]
-                    .filter(({ ref }) => ref)
-                    .map((part) => [part.ref, TEXT.elementLine(part)]),
+                ...dialogPartsOf(idOf(window.id)).map((part) => [part.ref, TEXT.elementLine(part)]),
             ]),
         ]);
     }
@@ -433,16 +430,14 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
     }
 
     // The parts of a normal window the shell draws that are listed: the buttons of its title bar, and its bar, the
-    // top of its frame, named by its title: a press there brings the window forward and a drag from there moves it;
-    // then its dialog's parts and its picker's. `depth` counts the levels under the window's own, from 0, and `rect`
-    // is on the desktop.
+    // top of its frame, named by its title: a press there brings the window forward and a drag from there moves it.
+    // `rect` is on the desktop.
     function partsOf(id) {
         const window = desk.windows.get(id);
         if (!window) return [];
         const frame = desk.MANAGER.frameOf(id);
         const { bar } = window;
         const buttons = LAYOUT.buttonsOf(bar).map(({ name, x, y, width, height }) => ({
-            depth: 0,
             role: 'button',
             name: BUTTONS[name],
             states: bar.enabled[name] ? [] : ['disabled'],
@@ -451,54 +446,26 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
         }));
         const rect = { x: frame.x, y: frame.y, width: frame.width, height: bar.height };
         const name = window.title ? { name: window.title } : {};
-        const titled =
-            bar.height > 0 ? [{ depth: 0, role: 'titlebar', ...name, states: [], ref: `w${id}.bar`, rect }] : [];
-        return [...buttons, ...titled, ...dialogPartsOf(id), ...pickerPartsOf(id)];
+        const titled = bar.height > 0 ? [{ role: 'titlebar', ...name, states: [], ref: `w${id}.bar`, rect }] : [];
+        return [...buttons, ...titled, ...dialogPartsOf(id)];
     }
 
     // The parts of the dialog up last in the normal window `id`: who asks and the message as text, a prompt's field
     // with its text, and the buttons left to right, each `w<id>.dialog.<part>`, `rect` on the desktop.
     function dialogPartsOf(id) {
-        const dialog = desk.windows.has(id) && desk.dialogsIn(id).filter(DIALOG.waitsOn).at(-1);
+        const dialog = desk.windows.has(id) && desk.dialogsIn(id).at(-1);
         if (!dialog) return [];
         const frame = desk.MANAGER.frameOf(id);
         const { from, message, field, buttons } = DIALOG.partsOf(dialog);
         const part = (role, name, states, rect, at) => {
             const on = { x: frame.x + rect.x, y: frame.y + rect.y, width: rect.width, height: rect.height };
-            return { depth: 0, role, ...(name === null ? {} : { name }), states, ref: `w${id}.dialog.${at}`, rect: on };
+            return { role, ...(name === null ? {} : { name }), states, ref: `w${id}.dialog.${at}`, rect: on };
         };
         return [
             part('text', String(dialog.from), [], from, 'from'),
             part('text', String(dialog.message), [], message, 'message'),
             ...(field ? [part('textbox', null, [valueOf(dialog.value)], field, 'field')] : []),
             ...buttons.map(({ name, label, rect }) => part('button', label, [], rect, name)),
-        ];
-    }
-
-    // The picker opened last in the normal window `id`: its listbox `w<id>.picker`, named by its control, and under it
-    // each of its options in order, `w<id>.picker.<n>` from 1, an option of a group under the group's line, which has
-    // no ref; `rect` on the desktop.
-    function pickerPartsOf(id) {
-        const picker = desk.windows.has(id) && desk.dialogsIn(id).findLast((one) => !DIALOG.waitsOn(one));
-        if (!picker) return [];
-        const frame = desk.MANAGER.frameOf(id);
-        const on = ({ x, y, width, height }) => ({ x: frame.x + x, y: frame.y + y, width, height });
-        const { list, rows } = DIALOG.partsOf(picker);
-        const ref = `w${id}.picker`;
-        return [
-            { depth: 0, role: 'listbox', name: picker.name, states: [], ref, rect: on(list) },
-            ...rows.map(({ rect, group, index, label, disabled, selected, grouped }) =>
-                group !== undefined
-                    ? { depth: 1, role: 'group', name: group, states: [], rect: on(rect) }
-                    : {
-                          depth: grouped ? 2 : 1,
-                          role: 'option',
-                          name: label,
-                          states: [disabled && 'disabled', selected && 'selected'].filter(Boolean),
-                          ref: `${ref}.${index + 1}`,
-                          rect: on(rect),
-                      }
-            ),
         ];
     }
 
@@ -530,7 +497,7 @@ export function createReading({ READ, OVERLAY, web, deckit, desk }) {
             return { line, rect: DOCK_MODEL.tileOf(desk.area(seat), items, mod), window: null, by };
         }
         const [, window, name, edge] =
-            /^w(\d+)\.(close|minimize|zoom|bar|dialog\.[a-z]+|picker(?:\.\d+)?|edge\.([a-z-]+))$/.exec(ref) ?? [];
+            /^w(\d+)\.(close|minimize|zoom|bar|dialog\.[a-z]+|edge\.([a-z-]+))$/.exec(ref) ?? [];
         const id = Number(window);
         if (window === undefined || !desk.windows.has(id)) return null;
         const { rect: listed = null, ...line } = partsOf(id).find((part) => part.ref === ref) ?? {};
