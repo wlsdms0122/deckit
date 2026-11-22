@@ -24,4 +24,4 @@ keystroke = { code = "ArrowUp", control = true, alt = true }
 look = "windows"
 
 [step.expect]
-answers = [{ mod = "mod-a", name = "x", level = "normal", frame = { x = 307, y = 131, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "main", level = "normal", frame = { x = 6, y = 0, width = 1274, height = 800 }, key = true, minimized = false }]
+answers = [{ mod = "mod-a", name = "x", level = "normal", frame = { x = 304, y = 133, width = 720, height = 480 }, key = false, minimized = false }, { mod = "mod-a", name = "main", level = "normal", frame = { x = 8, y = 8, width = 1264, height = 784 }, key = true, minimized = false }]
