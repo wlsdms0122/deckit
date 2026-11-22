@@ -878,12 +878,13 @@ export function createDesktop({
         return { ...pointed(seat, hand, event), at: { x: event.x, y: event.y } };
     }
 
-    // The route of a screen event: the size of the seat's screen, and so of its camera, which it answers. The local
-    // seat's screen is the host window, which no event sizes.
+    // The route of a screen event: the size of the seat's screen, and so of its camera, which it answers, the windows
+    // tiled or zoomed in it taking their tiles again. The local seat's screen is the host window, which no event sizes.
     function sizing(seat, hand, { type, width, height }) {
         if (type !== 'resize' || !CAMERA.isScreen({ width, height }))
             throw refusal('INVALID_ARGUMENT', "a screen's resize is a width and a height of 1 or more");
         if (seat !== LOCAL) hand.screenSize = { width, height };
+        retaken();
         update();
         return cameraOf(seat);
     }
@@ -1843,12 +1844,19 @@ export function createDesktop({
         return panelsOf(seat).find(({ window }) => window.id === id)?.frame ?? null;
     }
 
-    // The host window changed size, and so the local seat's camera: every frame stays where it is, a tiled or zoomed
-    // window too, and what is laid is drawn at once.
+    // The host window changed size, and so the local seat's camera and that of each seat that told no screen: every
+    // frame stays where it is but a tiled or zoomed window's, which takes its tile again, and what is laid is drawn
+    // at once.
     function resized() {
+        retaken();
         atOnce = true;
         update();
         atOnce = false;
+    }
+
+    // Each window tiled or zoomed in a seat's camera takes its tile, or the tile area, of that camera as it stands.
+    function retaken() {
+        for (const seat of hands.keys()) MANAGER.retake(seat, LAYOUT.tiledIn(area(seat)));
     }
 
     // The name of the key window's mod, or the app's while there is none.

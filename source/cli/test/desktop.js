@@ -5,19 +5,19 @@
 // mod its input reaches and those asked along the chain, until its next input, and the mods that ask for its attention;
 // and where windows go (model/layout): a new one cascaded from the key window or centred, a restored one kept
 // reachable, a resize held to the minimum, a drag kept under the host's strip as it goes, placement in the desktop but
-// the Dock's sliver and zoom in the desktop but a side's reach, and the frame's parts; a seat's camera (model/camera): where it opens, its size, a pan, the points it
-// reaches, the move to a window made key and what is laid on its screen; and the desktop (desktop/main) over stand-ins for what connect answers, the
-// shell's pages and a stage: the pages laid in the local seat's order, no window key at start, the keyboard and the
-// host's title following its key window, a window brought forward in front and key, the host window coming up, only by
-// a mod that may activate, and right behind the key window, its mod asking for attention, by one that may not, a window
-// ordered front or opened without taking the keyboard, the shell's keys, a frame restored and remembered by the
-// window's name, a mod's windows brought in front for a seat from the Dock, the Dock's pointer room, a zoomed window
-// and any other keeping its frame as the host window changes size, and a titled window's content under the
-// title bar the shell draws, its title told and its drag, and the panel windows in the host's bar: placed right to left
-// in the order they opened, laid over the desktop's page, told no title bar, never key, pressed with the key window
-// left key, whatever edge it names; and the anchors a window's mod tells, with the panel
-// windows that stand under them. Exits 1 with a line for each check that failed. The packages are ES modules, so they
-// are imported as such.
+// the Dock's sliver and zoom in the desktop but a side's reach, and the frame's parts; a seat's camera (model/camera):
+// where it opens, its size, a pan, the points it reaches, the move to a window made key and what is laid on its screen;
+// and the desktop (desktop/main) over stand-ins for what connect answers, the shell's pages and a stage: the pages laid
+// in the local seat's order, no window key at start, the keyboard and the host's title following its key window, a
+// window brought forward in front and key, the host window coming up, only by a mod that may activate, and right behind
+// the key window, its mod asking for attention, by one that may not, a window ordered front or opened without taking
+// the keyboard, the shell's keys, a frame restored and remembered by the window's name, a mod's windows brought in
+// front for a seat from the Dock, the Dock's pointer room, a zoomed window taking the tile area again and any other
+// keeping its frame as the host window changes size, and a titled window's content under the title bar the shell draws,
+// its title told and its drag, and the panel windows in the host's bar: placed right to left in the order they opened,
+// laid over the desktop's page, told no title bar, never key, pressed with the key window left key, whatever edge it
+// names; and the anchors a window's mod tells, with the panel windows that stand under them. Exits 1 with a line for
+// each check that failed. The packages are ES modules, so they are imported as such.
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -770,20 +770,19 @@ async function main() {
     check("the desktop's page telling no material takes them off", materials().length === 0, materials());
 
     desk.desktop.zoom(two);
-    const zoomedFrame = desk.frameOf(2);
     desk.resize({ width: 1400, height: 900 });
     check(
-        "a zoomed window keeps its frame as the host window, the local seat's camera, changes size",
-        JSON.stringify(desk.frameOf(2)) === JSON.stringify(zoomedFrame),
+        "a zoomed window takes the tile area again as the host window, the local seat's camera, changes size",
+        JSON.stringify(desk.frameOf(2)) === JSON.stringify({ x: 8, y: 36, width: 1384, height: 856 }),
         desk.frameOf(2)
     );
 
     desk.pageFrames(3, { x: 1300, y: 600, width: 300, height: 200 });
     desk.resize({ width: 800, height: 500 });
     check(
-        'as the host window shrinks, a frame out of reach stays where it is, and a zoomed one too',
+        'as the host window shrinks, a frame out of reach stays where it is, and a zoomed one takes the tile area',
         JSON.stringify(desk.frameOf(3)) === JSON.stringify({ x: 1300, y: 600, width: 300, height: 200 }) &&
-            JSON.stringify(desk.frameOf(2)) === JSON.stringify(zoomedFrame),
+            JSON.stringify(desk.frameOf(2)) === JSON.stringify({ x: 8, y: 36, width: 784, height: 456 }),
         [desk.frameOf(3), desk.frameOf(2)]
     );
 
@@ -1708,6 +1707,27 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
             manager.tileNameOf(1) === 'top-right' &&
             same(manager.standardFrameOf(1), own),
         { tiled, filled, back: manager.frameOf(1), kept: manager.standardFrameOf(1) }
+    );
+    const wider = { ...area, width: 1395 };
+    const wideTiles = Object.fromEntries(LAYOUT.TILES.map((name) => [name, LAYOUT.tileOf(name, wider)]));
+    manager.addSeat('you');
+    manager.retake('you', wider);
+    const others = manager.frameOf(1);
+    manager.retake('me', wider);
+    const retaken = manager.frameOf(1);
+    manager.zoom('me', 1, area);
+    manager.retake('me', area);
+    const zoomedBack = manager.frameOf(1);
+    manager.zoom('me', 1, area);
+    check(
+        "a tiled window takes its tile again as the camera of the seat that tiled it changes size, not another's, " +
+            'zoomed takes the area again and its tile there, and keeps its frame before',
+        same(others, tiles['top-right']) &&
+            same(retaken, wideTiles['top-right']) &&
+            same(zoomedBack, area) &&
+            same(manager.frameOf(1), tiles['top-right']) &&
+            same(manager.standardFrameOf(1), own),
+        { others, retaken, zoomedBack, back: manager.frameOf(1), kept: manager.standardFrameOf(1) }
     );
     manager.untile('me', 1);
     check(
