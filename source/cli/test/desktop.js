@@ -473,13 +473,19 @@ async function main() {
     );
     const parts = LAYOUT.partsOf({ x: 100, y: 100, width: 300, height: 200 });
     const right = parts.edges.find(({ edge }) => edge === 'right').rect;
+    const holds = ({ x, y, width, height }, at) => at.x >= x && at.x < x + width && at.y >= y && at.y < y + height;
+    // 3 left of the top right corner's point and 6 above it: in the top side's reach and in the corner's square.
+    const corner = parts.edges.find(({ rect }) => holds(rect, { x: 345, y: 42 }));
     check(
-        "a frame's surface takes the window and its shadow, its edges outside the window, its buttons at its top left",
+        "a frame's surface takes the window and its shadow, its sides' reaches 8 outside the window, a corner's the " +
+            'square 24 about its point, which wins over a side, its buttons at its top left',
         parts.rect.x === 100 - LAYOUT.SHADOW &&
             parts.rect.width === 300 + 2 * LAYOUT.SHADOW &&
             parts.edges.length === 8 &&
             right.x === LAYOUT.SHADOW + 300 &&
-            right.width === LAYOUT.EDGE &&
+            right.width === 8 &&
+            corner?.edge === 'top-right' &&
+            corner.rect.width === 24 &&
             parts.buttons.x === 100 &&
             parts.buttons.width === 78,
         parts

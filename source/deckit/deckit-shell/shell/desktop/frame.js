@@ -13,8 +13,9 @@ import * as DECLARED from './protocol.js';
 
 // MARK: - Property
 // Each frame's surface is the window grown by its shadow: the window's material at its middle, the title bar of a
-// titled window at its top, the edges that resize it just outside it, as model/layout.js partsOf has them.
-const { SHADOW, EDGE, RADIUS, BUTTON } = LAYOUT;
+// titled window at its top, the reaches that resize it about its edges, as model/layout.js partsOf has them: the
+// corners drawn over the sides, so they win where they meet.
+const { SHADOW, REACH, CORNER, RADIUS, BUTTON } = LAYOUT;
 // How wide a seat's colour is drawn round the title bar of its key window, its cursor, and the ring at its press, px.
 const STROKE = 2;
 const CURSOR = MARKS.MARK;
@@ -104,15 +105,15 @@ const STYLE = `
     }
     .deckit-window-edge { position: fixed; }
     .deckit-window-edge[hidden] { display: none; }
-    .deckit-window-edge[data-edge='top'] { top: ${SHADOW - EDGE}px; left: ${SHADOW}px; right: ${SHADOW}px; height: ${EDGE}px; cursor: ns-resize; }
-    .deckit-window-edge[data-edge='bottom'] { bottom: ${SHADOW - EDGE}px; left: ${SHADOW}px; right: ${SHADOW}px; height: ${EDGE}px; cursor: ns-resize; }
-    .deckit-window-edge[data-edge='left'] { left: ${SHADOW - EDGE}px; top: ${SHADOW}px; bottom: ${SHADOW}px; width: ${EDGE}px; cursor: ew-resize; }
-    .deckit-window-edge[data-edge='right'] { right: ${SHADOW - EDGE}px; top: ${SHADOW}px; bottom: ${SHADOW}px; width: ${EDGE}px; cursor: ew-resize; }
-    .deckit-window-edge[data-edge^='top-'] { top: ${SHADOW - EDGE}px; }
-    .deckit-window-edge[data-edge^='bottom-'] { bottom: ${SHADOW - EDGE}px; }
-    .deckit-window-edge[data-edge$='-left'] { left: ${SHADOW - EDGE}px; }
-    .deckit-window-edge[data-edge$='-right'] { right: ${SHADOW - EDGE}px; }
-    .deckit-window-edge[data-edge*='-'] { width: ${EDGE}px; height: ${EDGE}px; }
+    .deckit-window-edge[data-edge='top'] { top: ${SHADOW - REACH}px; left: ${SHADOW}px; right: ${SHADOW}px; height: ${REACH}px; cursor: ns-resize; }
+    .deckit-window-edge[data-edge='bottom'] { bottom: ${SHADOW - REACH}px; left: ${SHADOW}px; right: ${SHADOW}px; height: ${REACH}px; cursor: ns-resize; }
+    .deckit-window-edge[data-edge='left'] { left: ${SHADOW - REACH}px; top: ${SHADOW}px; bottom: ${SHADOW}px; width: ${REACH}px; cursor: ew-resize; }
+    .deckit-window-edge[data-edge='right'] { right: ${SHADOW - REACH}px; top: ${SHADOW}px; bottom: ${SHADOW}px; width: ${REACH}px; cursor: ew-resize; }
+    .deckit-window-edge[data-edge^='top-'] { top: ${SHADOW - CORNER / 2}px; }
+    .deckit-window-edge[data-edge^='bottom-'] { bottom: ${SHADOW - CORNER / 2}px; }
+    .deckit-window-edge[data-edge$='-left'] { left: ${SHADOW - CORNER / 2}px; }
+    .deckit-window-edge[data-edge$='-right'] { right: ${SHADOW - CORNER / 2}px; }
+    .deckit-window-edge[data-edge*='-'] { width: ${CORNER}px; height: ${CORNER}px; }
     .deckit-window-edge[data-edge='top-left'], .deckit-window-edge[data-edge='bottom-right'] { cursor: nwse-resize; }
     .deckit-window-edge[data-edge='top-right'], .deckit-window-edge[data-edge='bottom-left'] { cursor: nesw-resize; }
     .deckit-window-button {

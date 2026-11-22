@@ -2,10 +2,9 @@ import * as DOCK from '../../dock/model/dock.js';
 
 // MARK: - Property
 // A window's frame: the margin its shadow takes around it, as far as the key window's shadow reaches below it, the
-// band outside its edge that resizes it, the rounding of its corners, and its title bar's height where its mod gives
-// none, the kit's title bar's, a 32 control with 8 above and below.
+// rounding of its corners, and its title bar's height where its mod gives none, the kit's title bar's, a 32 control
+// with 8 above and below.
 const SHADOW = 48;
-const EDGE = 6;
 const RADIUS = 16;
 const TITLE_BAR = Object.freeze({ height: 48 });
 // The buttons in the title bar: close, minimize and zoom, their size and the room between them; the group's width; how
@@ -34,8 +33,10 @@ const DROP = Object.freeze({ edge: 8, corner: KEPT });
 // How near an edge of a window the hand moves or resizes comes to an edge it can meet before it lands there: as far as
 // a hand aiming at a line falls short or long of it, so it never holds a side the hand pulls on past that.
 const SNAP = 8;
-// How far out from a side of a window a press holds that side: a side's reach.
+// How far out from a side of a window a press holds that side, a side's reach, and how wide the square about a
+// corner's point is that holds the corner.
 const REACH = 8;
+const CORNER = 24;
 
 // MARK: - Initializer
 // MARK: - Public
@@ -173,8 +174,10 @@ function resized(from, edge, dx, dy, minimum) {
 }
 
 // The parts of a window's frame at `frame` with the title bar `bar`: `rect`, the frame's own surface, grown by its
-// shadow; `window`, the window in that surface; `edges`, the bands that resize it, each `{ edge, rect }` in the
-// surface; and `buttons`, the room of the title bar's buttons, on the desktop, the bar up to its area.
+// shadow; `window`, the window in that surface; `edges`, the reaches that resize it, each `{ edge, rect }` in the
+// surface, the corners' first, as they win where they meet a side's, a corner's square partly in the window, where
+// the content, laid over the frame, takes a press first; and `buttons`, the room of the title bar's buttons, on the
+// desktop, the bar up to its area.
 function partsOf(frame, bar = DEFAULT_BAR) {
     const rect = {
         x: frame.x - SHADOW,
@@ -183,18 +186,19 @@ function partsOf(frame, bar = DEFAULT_BAR) {
         height: frame.height + 2 * SHADOW,
     };
     const window = { x: SHADOW, y: SHADOW, width: frame.width, height: frame.height };
-    const outer = SHADOW - EDGE;
+    const outer = SHADOW - REACH;
     const band = (edge, x, y, width, height) => ({ edge, rect: { x, y, width, height } });
+    const square = (edge, x, y) => band(edge, x - CORNER / 2, y - CORNER / 2, CORNER, CORNER);
     const far = { x: SHADOW + frame.width, y: SHADOW + frame.height };
     const edges = [
-        band('top', SHADOW, outer, frame.width, EDGE),
-        band('bottom', SHADOW, far.y, frame.width, EDGE),
-        band('left', outer, SHADOW, EDGE, frame.height),
-        band('right', far.x, SHADOW, EDGE, frame.height),
-        band('top-left', outer, outer, EDGE, EDGE),
-        band('top-right', far.x, outer, EDGE, EDGE),
-        band('bottom-left', outer, far.y, EDGE, EDGE),
-        band('bottom-right', far.x, far.y, EDGE, EDGE),
+        square('top-left', SHADOW, SHADOW),
+        square('top-right', far.x, SHADOW),
+        square('bottom-left', SHADOW, far.y),
+        square('bottom-right', far.x, far.y),
+        band('top', SHADOW, outer, frame.width, REACH),
+        band('bottom', SHADOW, far.y, frame.width, REACH),
+        band('left', outer, SHADOW, REACH, frame.height),
+        band('right', far.x, SHADOW, REACH, frame.height),
     ];
     const buttons = { x: frame.x, y: frame.y, width: bar.areaX, height: bar.height };
     return { rect, window, edges, buttons };
@@ -308,7 +312,6 @@ function rounded({ x, y, width, height }) {
 
 export {
     SHADOW,
-    EDGE,
     RADIUS,
     TITLE_BAR,
     BUTTONS,
@@ -320,6 +323,7 @@ export {
     DROP,
     SNAP,
     REACH,
+    CORNER,
     barOf,
     buttonsOf,
     guideOf,
