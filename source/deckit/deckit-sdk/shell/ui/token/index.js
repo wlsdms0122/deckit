@@ -144,6 +144,9 @@ const TYPE = Object.freeze({
 // The sizes in px an app icon is drawn at, one per role: in a menu, a bar or a sidebar heading; in a row; leading the
 // top match or a mod's own head; in the Dock; in a launcher's grid.
 const APP_ICON = Object.freeze({ small: 16, row: 20, lead: 32, dock: 40, grid: 56 });
+// A floating surface over the desktop (the Dock, the status bar's capsule): how far in px it stands from the edge of the
+// camera nearest it.
+const FLOAT = Object.freeze({ margin: 8 });
 // A neutral grey over any background, light or dark.
 const WASH = (amount) => `rgba(128,128,128,${amount})`;
 // The quieter inks: how much of `text` over `background` each is, and the least contrast it keeps on glass.
@@ -234,6 +237,7 @@ function tokenOf(theme, fonts = {}) {
         },
         radius: { small: 4, control: 6, medium: 8, large: 10, card: 12, round: 999 },
         appIcon: { ...APP_ICON },
+        float: { ...FLOAT },
         rim: rimOf(look.rim),
         shadow: {
             lifted: '0 8px 22px rgba(0,0,0,.28), 0 1px 3px rgba(0,0,0,.2)',
@@ -276,6 +280,10 @@ function propertiesOf(token) {
         ...prefixed(
             'app-icon-',
             mapped(token.appIcon, (value) => value + 'px')
+        ),
+        ...prefixed(
+            'float-',
+            mapped(token.float, (value) => value + 'px')
         ),
         glass: look.glass * 100 + '%',
         blur: BLUR,
@@ -435,6 +443,7 @@ export {
     SPRING,
     MOTION,
     APP_ICON,
+    FLOAT,
     SEAT_COLOURS,
     tokenOf,
     propertiesOf,
