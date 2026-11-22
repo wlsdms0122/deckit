@@ -24,17 +24,17 @@ function modelChecks() {
     check(
         'the item is there while a seat sits beside the first, in the plain tone, and not for one seat alone',
         itemOf(one) === null &&
-            same(itemOf(two), { name: 'Seats', icon: 'users', command: 'show', label: '', count: 1, tone: 'plain' }),
+            same(itemOf(two), { name: 'Seats', icon: 'users', command: 'show', label: '', count: 2, tone: 'plain' }),
         [itemOf(one), itemOf(two)]
     );
     const long = { seats: [seat('1', 'Host'), seat('2', 'A'.repeat(30))] };
     check(
-        'its count is the seats beside the first, its label the seat greeted while it sits, cut to what a label holds',
+        'its count is every seat, its label the seat greeted while it sits, cut to what a label holds',
         itemOf(two, '2').label === 'Ada' &&
             itemOf(two, '9').label === '' &&
             itemOf(long, '2').label === 'A'.repeat(23) + '…' &&
             itemOf(long, '2').label.length === MODEL.LETTERS &&
-            itemOf({ seats: [...two.seats, seat('4', 'Grace')] }).count === 2,
+            itemOf({ seats: [...two.seats, seat('4', 'Grace')] }).count === 3,
         [itemOf(two, '2'), itemOf(long, '2')]
     );
     check(
@@ -210,10 +210,10 @@ async function modChecks() {
     timers.find(Boolean).run();
     check(
         'a seat that sits brings the item, labelled with its name for a few seconds, then with its count alone',
-        same(greeting, { name: 'Seats', icon: 'users', command: 'show', label: 'Ada', count: 1, tone: 'plain' }) &&
+        same(greeting, { name: 'Seats', icon: 'users', command: 'show', label: 'Ada', count: 2, tone: 'plain' }) &&
             same(waits, [MODEL.GREETS]) &&
             calls.set.at(-1).label === '' &&
-            calls.set.at(-1).count === 1,
+            calls.set.at(-1).count === 2,
         [greeting, waits, calls.set.at(-1)]
     );
     const run = heard.exports.connect().runCommand;

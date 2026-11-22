@@ -10,11 +10,11 @@ const LETTERS = 24;
 const VIEW = Object.freeze({ width: 280, padding: 6, gap: 2, row: 28 });
 
 // The item as it stands for `{ seats }`, or null for none: it is there while a seat sits beside the first. Its count
-// is the seats beside the first, and its label the name of the seat `greeted`, an id, while that seat sits.
+// is every seat, as many as the view's rows, and its label the name of the seat `greeted`, an id, while that seat sits.
 function itemOf({ seats }, greeted = null) {
     if (seats.length < 2) return null;
     const came = seats.find(({ id }) => id === greeted);
-    return { ...ITEM, label: came ? cut(came.name) : '', count: seats.length - 1, tone: 'plain' };
+    return { ...ITEM, label: came ? cut(came.name) : '', count: seats.length, tone: 'plain' };
 }
 
 // The id of the seat that sat since `before`, the last of those in `now` that were not there, or null.
