@@ -1,0 +1,56 @@
+case = 26
+name = "a-tiled-window-takes-its-tile-again-as-its-seat-s-screen-is-resized"
+note = "Each mod's code opens the windows the case says, each filled by a text field, and opens https://said.test/<name>/<event>/<what> outside the app for what the window's content hears: mousedown and mouseup with <button>/<detail>/<modifiers>, mousemove with <buttons>, wheel with <deltaX>/<deltaY>, keydown and keyup with <code>/<key>/<modifiers>/<repeat>, compositionstart and compositionupdate with the text composed, compositionend with <the text>/<the field's value>, and inserted with the text of each input event of the type insertText. The desktop is the base shell's, 1280 by 800, and each seat's camera is 1280 by 800 at 0,0 as it opens. mod-a opens main, the window 1 at 280, 109, 720 by 480, and ada sits at s1. It presses main, its key window, and presses Control-Option-Left, main taking the left half of its zoom area, then tells its screen 1000 by 600: main takes the left half again of the zoom area of that camera, { x = 8, y = 8, width = 984, height = 584 }, 8, 8, 492 by 584."
+
+[host]
+base = "shell"
+api = "1.0.0"
+ship = ["mod-a"]
+users = [{ id = "ada", name = "Ada Lovelace" }]
+keys = [{ principal = "ada", key = "first" }]
+
+[[step]]
+input = "start"
+
+[[step]]
+input = "attach"
+party = "p"
+principal = "ada"
+key = "first"
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "down", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "pointer", type = "up", x = 600, y = 300, button = 0, count = 1 }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "key", type = "down", code = "ArrowLeft", key = "ArrowLeft", modifiers = ["alt", "control"] }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "key", type = "up", code = "ArrowLeft", key = "ArrowLeft", modifiers = ["alt", "control"] }
+
+[[step]]
+input = "ask"
+party = "p"
+method = "seat/input"
+params = { event = "screen", type = "resize", width = 1000, height = 600 }
+
+[[step]]
+look = "windows"
+seat = "s1"
+
+[step.expect]
+answers = [{ mod = "mod-a", name = "main", level = "normal", frame = { x = 8, y = 8, width = 492, height = 584 }, key = true, minimized = false }]
