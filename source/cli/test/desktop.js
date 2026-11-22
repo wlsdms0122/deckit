@@ -4,8 +4,8 @@
 // the key window, and a frame no smaller than its minimum; which mods may activate for a seat (model/activation): the
 // mod its input reaches and those asked along the chain, until its next input, and the mods that ask for its attention;
 // and where windows go (model/layout): a new one cascaded from the key window or centred, a restored one kept
-// reachable, a resize held to the minimum, a drag kept under the host's strip as it goes, zoom to the desktop but the
-// Dock's sliver, and the frame's parts; a seat's camera (model/camera): where it opens, its size, a pan, the points it
+// reachable, a resize held to the minimum, a drag kept under the host's strip as it goes, placement in the desktop but
+// the Dock's sliver and zoom in the desktop but a side's reach, and the frame's parts; a seat's camera (model/camera): where it opens, its size, a pan, the points it
 // reaches, the move to a window made key and what is laid on its screen; and the desktop (desktop/main) over stand-ins for what connect answers, the
 // shell's pages and a stage: the pages laid in the local seat's order, no window key at start, the keyboard and the
 // host's title following its key window, a window brought forward in front and key, the host window coming up, only by
@@ -465,6 +465,12 @@ async function main() {
         LAYOUT.zoomedIn(desktop).x === DOCK.SLIVER && LAYOUT.zoomedIn(desktop).width === 1000 - DOCK.SLIVER,
         LAYOUT.zoomedIn(desktop)
     );
+    check(
+        "tiled or zoomed, a window leaves a side's reach along each side of the desktop",
+        JSON.stringify(LAYOUT.tiledIn({ x: 0, y: 28, width: 1000, height: 700 })) ===
+            JSON.stringify({ x: 8, y: 36, width: 984, height: 684 }),
+        LAYOUT.tiledIn({ x: 0, y: 28, width: 1000, height: 700 })
+    );
     const parts = LAYOUT.partsOf({ x: 100, y: 100, width: 300, height: 200 });
     const right = parts.edges.find(({ edge }) => edge === 'right').rect;
     check(
@@ -772,11 +778,11 @@ async function main() {
         desk.frameOf(2)
     );
 
-    desk.pageFrames(3, { x: 1300, y: 700, width: 300, height: 200 });
+    desk.pageFrames(3, { x: 1300, y: 600, width: 300, height: 200 });
     desk.resize({ width: 800, height: 500 });
     check(
         'as the host window shrinks, a frame out of reach stays where it is, and a zoomed one too',
-        JSON.stringify(desk.frameOf(3)) === JSON.stringify({ x: 1300, y: 700, width: 300, height: 200 }) &&
+        JSON.stringify(desk.frameOf(3)) === JSON.stringify({ x: 1300, y: 600, width: 300, height: 200 }) &&
             JSON.stringify(desk.frameOf(2)) === JSON.stringify(zoomedFrame),
         [desk.frameOf(3), desk.frameOf(2)]
     );
@@ -1617,8 +1623,8 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
     const area = { x: 6, y: 28, width: 1195, height: 773 };
     const tiles = Object.fromEntries(LAYOUT.TILES.map((name) => [name, LAYOUT.tileOf(name, area)]));
     check(
-        'the halves and the quarters split the zoom area flush, the left and top taking half rounded, the rest the ' +
-            'other, and the whole tile is the zoom area',
+        'the halves and the quarters split the tile area flush, the left and top taking half rounded, the rest the ' +
+            'other, and the whole tile is the tile area',
         same(tiles.left, { x: 6, y: 28, width: 598, height: 773 }) &&
             same(tiles.right, { x: 604, y: 28, width: 597, height: 773 }) &&
             same(tiles['top-left'], { x: 6, y: 28, width: 598, height: 387 }) &&
@@ -1641,7 +1647,7 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
     ];
     const dropped = drops.map(([point]) => LAYOUT.dropAt(point, area));
     check(
-        "a drag let go with the pointer at the zoom area's left or right side, or past it, takes that half, at a " +
+        "a drag let go with the pointer at the tile area's left or right side, or past it, takes that half, at a " +
             'corner along it that quarter, at its top the whole of it, and anywhere else none',
         drops.every(([, tile], at) => dropped[at] === tile),
         dropped
@@ -1661,7 +1667,7 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
     const edge = LAYOUT.snapped({ x: 10, y: 33, width: 200, height: 100 }, all, [], area);
     const apart = LAYOUT.snapped({ x: 95, y: 600, width: 300, height: 100 }, all, [other], area);
     check(
-        "a window lines up with the side alike of one it meets across a gap, lands on the zoom area's edges, and " +
+        "a window lines up with the side alike of one it meets across a gap, lands on the tile area's edges, and " +
             'meets no window it is not beside',
         same(aligned, { x: 400, y: 400, width: 200, height: 100 }) &&
             same(edge, { x: 6, y: 28, width: 200, height: 100 }) &&
@@ -1694,7 +1700,7 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
     const filled = manager.frameOf(1);
     manager.zoom('me', 1, area);
     check(
-        'a tiled window is not zoomed, keeps the frame it had before its first tile, fills the zoom area as it ' +
+        'a tiled window is not zoomed, keeps the frame it had before its first tile, fills the tile area as it ' +
             'zooms and goes back to its tile zoomed again',
         same(tiled, tiles['top-right']) &&
             same(filled, area) &&
@@ -1819,7 +1825,7 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
     );
     const before = listed();
     desk.press('tileLeft', one.surface);
-    const zone = LAYOUT.zoomedIn(LAYOUT.desktopOf({ width: 1200, height: 800 }, 0));
+    const zone = LAYOUT.tiledIn(LAYOUT.desktopOf({ width: 1200, height: 800 }, 0));
     const leftTile = LAYOUT.tileOf('left', zone);
     const midway = () => desk.frameOf(1);
     run(40);
@@ -1860,7 +1866,7 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
     desk.pagePointer(1, 'bar', 'move', { x: zone.x - pointer - 30, y: 300 });
     desk.pagePointer(1, 'bar', 'up', { x: zone.x - pointer - 30, y: 300 });
     check(
-        "a window dragged with the pointer at the zoom area's left side shows the half it takes there, none away " +
+        "a window dragged with the pointer at the tile area's left side shows the half it takes there, none away " +
             'from it, and takes it as it is let go',
         same(shown, { tile: 'left', frame: leftTile }) &&
             hidden === null &&

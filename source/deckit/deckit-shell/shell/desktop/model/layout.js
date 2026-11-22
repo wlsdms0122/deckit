@@ -26,14 +26,16 @@ const CASCADE = 24;
 const KEPT = 64;
 // Where panel windows stand in the host's bar: in from its right end, and apart.
 const PANEL = Object.freeze({ margin: 8, gap: 8 });
-// The tiles a window takes in the zoom area: its halves, its quarters and the whole of it, which split it flush.
+// The tiles a window takes in the tile area: its halves, its quarters and the whole of it, which split it flush.
 const TILES = Object.freeze(['left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right', 'fill']);
-// Where a window dragged by its title bar is let go to take a tile: the pointer this near a side of the zoom area or
-// past it, the Dock's sliver and a hand's slack, and a corner as far along a side as a title bar may be kept across.
+// Where a window dragged by its title bar is let go to take a tile: the pointer this near a side of the tile area or
+// past it, a hand's slack, and a corner as far along a side as a title bar may be kept across.
 const DROP = Object.freeze({ edge: 8, corner: KEPT });
 // How near an edge of a window the hand moves or resizes comes to an edge it can meet before it lands there: as far as
 // a hand aiming at a line falls short or long of it, so it never holds a side the hand pulls on past that.
 const SNAP = 8;
+// How far out from a side of a window a press holds that side: a side's reach.
+const REACH = 8;
 
 // MARK: - Initializer
 // MARK: - Public
@@ -43,9 +45,20 @@ function desktopOf({ x = 0, y = 0, width, height }, strip) {
     return { x, y: y + strip, width, height: Math.max(0, height - strip) };
 }
 
-// Where a zoomed window goes: the desktop but the Dock's sliver.
+// Where a window is placed and brought into reach: the desktop but the Dock's sliver.
 function zoomedIn(desktop) {
     return { ...desktop, x: desktop.x + DOCK.SLIVER, width: Math.max(0, desktop.width - DOCK.SLIVER) };
+}
+
+// Where a zoomed window goes and what its tiles split: the desktop but a side's reach along each of its sides, so every
+// edge of a window there can be held; the Dock's sliver lies in that margin.
+function tiledIn(desktop) {
+    return {
+        x: desktop.x + REACH,
+        y: desktop.y + REACH,
+        width: Math.max(0, desktop.width - 2 * REACH),
+        height: Math.max(0, desktop.height - 2 * REACH),
+    };
 }
 
 // A window's title bar from what it opened with: `style` 'unified', the content under a transparent bar that is its
@@ -215,7 +228,7 @@ function titleBarOf(frame, bar = DEFAULT_BAR) {
     return { x: SHADOW, y: SHADOW, width: frame.width, height: bar.height };
 }
 
-// The frame of the tile `name`, one of TILES, in the zoom area `area`: the left half takes half its width rounded,
+// The frame of the tile `name`, one of TILES, in the tile area `area`: the left half takes half its width rounded,
 // the right half what is left, the top quarters half its height rounded and the bottom ones what is left.
 function tileOf(name, area) {
     if (name === 'fill') return rounded(area);
@@ -233,7 +246,7 @@ function tileOf(name, area) {
 }
 
 // The tile a window dragged by its title bar takes let go with the pointer at `point` on the stage, or null: a half
-// at the zoom area's left or right side, a quarter at its corner along that side, and the whole of it at its top.
+// at the tile area's left or right side, a quarter at its corner along that side, and the whole of it at its top.
 function dropAt({ x, y }, area) {
     const left = x <= area.x + DROP.edge;
     const right = x >= area.x + area.width - DROP.edge;
@@ -247,7 +260,7 @@ function dropAt({ x, y }, area) {
 }
 
 // The frame a hand moves or resizes with each of its `sides` that comes within SNAP of an edge it can meet landing on
-// the nearest: a side of the zoom area `area`, or a side of a window in `others` beside it, one across a gap no wider
+// the nearest: a side of the tile area `area`, or a side of a window in `others` beside it, one across a gap no wider
 // than SNAP, met by the side facing it or lined up with the side alike. A move names all four sides and moves the
 // frame whole; a resize moves the sides it names, never below `minimum`. Between the edges it follows as it is.
 function snapped(frame, sides, others, area, minimum = MINIMUM) {
@@ -306,11 +319,13 @@ export {
     TILES,
     DROP,
     SNAP,
+    REACH,
     barOf,
     buttonsOf,
     guideOf,
     desktopOf,
     zoomedIn,
+    tiledIn,
     minimumOf,
     placed,
     kept,

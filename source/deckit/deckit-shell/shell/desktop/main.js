@@ -437,15 +437,15 @@ export function createDesktop({
     }
 
     function zoom(seat, window) {
-        MANAGER.zoom(seat, window.id, LAYOUT.zoomedIn(area(seat)));
+        MANAGER.zoom(seat, window.id, LAYOUT.tiledIn(area(seat)));
         update();
     }
 
-    // In the tile `name` of the zoom area (LAYOUT.TILES), where the window is resizable: the frame it had before is
+    // In the tile `name` of the tile area (LAYOUT.TILES), where the window is resizable: the frame it had before is
     // kept for its return, and what the person left it at stays that frame.
     function tile(seat, window, name) {
         if (!window.bar.enabled.zoom || !windows.has(window.id)) return;
-        MANAGER.tile(seat, window.id, name, LAYOUT.tileOf(name, LAYOUT.zoomedIn(area(seat))));
+        MANAGER.tile(seat, window.id, name, LAYOUT.tileOf(name, LAYOUT.tiledIn(area(seat))));
         update();
     }
 
@@ -478,7 +478,7 @@ export function createDesktop({
     // `{ x, y }` where it pressed in the frame, the middle of its title bar where it is not told: the window follows,
     // its edges landing on those it comes within LAYOUT.SNAP of, never over the host's bar, and is left where its
     // title bar can be reached. A tiled one leaves its tile as it starts to move, at the frame it had before, the
-    // pointer held where it grabbed it across the title bar. With the pointer at a side of the zoom area, the tile it
+    // pointer held where it grabbed it across the title bar. With the pointer at a side of the tile area, the tile it
     // takes there is shown, and the window takes it as it is let go.
     function move(seat, window, phase, dx, dy, grab = null) {
         const hand = hands.get(seat);
@@ -502,14 +502,14 @@ export function createDesktop({
             moving.pointer = { x: from.x + at.x + dx, y: from.y + at.y + dy };
             MANAGER.untile(seat, window.id, moving.from);
         }
-        const zoomArea = LAYOUT.zoomedIn(area(seat));
+        const tileArea = LAYOUT.tiledIn(area(seat));
         const others = MANAGER.viewOf(seat)
             .filter(({ id }) => id !== window.id)
             .map(({ frame }) => frame);
         const goes = { ...moving.from, x: moving.from.x + dx, y: moving.from.y + dy };
-        const snapped = LAYOUT.snapped(goes, ['top', 'bottom', 'left', 'right'], others, zoomArea);
+        const snapped = LAYOUT.snapped(goes, ['top', 'bottom', 'left', 'right'], others, tileArea);
         const frame = LAYOUT.underBar(snapped, area(seat), { moved: true });
-        const drop = window.bar.enabled.zoom ? LAYOUT.dropAt(moving.pointer, zoomArea) : null;
+        const drop = window.bar.enabled.zoom ? LAYOUT.dropAt(moving.pointer, tileArea) : null;
         handHeld.add(window.id);
         if (phase !== 'ended') {
             hand.dropping = drop;
@@ -517,7 +517,7 @@ export function createDesktop({
             return update();
         }
         endDrag(seat);
-        if (drop) MANAGER.tile(seat, window.id, drop, LAYOUT.tileOf(drop, zoomArea));
+        if (drop) MANAGER.tile(seat, window.id, drop, LAYOUT.tileOf(drop, tileArea));
         else MANAGER.setFrame(seat, window.id, LAYOUT.kept(frame, area(seat), window.bar.height));
         remember(window);
         update();
@@ -1545,7 +1545,7 @@ export function createDesktop({
         const minimum = LAYOUT.minimumOf(window.minimum, window.bar);
         const sides = edge ? edge.split('-') : [];
         const desktopNow = area(seat);
-        const met = sides.length ? LAYOUT.snapped(frame, sides, others, LAYOUT.zoomedIn(desktopNow), minimum) : frame;
+        const met = sides.length ? LAYOUT.snapped(frame, sides, others, LAYOUT.tiledIn(desktopNow), minimum) : frame;
         const next = LAYOUT.underBar(met, desktopNow, { moved: false });
         MANAGER.setFrame(seat, window.id, phase === 'ended' ? LAYOUT.kept(next, desktopNow, window.bar.height) : next);
         if (phase === 'ended') {
@@ -2329,7 +2329,7 @@ export function createDesktop({
                     : { id: seat, name: seated.get(seat)?.user.name ?? seat, colour: COLOURS.of(seat) },
             drop:
                 moving && dropping
-                    ? { tile: dropping, frame: onScreen(LAYOUT.tileOf(dropping, LAYOUT.zoomedIn(area(seat)))) }
+                    ? { tile: dropping, frame: onScreen(LAYOUT.tileOf(dropping, LAYOUT.tiledIn(area(seat)))) }
                     : null,
             strip,
             dock: {
