@@ -11,8 +11,9 @@ import { keyIn, storeOf } from './model/store.js';
 // cancel, and then a key it did not handle. `path` is the module's, `folder` the system's own, which keeps the key its
 // data stores are named by. `always` are scripts every document of every page starts with, beside its own, and
 // `posted(page, body)` is asked of what deckit's scripts post in a page's main frame before its delegate is: true for a
-// word that is its own, which the delegate is not told.
-export function createWebKit({ path, folder, LOG, containerOf, always = [], posted = null }) {
+// word that is its own, which the delegate is not told. `copied(text, source)` is told the text of each copy or cut key
+// put into a page with `source`.
+export function createWebKit({ path, folder, LOG, containerOf, always = [], posted = null, copied = null }) {
     // MARK: - Property
     // WebKit's code for a load another one replaced.
     const CANCELLED = -999;
@@ -150,6 +151,8 @@ export function createWebKit({ path, folder, LOG, containerOf, always = [], post
                     const { reply, ...pressed } = payload;
                     return void passOn(page, pressed, reply);
                 }
+                case 'clipboard':
+                    return void copied?.(payload.text, payload.source);
                 case 'message': {
                     const { body, ...frame } = payload;
                     if (frame.main && posted?.(page, body)) return false;
