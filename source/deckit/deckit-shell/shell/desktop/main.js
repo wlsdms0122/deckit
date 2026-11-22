@@ -142,7 +142,10 @@ export function createDesktop({
     const pressers = new Map(); // window id -> the seat that pressed it last, which what its content asks is done for
     const inWindows = new Map(); // a child's page -> the window or panel window whose region shows it, as last laid
     const fronts = new Map(); // a mod's page -> its front window or panel window, where its overlay lies, as last laid
-    const DIALOGS = DIALOG_MODEL.createDialogs(); // the dialogs the pages ask, where each stands in its window
+    // the dialogs the pages ask, where each stands in its window, and the day it is at the machine, yyyy-mm-dd
+    const DIALOGS = DIALOG_MODEL.createDialogs({
+        today: () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10),
+    });
     const asking = new Map(); // a dialog's ask -> the page that asked it, while it is up
     let answering = null; // `{ answer(ask, value), refuse(ask) }`, what deckit answered as the dialogs were served
     const onDesktop = new Map(); // a page laid in the host window's view -> its rect on the desktop, as last laid
@@ -1231,16 +1234,18 @@ export function createDesktop({
         update();
     }
 
-    // Dialog `ask` is answered as its part `part` says (DIALOG_MODEL partAt), pressed or keyed by any seat.
+    // Dialog `ask` is answered as its part `part` says (DIALOG_MODEL partAt), pressed or keyed by any seat, or a date
+    // picker turned to another month.
     function dialogPressed(ask, part) {
         const dialog = DIALOGS.of(ask);
         const answer = dialog && DIALOG_MODEL.answerOf(dialog, part);
         if (answer) answering.answer(ask, answer.value);
+        else if (DIALOGS.turn(ask, part)) update();
     }
 
     // A key or text of `seat`'s that goes to `page`, on the dialog asked last of those up in the window that holds its
     // keyboard that cover that page (DIALOG_MODEL covers): Return and Escape answer it, in a prompt text and
-    // Backspace edit its text, and in a picker the up and down arrows move from option to option. A page no dialog
+    // Backspace edit its text, and in a picker the arrows move from option to option. A page no dialog
     // covers takes it as ever. Answers whether a dialog took it.
     function dialogKeyed(seat, event, page) {
         const window = keyboardOf(seat);
