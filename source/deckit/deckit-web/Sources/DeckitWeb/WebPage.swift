@@ -43,10 +43,11 @@ final class WebPage: NSObject {
     // WebKit opens a menu of its own on a press whose `contextmenu` the page did not prevent, and on a press of the
     // main button or Space on a `select` that shows one option at a time, which only the machine's screen shows. Every
     // frame prevents those before any listener hears them, so none opens; the event tells each world only what that
-    // world's listeners did to it, and goes on to them as before. In deckit's world the `select` is focused and its
-    // picker asked of the page (`picker`): its options and its rect in the frame. The answer, an option's index or
-    // null, selects that option where it is not disabled nor selected already, and the page hears `input` then
-    // `change`, not trusted.
+    // world's listeners did to it, and goes on to them as before. An element is told by its tag, not its class: one
+    // made in another document, as a window's content is, keeps that document's. In deckit's world the `select` is
+    // focused and its picker asked of the page (`picker`): its options and its rect in the frame. The answer, an
+    // option's index or null, selects that option where it is not disabled nor selected already, and the page hears
+    // `input` then `change`, not trusted.
     private static func menuless(asks: Bool) -> String {
         """
         (() => {
@@ -61,7 +62,7 @@ final class WebPage: NSObject {
                 prevent.call(event);
             };
             const opens = ({ type, target, button, key }) =>
-                target instanceof HTMLSelectElement && !target.multiple && target.size <= 1 && !target.disabled &&
+                target.localName === 'select' && !target.multiple && target.size <= 1 && !target.disabled &&
                 (type === 'mousedown' ? button === 0 : key === ' ');
             const pick = async (select) => {
                 select.focus();
@@ -70,7 +71,7 @@ final class WebPage: NSObject {
                 const index = await webkit.messageHandlers.\(pickers).postMessage(JSON.stringify({
                     options: options.map((option) => ({
                         label: option.label,
-                        group: option.parentElement instanceof HTMLOptGroupElement ? option.parentElement.label : null,
+                        group: option.parentElement.localName === 'optgroup' ? option.parentElement.label : null,
                         disabled: option.matches(':disabled'),
                         selected: option.selected
                     })),
