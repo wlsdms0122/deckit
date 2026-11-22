@@ -73,19 +73,19 @@ export function createDesktop({
     // seat id -> what its hand holds: `moving`, `{ id, from, grab, pointer }`, the window a drag of its title bar or
     // its content's drag regions moves, from the frame it had at the press, `grab` where the press was in that frame,
     // and where the pointer is on the stage now; `dropping`, the tile that window takes let go now, or null; `pointer`,
-    // where its pointer is on the desktop, or null; `down`, where its press went until it lets go, a page of the window
-    // `id` with `inside`, the page's top left from that window's frame, or a `part` of the window `id` with its `grip`,
-    // the Dock's item `id`, its `part` 'dock', pressed at `from` and dragged once `drags`, or the entry `id` of an
-    // item's menu, its `part` 'dock-menu'; `dock`, whether the Dock is out for it, as the desktop's page tells of the
-    // seat it shows and as its pointer says of any other; `menu`, the id of the Dock's item whose menu is open for it,
-    // or null; and `keys`, `{ id, page }`, the page
-    // of the window `id` that took its last press there, where its keys and text go while that window holds its
-    // keyboard, or null for the window's content, the local seat's being the machine's; `buttons`, those of its
-    // pointer that are held now; `key`, its key window as update() last saw it; `waits`, a promise of the turn of
-    // its last event that is not done, or null; `acted`, when on the clock its pointer last did something while the
-    // page drew its cursor, or null; `rests`, whether the fold of its name is due; `camera`, the top left `{ x, y }` of
-    // its camera (cameraOf); `screenSize`, the size its screen told, or null; and `pressed`, the window its last press
-    // made key, which moves no camera. The view shown for it is SHOWING's.
+    // where its pointer is on the desktop, or null; `reach`, `{ id, edge }`, the side or corner of the window `id` in
+    // whose reach that pointer is (reaching), or null; `down`, where its press went until it lets go, a page of the
+    // window `id` with `inside`, the page's top left from that window's frame, or a `part` of the window `id` with its
+    // `grip`, the Dock's item `id`, its `part` 'dock', pressed at `from` and dragged once `drags`, or the entry `id` of
+    // an item's menu, its `part` 'dock-menu'; `dock`, whether the Dock is out for it, as the desktop's page tells of
+    // the seat it shows and as its pointer says of any other; `menu`, the id of the Dock's item whose menu is open for
+    // it, or null; and `keys`, `{ id, page }`, the page of the window `id` that took its last press there, where its
+    // keys and text go while that window holds its keyboard, or null for the window's content, the local seat's being
+    // the machine's; `buttons`, those of its pointer that are held now; `key`, its key window as update() last saw it;
+    // `waits`, a promise of the turn of its last event that is not done, or null; `acted`, when on the clock its
+    // pointer last did something while the page drew its cursor, or null; `rests`, whether the fold of its name is due;
+    // `camera`, the top left `{ x, y }` of its camera (cameraOf); `screenSize`, the size its screen told, or null; and
+    // `pressed`, the window its last press made key, which moves no camera. The view shown for it is SHOWING's.
     const hands = new Map();
     // `[{ page, seat }]`: each page whose one pointer a seat's move placed last (ROUTING.hovered).
     let pointers = [];
@@ -694,6 +694,7 @@ export function createDesktop({
             moving: null,
             dropping: null,
             pointer: null,
+            reach: null,
             down: null,
             dock: false,
             menu: null,
@@ -938,6 +939,7 @@ export function createDesktop({
     // that window, and a scroll on the backdrop, the desktop where nothing else takes the pointer, pans its camera.
     function arrived(seat, hand, event) {
         if (Number.isFinite(event.x)) hand.pointer = { x: event.x, y: event.y };
+        reaching(seat, hand);
         if (ROUTING.hovers(event, hand.buttons))
             pointers = ROUTING.hovered(pointers, seat, event.page && windowAt(event.page) ? event.page : null).placed;
         moved(seat, hand, event);
@@ -973,6 +975,7 @@ export function createDesktop({
         if (!['move', 'down', 'up', 'scroll'].includes(type) || ![point.x, point.y].every(Number.isFinite))
             throw refusal('INVALID_ARGUMENT', 'a pointer event is a move, down, up or scroll at a point');
         hand.pointer = point;
+        reaching(seat, hand);
         moved(seat, hand, event, how);
         const [sliver, card] = DOCK_MODEL.inputOf(area(seat), true, DOCK.items());
         const out = () => within(sliver, point) || (hand.dock && within(card, point)) || hand.menu !== null;
@@ -1027,6 +1030,19 @@ export function createDesktop({
         INPUT.put(hit.page, { ...event, x: hit.x, y: hit.y });
         reread(seat);
         return answer;
+    }
+
+    // The side or corner of a window whose reach the pointer of `seat` is in, as a press there takes it (partAt), kept
+    // as the hand's `reach`: the page is told anew as it changes, each window showing a handle at each reach a seat's
+    // pointer is in.
+    function reaching(seat, hand) {
+        const hit =
+            hand.pointer && CAMERA.reaches(cameraOf(seat), hand.pointer) && stage.hit(laidFor(seat), hand.pointer);
+        const part = hit ? partAt(hit, seat) : null;
+        const reach = LAYOUT.EDGES.includes(part?.part) ? { id: part.id, edge: part.part } : null;
+        if (reach?.id === hand.reach?.id && reach?.edge === hand.reach?.edge) return;
+        hand.reach = reach;
+        update();
     }
 
     // A scroll of `seat` on the desktop, where no window, the Dock, the bar or a view lies, moves its camera by its
@@ -2281,7 +2297,8 @@ export function createDesktop({
     // `{ windows, panels, seats, following, drop, strip, dock, down }`, as the desktop's page draws it, of the seat the
     // host window shows, each frame and point less the top left of the camera it shows (shownCamera). A window's frame
     // is key while the window holds that seat's keyboard: not while an overlay window or a view does, which update()
-    // tells as it takes or gives it back. Its `rings` are of every seat whose key window it is.
+    // tells as it takes or gives it back. Its `rings` are of every seat whose key window it is, and its `handles` the
+    // edges (LAYOUT.EDGES) in whose reach a seat's pointer is.
     function stateOfPage() {
         const seatScreen = shownScreen();
         const { seat, camera } = seatScreen;
@@ -2297,6 +2314,11 @@ export function createDesktop({
                 frame: onScreen(frame),
                 key: id === key && !away(seat),
                 rings: MANAGER.seatsOf(id).map((each) => COLOURS.of(each)),
+                handles: [
+                    ...new Set(
+                        [...hands.values()].filter(({ reach }) => reach?.id === id).map(({ reach }) => reach.edge)
+                    ),
+                ],
                 bar: windows.get(id).bar,
                 title: isTitled(windows.get(id)) ? windows.get(id).title : null,
                 dialogs: DIALOGS.inWindow(id).map((dialog) => ({

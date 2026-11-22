@@ -14,8 +14,12 @@ import * as DECLARED from './protocol.js';
 // MARK: - Property
 // Each frame's surface is the window grown by its shadow: the window's material at its middle, the title bar of a
 // titled window at its top, the reaches that resize it about its edges, as model/layout.js partsOf has them: the
-// corners drawn over the sides, so they win where they meet.
-const { SHADOW, REACH, CORNER, RADIUS, BUTTON } = LAYOUT;
+// corners drawn over the sides, so they win where they meet; and the handle at each, shown where a seat's pointer is
+// in its reach.
+const { SHADOW, REACH, CORNER, RADIUS, BUTTON, EDGES, HANDLE } = LAYOUT;
+// How far in from the surface's edge a handle's outer side stands, and the outer radius of a corner's arc.
+const HANDLE_OUT = SHADOW - HANDLE.gap - HANDLE.thickness;
+const ARC = RADIUS + HANDLE.gap + HANDLE.thickness;
 // How wide a seat's colour is drawn round the title bar of its key window, its cursor, and the ring at its press, px.
 const STROKE = 2;
 const CURSOR = MARKS.MARK;
@@ -116,6 +120,27 @@ const STYLE = `
     .deckit-window-edge[data-edge*='-'] { width: ${CORNER}px; height: ${CORNER}px; }
     .deckit-window-edge[data-edge='top-left'], .deckit-window-edge[data-edge='bottom-right'] { cursor: nwse-resize; }
     .deckit-window-edge[data-edge='top-right'], .deckit-window-edge[data-edge='bottom-left'] { cursor: nesw-resize; }
+    .deckit-window-handle {
+        position: fixed;
+        box-sizing: border-box;
+        border: 0 solid var(--deckit-glass-tertiary);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity var(--deckit-press) var(--deckit-press-curve);
+    }
+    .deckit-window-handle[data-shown] { opacity: 1; }
+    .deckit-window-handle:not([data-edge*='-']) { background: var(--deckit-glass-tertiary); border-radius: ${HANDLE.thickness / 2}px; }
+    .deckit-window-handle:is([data-edge='top'], [data-edge='bottom']) { left: calc(50% - ${HANDLE.length / 2}px); width: ${HANDLE.length}px; height: ${HANDLE.thickness}px; }
+    .deckit-window-handle:is([data-edge='left'], [data-edge='right']) { top: calc(50% - ${HANDLE.length / 2}px); width: ${HANDLE.thickness}px; height: ${HANDLE.length}px; }
+    .deckit-window-handle[data-edge^='top'] { top: ${HANDLE_OUT}px; }
+    .deckit-window-handle[data-edge^='bottom'] { bottom: ${HANDLE_OUT}px; }
+    .deckit-window-handle[data-edge$='left'] { left: ${HANDLE_OUT}px; }
+    .deckit-window-handle[data-edge$='right'] { right: ${HANDLE_OUT}px; }
+    .deckit-window-handle[data-edge*='-'] { width: ${ARC}px; height: ${ARC}px; }
+    .deckit-window-handle[data-edge='top-left'] { border-width: ${HANDLE.thickness}px 0 0 ${HANDLE.thickness}px; border-top-left-radius: ${ARC}px; }
+    .deckit-window-handle[data-edge='top-right'] { border-width: ${HANDLE.thickness}px ${HANDLE.thickness}px 0 0; border-top-right-radius: ${ARC}px; }
+    .deckit-window-handle[data-edge='bottom-left'] { border-width: 0 0 ${HANDLE.thickness}px ${HANDLE.thickness}px; border-bottom-left-radius: ${ARC}px; }
+    .deckit-window-handle[data-edge='bottom-right'] { border-width: 0 ${HANDLE.thickness}px ${HANDLE.thickness}px 0; border-bottom-right-radius: ${ARC}px; }
     .deckit-window-button {
         position: fixed;
         display: flex;
@@ -296,7 +321,6 @@ const TICK =
     '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
     'stroke-linejoin="round"><path d="M2.5 4.5l3.5 3.5 3.5-3.5"/></svg>';
 const SVG = 'http://www.w3.org/2000/svg';
-const EDGES = Object.freeze(['top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right']);
 
 // MARK: - Initializer
 // MARK: - Public
@@ -411,7 +435,7 @@ function boot(theme, channels) {
         }
         for (const window of state.windows) {
             if (!drawn.has(window.id)) drawn.set(window.id, frameOf(window.id));
-            const { material, rings, bar, text, buttons, edges } = drawn.get(window.id);
+            const { material, rings, bar, text, buttons, edges, handles } = drawn.get(window.id);
             const laid = window.bar;
             ringed(material, rings, window.rings, laid.height);
             material.toggleAttribute('data-key', window.key);
@@ -423,6 +447,8 @@ function boot(theme, channels) {
             text.textContent = window.title ?? '';
             drawDialogs(window.id, drawn.get(window.id), window.dialogs ?? [], window.key);
             for (const edge of edges) edge.hidden = !laid.enabled.zoom;
+            for (const handle of handles)
+                handle.toggleAttribute('data-shown', window.handles.includes(handle.dataset.edge));
             for (const { name, x, y } of LAYOUT.buttonsOf(laid)) {
                 const button = buttons.querySelector(`[data-button='${name}']`);
                 Object.assign(button.style, { left: x + 'px', top: y + 'px' });
@@ -892,7 +918,12 @@ function boot(theme, channels) {
             forward(id, band, () => edge, { takes: true });
             return band;
         });
-        frame.document.body.append(material, bar, ...edges);
+        const handles = EDGES.map((edge) => {
+            const handle = element(frame.document, 'div', 'deckit-window-handle');
+            handle.dataset.edge = edge;
+            return handle;
+        });
+        frame.document.body.append(material, bar, ...edges, ...handles);
 
         const held = surface(PAGE.buttonsOf(id));
         const buttons = element(held.document, 'div', 'deckit-window-buttons');
@@ -919,7 +950,18 @@ function boot(theme, channels) {
         held.document.body.append(buttons);
         const asks = surface(PAGE.dialogOf(id));
         const cards = new Map(); // a dialog's ask -> what is drawn of it
-        return { material, rings: [], bar, text, buttons, edges, asks, cards, off: [frame.off, held.off, asks.off] };
+        return {
+            material,
+            rings: [],
+            bar,
+            text,
+            buttons,
+            edges,
+            handles,
+            asks,
+            cards,
+            off: [frame.off, held.off, asks.off],
+        };
     }
 
     // What the pointer does on `node`, a part of the window `id`, told to main as it does it: its press there, and

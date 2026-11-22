@@ -1191,6 +1191,25 @@ function seatChecks({ LAYOUT, DOCK, createDesktop }, check) {
             localKey() === 3,
         JSON.stringify({ mine, yours, typed, puts: desk.puts })
     );
+    const reached = desk.desktop.control.windows().find((one) => one.id === 2).frame;
+    const hover = (seat, x, y) => desk.enter(seat, { event: 'pointer', type: 'move', x, y, buttons: [] });
+    const handlesOf = (id) =>
+        desk
+            .page()
+            .windows.find((one) => one.id === id)
+            ?.handles.join();
+    hover(you, reached.x + reached.width + 4, reached.y + 100);
+    hover(me, reached.x - 4, reached.y - 4);
+    const handlesBoth = handlesOf(2);
+    hover(you, 50, 750);
+    const handlesOne = handlesOf(2);
+    hover(me, 50, 750);
+    check(
+        "a window shows a handle at each side or corner in whose reach a seat's pointer is, whichever seat, and none " +
+            'once the pointers leave',
+        handlesBoth === 'top-left,right' && handlesOne === 'top-left' && handlesOf(2) === '',
+        { both: handlesBoth, one: handlesOne, none: handlesOf(2) }
+    );
     const pasted = desk.enter(you, { event: 'clipboard', type: 'paste', text: 'ab' });
     desk.copied('cd', you.source);
     desk.copied('ef', 'of-none');

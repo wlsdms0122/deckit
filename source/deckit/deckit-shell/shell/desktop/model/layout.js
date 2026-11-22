@@ -37,6 +37,12 @@ const SNAP = 8;
 // corner's point is that holds the corner.
 const REACH = 8;
 const CORNER = 24;
+// The sides and the corners a drag of which resizes a window, as partsOf names them.
+const EDGES = Object.freeze(['top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right']);
+// The handle a window shows at a side or a corner whose reach a pointer is in, drawn in its shadow's margin: at a side,
+// a capsule `length` long, `thickness` thick and `gap` out from the side; at a corner, an arc as thick, `gap` out from
+// the corner's rounding.
+const HANDLE = Object.freeze({ length: 40, thickness: 4, gap: 3 });
 
 // MARK: - Initializer
 // MARK: - Public
@@ -324,6 +330,8 @@ export {
     SNAP,
     REACH,
     CORNER,
+    EDGES,
+    HANDLE,
     barOf,
     buttonsOf,
     guideOf,
