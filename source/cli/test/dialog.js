@@ -3,7 +3,8 @@
 // no mod, for a page that is no mod's, and for a page with a dialog up; handed up with who asks, the site's origin of a
 // web page and the mod's name of any other; answered once by the first answer, of its kind; refused as asked; and
 // withdrawn and refused as its page closes, loads another document, or its process ends; and a page's picker, handed
-// up with what its kind holds and its rect, replied an option's index or a date, withdrawn as its page asks again.
+// up with what its kind holds and its rect, replied an option's index, a date or a colour, withdrawn as its page asks
+// again.
 // Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -184,6 +185,16 @@ async function main() {
     const undated = answer(content, { kind: 'date', ...control, rect });
     served.answer(asked[asked.length - 1].ask, 14);
     check('a date picker is replied a date alone', (await undated) === undefined, '');
+    const coloured = answer(content, { kind: 'color', name: 'Colour', value: '#010203', rect });
+    const colour = asked[asked.length - 1];
+    served.answer(colour.ask, '#a0b0c0');
+    const named = answer(content, { kind: 'color', name: 'Colour', value: '#010203', rect });
+    served.answer(asked[asked.length - 1].ask, 'red');
+    check(
+        'a colour picker is handed up with its value and replied a colour alone',
+        colour.value === '#010203' && (await coloured) === '#a0b0c0' && (await named) === undefined,
+        colour
+    );
     await tick();
 
     if (failed.length) {
