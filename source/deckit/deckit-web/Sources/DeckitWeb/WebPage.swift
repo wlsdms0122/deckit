@@ -49,7 +49,7 @@ final class WebPage: NSObject {
     // event tells each world only what that world's listeners did to it, and goes on to them as before. An element is
     // told by its tag, not its class: one made in another document, as a window's content is, keeps that document's.
     // In deckit's world each press or key held but `contextmenu` posts `unsupported`, for the alert shown in place of
-    // what it would open.
+    // what it would open. `showPicker()` of such an `input`, which opens its window whatever is prevented, throws.
     private static func menuless(posts: Bool) -> String {
         """
         (() => {
@@ -63,12 +63,17 @@ final class WebPage: NSObject {
                 });
                 prevent.call(event);
             };
+            const windowed = ['date', 'datetime-local', 'color'];
             const opens = ({ type, target, button, key }) =>
                 (type === 'keydown' ? key === ' ' :
                     button === 0 && type === (target.localName === 'select' ? 'mousedown' : 'click')) &&
                 (target.localName === 'select' ? !target.multiple && target.size <= 1 :
-                    target.localName === 'input' && !target.readOnly &&
-                    ['date', 'datetime-local', 'color'].includes(target.type));
+                    target.localName === 'input' && !target.readOnly && windowed.includes(target.type));
+            const { showPicker } = HTMLInputElement.prototype;
+            HTMLInputElement.prototype.showPicker = function () {
+                if (windowed.includes(this.type)) throw new DOMException('Not supported', 'NotSupportedError');
+                return showPicker.call(this);
+            };
             addEventListener('contextmenu', (event) => event.isTrusted && take(event), true);
             for (const type of ['mousedown', 'click', 'keydown']) {
                 addEventListener(type, (event) => {
