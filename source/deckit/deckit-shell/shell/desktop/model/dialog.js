@@ -22,8 +22,8 @@ const ESCAPED = Object.freeze({ confirm: 'cancel', prompt: 'cancel', leave: 'sta
 const LABELS = Object.freeze({ ok: 'OK', cancel: 'Cancel', leave: 'Leave', stay: 'Stay' });
 // The card, px: at most this wide, this far from the rect's sides and top, its padding, a line of text, the most
 // lines of the message, about how wide a character of it is, the field's height and a button's size and gap.
-const CARD = Object.freeze({ width: 320, margin: 16, padding: 16, line: 18, lines: 6, glyph: 7, field: 28 });
-const BUTTON = Object.freeze({ width: 76, height: 28, gap: 8 });
+const CARD = Object.freeze({ width: 320, margin: 16, padding: 16, line: 18, lines: 6, glyph: 7, field: 32 });
+const BUTTON = Object.freeze({ width: 76, height: 32, gap: 8 });
 
 // MARK: - Initializer
 // MARK: - Public
