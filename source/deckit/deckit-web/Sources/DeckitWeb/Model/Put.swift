@@ -13,6 +13,8 @@ enum Put {
     case pointer(Pointer)
     case key(Key)
     case text(Text)
+    // Plain text pasted from the seat's clipboard.
+    case paste(String)
 
     // The pointer moved to, pressed, let go or scrolled at `point`, from the page's top left: `button` the one
     // pressed or let go, `buttons` those held once it is, the seat's own as the page was put them where none is given,

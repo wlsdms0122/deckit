@@ -13,8 +13,9 @@ import CNodeAPI
 // A page on WebKit, laid on a stage, which tells JavaScript what becomes of it and asks it what to do: `emit(event,
 // payload)`. Told: `adopted` ({ id }) first, then `changed` (its state), `started`, `committed` ({ url }), `stopped`,
 // `failed` ({ code, description, url }), `gone`, `focus`, `close`, `mouse` ({ type }), `message` ({ body, origin, main,
-// evaluate, answer }), what deckit's own scripts post in a frame (received), and `external` ({ url, origin }), an
-// address of an app's the page asked to go to. Asked, answered at once: `navigate` ({ url }), "load" to let it; `open`
+// evaluate, answer }), what deckit's own scripts post in a frame (received), `external` ({ url, origin }), an address
+// of an app's the page asked to go to, and `clipboard` ({ text, source }), the text of a copy or cut key put for
+// `source` (copied). Asked, answered at once: `navigate` ({ url }), "load" to let it; `open`
 // ({ url, ownWindow, background, width, height, origin }), `{ listener, scripts }` for the page given for the window,
 // `listener` a function to hear it and `scripts` those its documents start with, as `run` takes them, or nothing for
 // none, each `origin` the frame's that asks (origin(of:)); `download` ({ url }), a function to hear the
@@ -35,6 +36,8 @@ final class WebPage: NSObject {
     private static let webSchemes: Set<String> = ["http", "https", "about", "data", "blob", "file", "javascript"]
     // WebKit's code for a load its navigation's policy turned into something else, a download.
     private static let interruptedByPolicy = (domain: "WebKitErrorDomain", code: 102)
+    // The options of a clipboard event a seat's copy, cut or paste makes, carrying the transfer `data`.
+    private static let clipboardEvent = "{ clipboardData: data, bubbles: true, cancelable: true, composed: true }"
     // WebKit opens a menu of its own on a press whose `contextmenu` the page did not prevent, which only the machine's
     // screen would show. Every frame prevents it before any listener hears it, so no press opens one; the event tells
     // each world only what that world's listeners did to it, and goes on to them as before.
@@ -202,14 +205,18 @@ final class WebPage: NSObject {
             let taken = try arguments.first.map { try node.bool($0) } ?? false
             answer.taken = taken
             guard !answer.asking, !taken else { return }
-            if source == nil { NSApp.mainMenu?.performKeyEquivalent(with: event) } else { self?.edit(event) }
+            if let source {
+                self?.edit(event, source: source)
+            } else {
+                NSApp.mainMenu?.performKeyEquivalent(with: event)
+            }
         }
         var payload = Self.keystroke(of: event)
         payload["reply"] = reply
         if let source { payload["source"] = source }
         emitter.emit("unhandled", payload)
         answer.asking = false
-        if source != nil, answer.taken == false { edit(event) }
+        if let source, answer.taken == false { edit(event, source: source) }
 
         return answer.taken ?? true
     }
@@ -355,15 +362,59 @@ final class WebPage: NSObject {
         return "\(origin.protocol)://\(origin.host)\(port)"
     }
 
-    // What the app's menu does for `event` had it been the machine's key, done on this page's view: the action of the
-    // menu's item whose key equivalent it is, sent to the view, where the view takes that action. One the view does not
-    // take, as the app's own are, is done nowhere, and nothing goes to what has the window's keyboard.
-    private func edit(_ event: NSEvent) {
+    // What the app's menu does for `event` had it been the machine's key, done on this page's view for `source`: the
+    // action of the menu's item whose key equivalent it is, sent to the view, where the view takes that action. One the
+    // view does not take, as the app's own are, is done nowhere, and nothing goes to what has the window's keyboard. A
+    // copy, a cut and a paste reach no clipboard of the machine's: a copy or a cut is heard by the page (copied), and a
+    // paste is done nowhere, `source` pasting only by the event (paste(_:)).
+    private func edit(_ event: NSEvent, source: String) {
         guard event.type == .keyDown,
               let item = NSApp.mainMenu.flatMap({ Self.item(of: event, in: $0) }),
               let action = item.action,
               view.responds(to: action) else { return }
-        NSApp.sendAction(action, to: view, from: item)
+        switch action {
+        case #selector(NSText.copy(_:)): copied("copy", source: source)
+        case #selector(NSText.cut(_:)): copied("cut", source: source)
+        case #selector(NSText.paste(_:)): return
+        default: NSApp.sendAction(action, to: view, from: item)
+        }
+    }
+
+    // A copy or a cut, `kind`, heard by the page's focused element as the machine's: the text, what the page set for it
+    // where it prevented the event or else what is selected, is told for `source` (`clipboard`), and a cut the page did
+    // not prevent deletes what is selected, an edit the view's undo takes back.
+    private func copied(_ kind: String, source: String) {
+        let script = """
+            const data = new DataTransfer();
+            const event = new ClipboardEvent('\(kind)', \(Self.clipboardEvent));
+            (document.activeElement ?? document).dispatchEvent(event);
+            if (event.defaultPrevented) return data.getData('text/plain');
+            const text = getSelection().toString();
+            if (event.type === 'cut') document.execCommand('delete');
+            return text;
+            """
+        evaluate(script, in: .deckit) { [weak self] result in
+            guard let json = try? result.get(), let text = try? JSONDecoder().decode(String.self, from: Data(json.utf8))
+            else { return }
+            self?.emitter.emit("clipboard", ["text": text, "source": source])
+        }
+    }
+
+    // `text` pasted for a seat: the page's focused element hears a paste of it as the machine's, and where the page
+    // does not prevent it the text goes in at the selection, an edit the view's undo takes back. An empty one does
+    // nothing.
+    func paste(_ text: String) {
+        guard !text.isEmpty, let json = try? JSONEncoder().encode(text), let given = String(data: json, encoding: .utf8)
+        else { return }
+        let script = """
+            const text = \(given);
+            const data = new DataTransfer();
+            data.setData('text/plain', text);
+            const event = new ClipboardEvent('paste', \(Self.clipboardEvent));
+            (document.activeElement ?? document).dispatchEvent(event);
+            if (!event.defaultPrevented) document.execCommand('insertText', false, text);
+            """
+        evaluate(script, in: .deckit) { _ in }
     }
 
     // The item of `menu` or of a menu under it whose key equivalent `event` is.

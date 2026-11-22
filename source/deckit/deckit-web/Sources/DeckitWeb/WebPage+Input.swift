@@ -117,6 +117,9 @@ extension WebPage {
                 view.keyUp(with: made)
             }
 
+        case let .paste(text):
+            paste(text)
+
         case let .text(text):
             guard let client = view as AnyObject as? NSTextInputClient else {
                 throw NodeError(message: "the page takes no text")
