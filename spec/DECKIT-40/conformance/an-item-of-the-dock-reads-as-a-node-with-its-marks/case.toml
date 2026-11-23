@@ -25,4 +25,4 @@ method = "seat/read"
 params = { of = "node", ref = "dock.mod-a" }
 
 [step.expect]
-answers = { text = "item \"mod-a\" [running] dock.mod-a at 8,374 48x48", mark = 7 }
+answers = { text = "item \"mod-a\" [running] dock.mod-a at 16,374 48x48", mark = 7 }
