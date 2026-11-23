@@ -27,7 +27,6 @@ function toolbar({
     // What the folded path puts before the shown folder's name: the "…" and its separator.
     const FOLDED = 40;
     const STYLE = `
-        .finder-toolbar .finder-breadcrumb { flex: 1 1 0; margin: 0 6px; }
         .finder-toolbar .finder-view-button { width: auto; padding: 0 5px; }
         .finder-view-icon { display: flex; align-items: center; gap: 1px; }
         .finder-toolbar .finder-filter { flex: 0 1 200px; min-width: ${FILTER_LEAST}px; }
@@ -37,8 +36,6 @@ function toolbar({
     let view = null;
     let depth = 0; // how many parts the path has
 
-    const element = ui.element('div', { className: 'finder-toolbar' });
-    ui.titleBar(element);
     const back = ui.iconButton({
         icon: ui.icon('chevronLeft', { size: 16 }),
         title: 'Back',
@@ -82,23 +79,18 @@ function toolbar({
     ui.tooltip(forward.element, { text: 'Forward', chord: () => chordOf('forward') });
     ui.tooltip(up.element, { text: 'Enclosing folder', chord: () => chordOf('enclosing') });
     ui.tooltip(search.element, { text: 'Filter this folder', chord: () => chordOf('filter') });
-    breadcrumb.element.classList.add('finder-breadcrumb');
     viewButton.element.classList.add('finder-view-button');
     filter.element.classList.add('finder-filter');
     search.element.classList.add('finder-search-button');
     filter.input.addEventListener('blur', () => {
         if (!filter.input.value) element.removeAttribute('data-searching');
     });
-    element.append(
-        back.element,
-        forward.element,
-        up.element,
-        breadcrumb.element,
-        star.element,
-        viewButton.element,
-        search.element,
-        filter.element
-    );
+    const { element } = ui.titleBar({
+        leading: [back.element, forward.element, up.element],
+        title: breadcrumb.element,
+        trailing: [star.element, viewButton.element, search.element, filter.element],
+    });
+    element.classList.add('finder-toolbar');
     new ResizeObserver(fit).observe(element);
 
     return {
@@ -128,17 +120,16 @@ function toolbar({
         const current = breadcrumb.element.querySelector('[aria-current="page"]');
         const name = current ? widthOf(current) + (depth > 1 ? FOLDED : 0) : 0;
         const style = getComputedStyle(element);
-        const path = getComputedStyle(breadcrumb.element);
+        const inPlace = parseFloat(getComputedStyle(star.element.parentElement).columnGap);
         const fixed = [back, forward, up, star, viewButton].reduce((sum, each) => sum + each.element.offsetWidth, 0);
-        const parts = 7; // what the bar holds while the filter is out: the path, the filter and the five buttons
+        // While the filter is out the bar holds three places, three buttons leading and three things trailing.
         const room =
             element.clientWidth -
             parseFloat(style.paddingLeft) -
             parseFloat(style.paddingRight) -
             fixed -
-            (parts - 1) * parseFloat(style.columnGap) -
-            parseFloat(path.marginLeft) -
-            parseFloat(path.marginRight);
+            2 * parseFloat(style.columnGap) -
+            4 * inPlace;
         const folded = room < name + FILTER_LEAST;
         element.toggleAttribute('data-folded', folded);
         breadcrumb.element.style.minWidth = folded ? '' : name + 'px';

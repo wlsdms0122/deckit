@@ -1,11 +1,9 @@
 const { nameOf } = require('../notes-folder/path.js');
 const { COMPOSE_SHAPES } = require('../icons/icons.js');
 
-// Back, Forward and the path of the folder, whose crumbs take a dragged note or folder, and at the end New Note, the
-// window's primary action, before what the screen adds to `trailing`.
+// The view's title bar: Back and Forward, the path of the folder in the title's place, whose crumbs take a dragged
+// note or folder, and at the end New Note, the window's primary action, before what the screen adds by `trail`.
 function navigationBar({ ui, chordOf, onBack, onForward, onGo, onNewNote, acceptDrops }) {
-    const element = ui.element('div');
-    ui.titleBar(element);
     const backButton = ui.iconButton({
         icon: ui.icon('chevronLeft', { size: 16 }),
         title: 'Back',
@@ -17,9 +15,6 @@ function navigationBar({ ui, chordOf, onBack, onForward, onGo, onNewNote, accept
         onClick: () => onForward(),
     });
     const breadcrumb = ui.breadcrumb({ onGo });
-    const trailing = ui.element('div', {
-        style: { display: 'flex', alignItems: 'center', gap: '4px', flex: '0 0 auto' },
-    });
 
     const newNote = ui.iconButton({
         icon: ui.iconOf(COMPOSE_SHAPES, { size: 16 }),
@@ -27,9 +22,12 @@ function navigationBar({ ui, chordOf, onBack, onForward, onGo, onNewNote, accept
         onClick: () => onNewNote(),
     });
     ui.tooltip(newNote.element, { text: 'New note', chord: () => chordOf('newNote') });
-    trailing.append(newNote.element);
-    breadcrumb.element.style.margin = '0 6px';
-    element.append(backButton.element, forwardButton.element, breadcrumb.element, trailing);
+    const trailing = [newNote.element];
+    const bar = ui.titleBar({
+        leading: [backButton.element, forwardButton.element],
+        title: breadcrumb.element,
+        trailing,
+    });
     for (const [button, text, action] of [
         [backButton, 'Back', 'back'],
         [forwardButton, 'Forward', 'forward'],
@@ -42,7 +40,12 @@ function navigationBar({ ui, chordOf, onBack, onForward, onGo, onNewNote, accept
         return part ? { folder: part.key, mark: part.element } : null;
     });
 
-    return { element, trailing, draw };
+    return { element: bar.element, trail, draw };
+
+    function trail(element) {
+        trailing.push(element);
+        bar.set({ trailing });
+    }
 
     function draw(folder, { isFolderShown, canGoBack, canGoForward }) {
         backButton.setEnabled(canGoBack);
