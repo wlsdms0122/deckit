@@ -1315,27 +1315,27 @@ async function walk({
                 bar: Math.round(bar.getBoundingClientRect().bottom),
                 page: Math.round(shown.getBoundingClientRect().top),
                 field: !!bar.querySelector('.browser-address-field'),
-                region: getComputedStyle(bar).getPropertyValue('--app-region'),
+                titled: document.documentElement.hasAttribute('data-deckit-title-bar'),
             };
         })()`);
         check(
-            "the browser's page starts under its toolbar, which holds the address and drags the window",
-            toolbar?.bar > 0 && toolbar.page >= toolbar.bar && toolbar.field && toolbar.region === 'drag',
+            "the browser's page starts under its toolbar, which holds the address in the window's title bar",
+            toolbar?.bar > 0 && toolbar.page >= toolbar.bar && toolbar.field && toolbar.titled,
             JSON.stringify(toolbar)
         );
         // WebKit's view of the front tab, in the Browser's page's view, where the tab's element is, while the Browser
         // is on screen.
         const onScreen = await keyMod();
         await show('browser');
-        // A press in the toolbar's drag area and a drag move the Browser's window with the pointer, and the frame it is
-        // left at is kept in the shell's state, by its mod and its window's name.
+        // A press on the toolbar in the window's title bar, on nothing in it, and a drag move the Browser's window with
+        // the pointer, and the frame it is left at is kept in the shell's state, by its mod and its window's name.
         const browserFrame = async () => (await windowsNow()).find(({ mod }) => mod === 'browser')?.rect;
         const dragFrom = await browser?.evaluate(`(() => {
-            const bar = document.querySelector('.browser-toolbar').getBoundingClientRect();
+            const toolbar = document.querySelector('.browser-toolbar');
+            const bar = toolbar.getBoundingClientRect();
             const y = Math.round(bar.top + bar.height / 2);
             for (let x = Math.round(bar.right) - 8; x > bar.left; x -= 4) {
-                const found = document.elementFromPoint(x, y);
-                if (found && getComputedStyle(found).getPropertyValue('--app-region').trim() === 'drag') return { x, y };
+                if (document.elementFromPoint(x, y) === toolbar) return { x, y };
             }
             return null;
         })()`);
@@ -1356,7 +1356,7 @@ async function walk({
             return movedBy(at) && at;
         }, 2000);
         check(
-            "a drag in a window's drag area moves the window with the pointer",
+            "a drag of a window's title bar over its content moves the window with the pointer",
             !!movedTo,
             JSON.stringify({ dragFrom, movedFrom, now: await browserFrame() })
         );
