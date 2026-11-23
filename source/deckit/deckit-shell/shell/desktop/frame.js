@@ -57,14 +57,6 @@ const STYLE = `
     }
     .deckit-page-dialog-part { position: fixed; box-sizing: border-box; margin: 0; }
     .deckit-desktop-strip { position: fixed; top: 0; left: 0; right: 0; --app-region: drag; }
-    .deckit-window-title-text {
-        overflow: hidden;
-        color: var(--deckit-muted);
-        font: var(--deckit-type-body);
-        font-weight: 600;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
     .deckit-desktop-down { position: fixed; inset: 0; display: flex; background: var(--deckit-background); }
     .deckit-desktop-down[hidden] { display: none; }
     .deckit-desktop-backdrop { position: fixed; inset: 0; }
@@ -88,13 +80,11 @@ const STYLE = `
         left: ${SHADOW}px;
         right: ${SHADOW}px;
         display: flex;
-        align-items: center;
-        justify-content: center;
         box-sizing: border-box;
-        border-bottom: 1px solid var(--deckit-divider);
+        color: var(--deckit-text);
     }
+    .deckit-window-title > .deckit-title-bar { flex: 1 1 auto; }
     .deckit-window-title[hidden] { display: none; }
-    .deckit-window-title[data-key] .deckit-window-title-text { color: var(--deckit-text); }
     .deckit-window-ring {
         position: fixed;
         top: ${SHADOW - STROKE}px;
@@ -435,16 +425,16 @@ function boot(theme, channels) {
         }
         for (const window of state.windows) {
             if (!drawn.has(window.id)) drawn.set(window.id, frameOf(window.id));
-            const { material, rings, bar, text, buttons, edges, handles } = drawn.get(window.id);
+            const { material, rings, bar, title, buttons, edges, handles } = drawn.get(window.id);
             const laid = window.bar;
             ringed(material, rings, window.rings, laid.height);
             material.toggleAttribute('data-key', window.key);
             buttons.toggleAttribute('data-key', window.key);
-            bar.toggleAttribute('data-key', window.key);
+            bar.setAttribute('data-deckit-key', String(window.key));
             bar.hidden = window.title === null;
             bar.style.height = laid.height + 'px';
-            bar.style.padding = `0 ${laid.areaX}px`;
-            text.textContent = window.title ?? '';
+            bar.style.setProperty('--deckit-title-bar-area-x', laid.areaX + 'px');
+            title.set({ title: window.title ?? '' });
             drawDialogs(window.id, drawn.get(window.id), window.dialogs ?? [], window.key);
             for (const edge of edges) edge.hidden = !laid.enabled.zoom;
             for (const handle of handles)
@@ -817,8 +807,9 @@ function boot(theme, channels) {
         const frame = surface(PAGE.frameOf(id));
         const material = element(frame.document, 'div', 'deckit-window-material');
         const bar = element(frame.document, 'div', 'deckit-window-title');
-        const text = element(frame.document, 'span', 'deckit-window-title-text');
-        bar.append(text);
+        // The kit's title bar with its title alone, the rule under it for the content it cannot fade.
+        const title = ui.titleBar({ hairline: true });
+        bar.append(title.element);
         forward(id, bar, () => 'bar', { takes: true });
         const edges = EDGES.map((edge) => {
             const band = element(frame.document, 'div', 'deckit-window-edge');
@@ -862,7 +853,7 @@ function boot(theme, channels) {
             material,
             rings: [],
             bar,
-            text,
+            title,
             buttons,
             edges,
             handles,

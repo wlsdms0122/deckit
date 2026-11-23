@@ -33,8 +33,8 @@ const STYLE = `
         flex: 0 0 auto;
         box-sizing: border-box;
         min-height: ${TITLE_BAR}px;
-        padding: 0 calc(12px + var(--deckit-safe-area-inset-right, 0px)) 0 calc(12px + var(--deckit-safe-area-inset-left, 0px));
-        margin-left: var(--deckit-title-bar-area-x, 0px);
+        padding: 0 calc(12px + var(--deckit-safe-area-inset-right, 0px)) 0
+            calc(12px + var(--deckit-title-bar-area-x, 0px) + var(--deckit-safe-area-inset-left, 0px));
     }
     .deckit-title-bar[data-hairline] { border-bottom: 1px solid var(--deckit-divider); }
     [data-deckit-title-bar] .deckit-title-bar { min-height: max(${TITLE_BAR}px, var(--deckit-title-bar-area-height)); }
@@ -102,8 +102,8 @@ function selectable(element) {
 }
 
 // The bar along the top of the view, the one thing laid in the window's title bar area where the bar lies over it: as
-// tall as the bar and TITLE_BAR at least, from the area's start, inside the safe area's sides, its three places in a
-// row centred on the window's buttons. `leading` are elements before the title; `title` is a string, drawn as the
+// tall as the bar and TITLE_BAR at least, across the view, its three places in a row from the area's start, inside the
+// safe area's sides, centred on the window's buttons. `leading` are elements before the title; `title` is a string, drawn as the
 // view's title and naming the toolbar, or an element that stands in its place and takes the room between; `trailing`
 // are elements at the far end, which give way first where the bar is narrow, down to what they cannot lose, then the
 // title. `scroller` is what scrolls under the bar, whose edges fade where there is more of it; `hairline` draws a rule
