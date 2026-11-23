@@ -29,7 +29,7 @@ const STYLE = `
     .deckit-title-bar {
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: 8px;
         flex: 0 0 auto;
         box-sizing: border-box;
         min-height: ${TITLE_BAR}px;
@@ -38,9 +38,25 @@ const STYLE = `
     }
     .deckit-title-bar[data-hairline] { border-bottom: 1px solid var(--deckit-divider); }
     [data-deckit-title-bar] .deckit-title-bar { min-height: max(${TITLE_BAR}px, var(--deckit-title-bar-area-height)); }
+    .deckit-title-bar-leading,
+    .deckit-title-bar-trailing {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex: none;
+    }
+    .deckit-title-bar-trailing { flex: 0 1000 auto; justify-content: flex-end; }
+    .deckit-title-bar-leading:empty,
+    .deckit-title-bar-trailing:empty { display: none; }
     .deckit-title-bar-title {
-        flex: 0 1 auto;
+        display: flex;
+        align-items: center;
+        flex: 1 1 auto;
         min-width: 0;
+    }
+    :where(.deckit-title-bar-title) > * { flex: 1 1 auto; min-width: 0; }
+    .deckit-title-bar-title > .deckit-title-bar-text {
+        flex: 0 1 auto;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -85,34 +101,38 @@ function selectable(element) {
     return () => (element.style.webkitUserSelect = element.style.userSelect = '');
 }
 
-// A bar along the top of the view, the one thing laid in the window's title bar area where the bar lies over it: as
-// tall as the bar and TITLE_BAR at least, what it holds in a row centred on the window's buttons, from the area's
-// start, inside the safe area's sides. Where it lies under the window's title bar a press on it moves the window but on
-// a control, which takes it: one the shell does not know as one marks itself `--app-region: no-drag`. `title` puts the
-// view's title first; `scroller` is what scrolls under the bar, whose edges fade where there is more of it; `hairline`
-// draws a rule under the bar instead, for content the fade cannot reach, as a web page. While the page's root is marked
-// `data-deckit-key="false"`, its window not the key one, the bar's text and glyphs are muted, its title a breadcrumb's
-// current part too; what is disabled stays as it is.
-function titleBar(element, { title = null, scroller = null, hairline = false } = {}) {
-    element.classList.add('deckit-title-bar');
-    element.toggleAttribute('data-hairline', hairline);
-    element.setAttribute('role', 'toolbar');
-    if (title != null) element.setAttribute('aria-label', title);
-    const heading = title == null ? null : element.ownerDocument.createElement('div');
-    if (heading) {
-        heading.className = 'deckit-title-bar-title';
-        heading.textContent = title;
-        element.prepend(heading);
+// The bar along the top of the view, the one thing laid in the window's title bar area where the bar lies over it: as
+// tall as the bar and TITLE_BAR at least, from the area's start, inside the safe area's sides, its three places in a
+// row centred on the window's buttons. `leading` are elements before the title; `title` is a string, drawn as the
+// view's title and naming the toolbar, or an element that stands in its place and takes the room between; `trailing`
+// are elements at the far end, which give way first where the bar is narrow, down to what they cannot lose, then the
+// title. `scroller` is what scrolls under the bar, whose edges fade where there is more of it; `hairline` draws a rule
+// under the bar instead, for content the fade cannot reach. While the page's root is marked
+// `data-deckit-key="false"`, its window not the key one, the bar's text and glyphs are muted, a breadcrumb's current
+// part too; what is disabled stays as it is. `set` fills the places it names.
+function titleBar({ leading = [], title = '', trailing = [], scroller = null, hairline = false } = {}) {
+    const bar = element('div', { className: 'deckit-title-bar' });
+    const before = element('div', { className: 'deckit-title-bar-leading' });
+    const named = element('div', { className: 'deckit-title-bar-title' });
+    const after = element('div', { className: 'deckit-title-bar-trailing' });
+    bar.setAttribute('role', 'toolbar');
+    bar.toggleAttribute('data-hairline', hairline);
+    bar.append(before, named, after);
+    if (scroller) SCROLL.edgeFade(scroller);
+    set({ leading, title, trailing });
+    return { element: bar, set };
+
+    function set(places) {
+        if (places.leading) before.replaceChildren(...places.leading);
+        if (places.trailing) after.replaceChildren(...places.trailing);
+        if (places.title == null) return;
+        const text = typeof places.title === 'string';
+        named.replaceChildren(
+            text ? element('div', { className: 'deckit-title-bar-text', text: places.title }) : places.title
+        );
+        if (text && places.title) bar.setAttribute('aria-label', places.title);
+        else bar.removeAttribute('aria-label');
     }
-    const unfade = scroller ? SCROLL.edgeFade(scroller) : () => {};
-    return () => {
-        element.classList.remove('deckit-title-bar');
-        element.removeAttribute('role');
-        element.removeAttribute('aria-label');
-        element.removeAttribute('data-hairline');
-        heading?.remove();
-        unfade();
-    };
 }
 
 // MARK: - Private

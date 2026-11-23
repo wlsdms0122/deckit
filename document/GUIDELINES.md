@@ -39,25 +39,25 @@ A mod's window lays two areas with `ui.splitView`: the sidebar, and the content 
 
 ## The title bar
 
-The bar along the top of the content, laid with `ui.titleBar`, which lies in the window's title bar area and drags the window by its empty room. It is 48px tall, as the window's title bar is, its row centred on the window's buttons, which stand as far in from the window's left as from its top; its `title` is `heading` at 600, and a breadcrumb that names the view is its title too, its current part drawn the same. While the window is not the key one its text and glyphs go to `muted`, and a button turned off keeps its own look. A `primary` button anywhere in such a window draws as a plain one until the window is key again: the default answer is the key window's.
+The bar along the top of the content, the kit's `ui.titleBar` filled with what the window shows, which lies in the window's title bar area and drags the window by its empty room. It is 48px tall, as the window's title bar is, its row centred on the window's buttons, which stand as far in from the window's left as from its top; its `title` is `heading` at 600, and a breadcrumb that names the view is its title too, its current part drawn the same. While the window is not the key one its text and glyphs go to `muted`, and a button turned off keeps its own look. A `primary` button anywhere in such a window draws as a plain one until the window is key again: the default answer is the key window's.
 
 - Every window under a unified title bar lays one.
 - A web page, an editor, a canvas or a map starts at the safe area's top (`--deckit-safe-area-inset-top`). Pressed content drawn to the top edge leaves nowhere to drag the window from.
 - A mod's window that lays its own bar opens with `titleBar: 'unified'`; one with nothing to put in a bar keeps the default, the bar the shell draws. The other title bar options (MOD.md) are for a role the defaults do not serve: a toolbar taller than one row, or a window that cannot be resized or closed by the person. Lay out against the safe area and the title bar area, never their numbers.
 - Leave empty room in it: a field or a strip of tabs does not run edge to edge.
 - Where the bar is narrow, what names the view is never cut: a field gives way first and then folds into a button that opens it (Finder's filter), a segmented control becomes a `ui.select` of the same height (Calendar's Day, Week, Month), and only what is said in passing (a status) is cut.
-- Lay it in three parts:
+- Fill its three places:
 
-| Part | What goes there | Examples |
+| Place | What goes there | Examples |
 |---|---|---|
-| Start | moving through what was shown: Back, Forward, Up, Previous, Next | Browser, Finder, Note, Calendar |
-| Middle | what is shown: its title, its path, its address | the address field, a breadcrumb, a month |
-| End | acting on what is shown: search, a view switch, the mod's main action | Finder's view menu and filter, Calendar's Today and Day, Week, Month |
+| `leading` | moving through what was shown: Back, Forward, Up, Previous, Next | Browser, Finder, Note, Calendar |
+| `title` | what is shown: its title, or its path or its address in the title's place | the address field, a breadcrumb, a month |
+| `trailing` | acting on what is shown: search, a view switch, the mod's main action | Finder's view menu and filter, Calendar's Today and Day, Week, Month |
 
 - Buttons are `ui.iconButton` at `medium` (32px) with 16px icons. A control with a label of its own (Today, a segmented control) is a text button or `ui.segmented` of the same height. `small` (24px) is for rows and section headers, never the bar.
 - A field in the bar is 32px tall, `--deckit-radius-round`, on `--deckit-fill`, ringed with `--deckit-focus` while it is edited. Buttons about what is in the field go inside it (the Browser's Reload and bookmark star).
 - An action the sidebar's section already has (a new tab, a new note) is not in the bar too.
-- Where the mod has tabs of its content (the Editor's open files), the tab strip may be the title bar, with room left at its end.
+- Where the mod has tabs of its content (the Editor's open files), the tab strip may stand in the title's place, with room left at its end.
 
 ## The sidebar
 
