@@ -123,6 +123,7 @@ class Mods {
         this.openWindow = () =>
             shell.windows.open({
                 name: 'main',
+                titleBar: 'unified',
                 content: page,
                 didAppear: () => {
                     draw();

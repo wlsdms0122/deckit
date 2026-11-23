@@ -237,6 +237,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     function openWindow() {
         shell.windows.open({
             name: 'main',
+            titleBar: 'unified',
             content: split.element,
             didAppear() {
                 visible = true;

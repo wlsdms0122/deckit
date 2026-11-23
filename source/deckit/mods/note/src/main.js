@@ -260,6 +260,7 @@ class Note {
         const openWindow = () =>
             shell.windows.open({
                 name: 'main',
+                titleBar: 'unified',
                 content: split.element,
                 didAppear: () => {
                     editor.setRoot(content.ownerDocument);

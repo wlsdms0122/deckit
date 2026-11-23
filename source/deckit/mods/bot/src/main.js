@@ -232,6 +232,7 @@ class Bot {
         const openWindow = () =>
             shell.windows.open({
                 name: 'main',
+                titleBar: 'unified',
                 content: split.element,
                 didAppear: () => {
                     visible = true;
