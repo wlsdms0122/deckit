@@ -102,8 +102,8 @@ const STYLE = `
     .deckit-dock-label {
         position: fixed;
         transform: translateY(-50%);
-        padding: 4px 8px;
-        border-radius: var(--deckit-radius-control);
+        padding: 4px 10px;
+        border-radius: var(--deckit-radius-round);
         background: var(--deckit-elevated);
         box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
         color: var(--deckit-text);
@@ -123,7 +123,7 @@ const STYLE = `
         animation: deckit-dock-label-in var(--deckit-press-fade) var(--deckit-press-curve);
     }
     .deckit-dock-menu[hidden] { display: none; }
-    .deckit-dock-menu[data-material] {
+    .deckit-dock-label[data-material], .deckit-dock-menu[data-material] {
         background-color: color-mix(in srgb, var(--deckit-elevated) var(--deckit-glass), transparent);
     }
     .deckit-dock-menu-entry {
@@ -163,12 +163,12 @@ const STYLE = `
 // stays out while the pointer is over it or the room between it and the edge, a press holds it or its menu is open;
 // it goes back in faster than it came out, and fades in where the system asks for reduced motion; `onOut(out)` hears
 // it slide out and back. Out and still, the card is glass, its colour a tint over a material laid under it, where the
-// system does not ask for less transparency, and so is the menu: `onGlass(materials)` hears `[{ material, x, y,
-// width, height, cornerRadius }]`, the card's at its rect, none as it slides. The page recognizes nothing: `onPointer(event)` hears what the
-// pointer does on the Dock and on the menu, `{ part: 'dock', type, x, y, button, count }` in the page, on the card as
-// the Dock out has it, a context press as a press of button 2, and what the keyboard presses with `item`
-// (desktop/protocol.js pointer); the menu of an item is drawn where main tells it, beside what slides, its entries at
-// the rects the Dock's model gave them. `ui` is the page's kit.
+// system does not ask for less transparency, and so are the menu and the name label, a capsule: `onGlass(materials)`
+// hears `[{ material, x, y, width, height, cornerRadius }]`, the card's at its rect, none as it slides. The page
+// recognizes nothing: `onPointer(event)` hears what the pointer does on the Dock and on the menu, `{ part: 'dock',
+// type, x, y, button, count }` in the page, on the card as the Dock out has it, a context press as a press of button
+// 2, and what the keyboard presses with `item` (desktop/protocol.js pointer); the menu of an item is drawn where main
+// tells it, beside what slides, its entries at the rects the Dock's model gave them. `ui` is the page's kit.
 function make({ ui, onPointer, onOut, onGlass }) {
     ui.addStyle(STYLE);
     let items = [];
@@ -392,16 +392,19 @@ function make({ ui, onPointer, onOut, onGlass }) {
         if (!named) {
             named = ui.layer(tag('div', 'deckit-dock-label'));
             named.element.setAttribute('aria-hidden', 'true');
+            named.element.dataset.deckitGlass = '';
         }
         const at = row.getBoundingClientRect();
         named.element.textContent = row.dataset.name;
         named.element.style.left = EDGE + WIDTH + BESIDE + 'px';
         named.element.style.top = at.top + at.height / 2 + 'px';
+        glaze();
     }
 
     function unname() {
         named?.remove();
         named = null;
+        glaze();
     }
 
     // Kept out until the returned release runs, once.
@@ -439,16 +442,20 @@ function make({ ui, onPointer, onOut, onGlass }) {
         Promise.all(running.map(({ finished }) => finished.catch(() => {}))).then(then);
     }
 
-    // The card as glass while it is still, opaque otherwise, the menu as glass with it, and main told where.
+    // The card as glass while it is still, opaque otherwise, the menu and the name label as glass with it, and main
+    // told where.
     function glaze() {
         const glass = still && !TOKEN.opaque();
         card.toggleAttribute('data-material', glass);
         menuBox.toggleAttribute('data-material', glass && !!menu);
+        named?.element.toggleAttribute('data-material', glass);
         if (!glass) return onGlass([]);
         const { x, y, width, height } = card.getBoundingClientRect();
+        const label = named?.element.getBoundingClientRect();
         onGlass([
             { material: 'popover', x, y, width, height, cornerRadius: RADIUS },
             ...(menu ? [{ material: 'menu', ...menu.frame, cornerRadius: menu.radius }] : []),
+            ...(label ? [{ material: 'popover', ...rectOf(label), cornerRadius: label.height / 2 }] : []),
         ]);
     }
 
@@ -459,6 +466,11 @@ function make({ ui, onPointer, onOut, onGlass }) {
 // A slide or a fade, not the card's tint easing in or out.
 function isMove({ transitionProperty }) {
     return transitionProperty !== 'background-color';
+}
+
+// The rect of a DOMRect, as plain data.
+function rectOf({ x, y, width, height }) {
+    return { x, y, width, height };
 }
 
 // `node` at `rect` in what it is placed against.
