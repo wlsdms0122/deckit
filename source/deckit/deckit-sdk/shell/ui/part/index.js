@@ -37,10 +37,7 @@ const STYLE = `
         margin-left: var(--deckit-title-bar-area-x, 0px);
     }
     .deckit-title-bar[data-hairline] { border-bottom: 1px solid var(--deckit-divider); }
-    [data-deckit-title-bar] .deckit-title-bar {
-        --app-region: drag;
-        min-height: max(${TITLE_BAR}px, var(--deckit-title-bar-area-height));
-    }
+    [data-deckit-title-bar] .deckit-title-bar { min-height: max(${TITLE_BAR}px, var(--deckit-title-bar-area-height)); }
     .deckit-title-bar-title {
         flex: 0 1 auto;
         min-width: 0;
@@ -62,9 +59,6 @@ const STYLE = `
         .deckit-section-heading[data-current]
     ) {
         background: var(--deckit-fill);
-    }
-    .deckit-title-bar :is(button, input, textarea, select, a[href], [role='button'], [tabindex], [contenteditable]) {
-        --app-region: no-drag;
     }
 `;
 
@@ -93,12 +87,12 @@ function selectable(element) {
 
 // A bar along the top of the view, the one thing laid in the window's title bar area where the bar lies over it: as
 // tall as the bar and TITLE_BAR at least, what it holds in a row centred on the window's buttons, from the area's
-// start, inside the safe area's sides, and dragging the window wherever nothing in it is pressed. A
-// control the kit does not know as one marks itself `--app-region: no-drag`. `title` puts the view's title first;
-// `scroller` is what scrolls under the bar, whose edges fade where there is more of it; `hairline` draws a rule under
-// the bar instead, for content the fade cannot reach, as a web page. While the page's root is
-// marked `data-deckit-key="false"`, its window not the key one, the bar's text and glyphs are muted, its title a
-// breadcrumb's current part too; what is disabled stays as it is.
+// start, inside the safe area's sides. Where it lies under the window's title bar a press on it moves the window but on
+// a control, which takes it: one the shell does not know as one marks itself `--app-region: no-drag`. `title` puts the
+// view's title first; `scroller` is what scrolls under the bar, whose edges fade where there is more of it; `hairline`
+// draws a rule under the bar instead, for content the fade cannot reach, as a web page. While the page's root is marked
+// `data-deckit-key="false"`, its window not the key one, the bar's text and glyphs are muted, its title a breadcrumb's
+// current part too; what is disabled stays as it is.
 function titleBar(element, { title = null, scroller = null, hairline = false } = {}) {
     element.classList.add('deckit-title-bar');
     element.toggleAttribute('data-hairline', hairline);
