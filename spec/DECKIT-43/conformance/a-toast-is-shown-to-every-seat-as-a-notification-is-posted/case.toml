@@ -35,7 +35,7 @@ params = { of = "desktop" }
 part = "text"
 
 [step.expect]
-answers = "desktop at 0,0 1280x800 mark \u001A\nseat local \"Deckit conformance\" blue\nseat s1 \"Ada Lovelace\" green (you)\ndock (1 items)\n  item \"mod-a\" [running] dock.mod-a\npanel w1 \"Status Bar\" status-bar top at \u001A,2 \u001Ax28\npanel w2 \"Notifications\" notifications at 912,40 360x92"
+answers = "desktop at 0,0 1280x800 mark \u001A\nseat local \"Deckit conformance\" blue\nseat s1 \"Ada Lovelace\" green (you)\ndock (1 items)\n  item \"mod-a\" [running] dock.mod-a\npanel w1 \"Status Bar\" status-bar top at \u001A,2 \u001Ax28\npanel w2 \"Notifications\" notifications at 912,40 360x80"
 
 [[step]]
 input = "ask"
@@ -51,4 +51,4 @@ params = { of = "node", ref = "1.1", lines = 0 }
 part = "text"
 
 [step.expect]
-answers = "alert \"Standup\" 1.1 at 920,48 344x76\n  img \"mod-a\" 1.2\n  button \"Snooze\" 1.3\n  button \"Close\" 1.4\n  ... 2 more"
+answers = "alert \"Standup\" 1.1 at 916,47 352x66\n  img \"mod-a\" 1.2\n  button \"Snooze\" 1.3\n  button \"Close\" 1.4\n  ... 2 more"
