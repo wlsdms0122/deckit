@@ -1246,8 +1246,14 @@ function seatChecks({ LAYOUT, DOCK, createDesktop }, check) {
     // A child laid over the content of window 1, in a region of it: the seat's keys go to the page it pressed last.
     const over = { name: 'page-c', mod: 'c' };
     desk.children.runs = [{ run: { mod: { id: 'c' }, state: 'running', summary: { view: true } }, page: over }];
-    desk.children.laid.set('a', new Map([['c', { window: 1, rect: { x: 60, y: 60, width: 80, height: 80 } }]]));
+    desk.children.laid.set('a', new Map([['c', { window: 1, rect: { x: 60, y: 12, width: 80, height: 80 } }]]));
     desk.desktop.update();
+    const rectOf = (name) => desk.laid().find(({ page }) => page.name === name)?.rect;
+    check(
+        "a child is laid at its region's rect in the content, below a titled window's bar",
+        rectOf('page-c')?.x === rectOf('content-1').x + 60 && rectOf('page-c')?.y === rectOf('content-1').y + 12,
+        { child: rectOf('page-c'), content: rectOf('content-1') }
+    );
     const pressThenKey = (at, code) => {
         desk.enter(me, pointer('down', at));
         desk.enter(me, pointer('up', at));

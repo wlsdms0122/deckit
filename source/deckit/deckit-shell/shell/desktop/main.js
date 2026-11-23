@@ -1314,7 +1314,8 @@ export function createDesktop({
     function regionIn(window, page) {
         const child = deckit.mods.modOf(page);
         const laid = child && REGION.laidOut(window.mod, (mod) => mod === child).get(child);
-        return laid?.window === window.id ? laid.rect : null;
+        const content = laid?.window === window.id && contentIn(window);
+        return content ? { ...laid.rect, x: content.x + laid.rect.x, y: content.y + laid.rect.y } : null;
     }
 
     // The part the shell draws that a point of a page is on, `{ id, part }`: of the window `id`, 'bar', its title bar,
@@ -2257,9 +2258,10 @@ export function createDesktop({
             [...REGION.laidOut(parent, (child) => pageOf.has(child))].flatMap(([child, { window, rect }]) => {
                 const frame = framed.get(window);
                 if (!frame) return [];
+                const content = windows.has(window) ? LAYOUT.contentOf(frame, windows.get(window).bar) : frame;
                 const at = {
-                    x: Math.round(frame.x + rect.x),
-                    y: Math.round(frame.y + rect.y),
+                    x: Math.round(content.x + rect.x),
+                    y: Math.round(content.y + rect.y),
                     width: Math.round(rect.width),
                     height: Math.round(rect.height),
                 };
