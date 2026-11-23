@@ -23,6 +23,6 @@ module.exports = class {
         ['First line.', 'Second line.', 'Third line.'].forEach((line, at) => put('p', [0, at * 40, 180, 40], {}, line, log));
         deckit.events.on('mod-a:add', () => put('li', [0, 90, 200, 30], {}, 'Thu', days));
         deckit.events.on('mod-a:drop', () => heading.remove());
-        shell.windows.open({ name: 'main', content });
+        shell.windows.open({ name: 'main', content, titleBar: 'unified' });
     }
 };

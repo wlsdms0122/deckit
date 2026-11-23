@@ -17,7 +17,7 @@ module.exports = class {
             hear('input', (event) => event.inputType === 'insertText' && say(options.name + '/inserted/' + event.data));
             shell.windows.open({ ...options, content });
         };
-        for (const options of [{"name": "main"}]) open(options);
+        for (const options of [{"name": "main", "titleBar": "unified"}]) open(options);
         deckit.events.on('mod-a:go', (options) => open(options));
     }
 };

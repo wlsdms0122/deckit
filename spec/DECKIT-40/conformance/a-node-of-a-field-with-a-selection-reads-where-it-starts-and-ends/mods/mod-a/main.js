@@ -21,6 +21,6 @@ module.exports = class {
         deckit.events.on('mod-a:rename', () => (third.textContent = 'Four'));
         const aside = put('div', [0, 290, 200, 20], { role: 'note' }, 'Aside');
         deckit.events.on('mod-a:bare', () => aside.removeAttribute('role'));
-        shell.windows.open({ name: 'main', content, didAppear: () => (span.setSelectionRange(1, 4), auto.focus()) });
+        shell.windows.open({ name: 'main', content, titleBar: 'unified', didAppear: () => (span.setSelectionRange(1, 4), auto.focus()) });
     }
 };
