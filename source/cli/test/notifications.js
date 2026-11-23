@@ -350,35 +350,34 @@ async function main() {
     // The sizes of the two views.
     const SCREEN = require(path.join(mods, 'notifications', 'src', 'screen', 'model', 'screen.js'));
     check(
-        'the center is 360 wide, as high as its head and rows, 8 apart, in 16 of room',
-        json(SCREEN.centerSize([60, 80])) === json({ width: 360, height: 16 + 32 + 8 + 60 + 8 + 80 + 16 }),
+        'the center is 360 wide, as high as its head and rows, 4 apart, in 4 of room',
+        json(SCREEN.centerSize([60, 80])) === json({ width: 360, height: 4 + 32 + 4 + 60 + 4 + 80 + 4 }),
         SCREEN.centerSize([60, 80])
     );
     check(
         'an empty record has room for its words, and a long one is held to the most',
-        SCREEN.centerSize([]).height === 16 + 32 + 8 + SCREEN.EMPTY + 16 &&
-            SCREEN.centerSize(Array(40).fill(60)).height === SCREEN.MOST,
+        SCREEN.centerSize([]).height === 240 && SCREEN.centerSize(Array(40).fill(60)).height === SCREEN.MOST,
         [SCREEN.centerSize([]), SCREEN.centerSize(Array(40).fill(60))]
     );
     check(
-        'the toasts are 360 wide and as high as the cards, 8 apart, in 8 of room',
-        json(SCREEN.toastsSize([60.4])) === json({ width: 360, height: 77 }) &&
-            SCREEN.toastsSize([60, 80, 44]).height === 8 + 60 + 8 + 80 + 8 + 44 + 8,
+        'the toasts are 360 wide and as high as the items, 4 apart, in 4 of room',
+        json(SCREEN.toastsSize([60.4])) === json({ width: 360, height: 69 }) &&
+            SCREEN.toastsSize([60, 80, 44]).height === 4 + 60 + 4 + 80 + 4 + 44 + 4,
         [SCREEN.toastsSize([60.4]), SCREEN.toastsSize([60, 80, 44])]
     );
     check(
-        'a card is guessed higher with a body and with actions',
-        SCREEN.guessOf({ title: 'a' }) === SCREEN.CARD.plain &&
+        'an item is guessed higher with a body and with actions',
+        SCREEN.guessOf({ title: 'a' }) === SCREEN.ITEM.plain &&
             SCREEN.guessOf({ body: 'b', actions: [{ title: 'c' }] }) ===
-                SCREEN.CARD.plain + SCREEN.CARD.body + SCREEN.CARD.actions,
+                SCREEN.ITEM.plain + SCREEN.ITEM.body + SCREEN.ITEM.actions,
         null
     );
     const shows = [
-        SCREEN.cardOf({ title: '', mod: { id: 'c', name: 'Calendar' }, actions: [{ title: 'Later', command: 'l' }] }),
-        SCREEN.cardOf({ title: 'Standup', body: 'now', mod: { id: 'c', name: 'Calendar' } }, { icon: 'i', time: '9' }),
+        SCREEN.itemOf({ title: '', mod: { id: 'c', name: 'Calendar' }, actions: [{ title: 'Later', command: 'l' }] }),
+        SCREEN.itemOf({ title: 'Standup', body: 'now', mod: { id: 'c', name: 'Calendar' } }, { icon: 'i', time: '9' }),
     ];
     check(
-        "a card is called by its title and body, and shows them, the sender's name for no title, its icon, time and actions",
+        "an item is called by its title and body, and shows them, the sender's name for no title, its icon, time and actions",
         json(shows) ===
             json([
                 {
@@ -430,7 +429,7 @@ function element(tag) {
         toggleAttribute: () => {},
         setAttribute: () => {},
         getBoundingClientRect: () => ({
-            height: / notifications-card|^notifications-card/.test(made.className) ? 60 : 0,
+            height: / notifications-item|^notifications-item/.test(made.className) ? 60 : 0,
         }),
         ownerDocument: PAGE,
     };
@@ -531,12 +530,12 @@ async function screenChecks({ check, json, mods }) {
         'the first toast opens one view at the top right that takes no keyboard, as high as it is guessed',
         windows.length === 1 &&
             json(opened) ===
-                json({ name: 'toasts', level: 'panel', place: 'top-right', width: 360, height: 92, activates: false }),
+                json({ name: 'toasts', level: 'panel', place: 'top-right', width: 360, height: 72, activates: false }),
         opened
     );
     check(
         'laid out, the view is sized to the toast it holds',
-        json(toasts.asked) === json([['resize', 360, 76]]),
+        json(toasts.asked) === json([['resize', 360, 68]]),
         toasts
     );
     await drawer.show(note('b', { actions }));
@@ -545,7 +544,7 @@ async function screenChecks({ check, json, mods }) {
         'a second toast stands in the same view, sized to both',
         windows.length === 1 &&
             content.children.length === 2 &&
-            json(toasts.asked.at(-1)) === json(['resize', 360, 144]),
+            json(toasts.asked.at(-1)) === json(['resize', 360, 132]),
         { windows: windows.length, asked: toasts.asked }
     );
     const [card, words] = [content.children[0], content.children[0].children[1]];
@@ -596,13 +595,13 @@ async function screenChecks({ check, json, mods }) {
                 level: 'panel',
                 anchor: { mod: 'status-bar', id: 'notifications' },
                 width: 360,
-                height: 16 + 32 + 8 + 44 + 8 + 84 + 16,
+                height: 4 + 32 + 4 + 36 + 4 + 78 + 4,
             }) && typeof didAppear === 'function',
         under
     );
     check(
         'laid out, it is sized to its rows',
-        json(view.asked) === json([['resize', 360, 16 + 32 + 8 + 128 + 16]]),
+        json(view.asked) === json([['resize', 360, 4 + 32 + 4 + 124 + 4]]),
         view
     );
     await sut.toggle();
@@ -663,8 +662,7 @@ async function screenChecks({ check, json, mods }) {
     await settle();
     check(
         'Clear All clears the record, and the view is sized to the empty record',
-        json(calls.at(-1)) === json(['clear']) &&
-            json(view.asked.at(-1)) === json(['resize', 360, 16 + 32 + 8 + 168 + 16]),
+        json(calls.at(-1)) === json(['clear']) && json(view.asked.at(-1)) === json(['resize', 360, 240]),
         { calls, asked: view.asked }
     );
     sut.end();

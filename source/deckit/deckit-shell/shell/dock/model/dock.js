@@ -1,11 +1,16 @@
+import * as TOKEN from '../../../../deckit-sdk/shell/ui/token/index.js';
+
 // MARK: - Property
-// The Dock at the desktop's left edge: the sliver of it that shows while it is in, and how wide it is out.
+// The Dock along the desktop's left edge: the sliver of it that shows while it is in, how far its card stands from the
+// edge while it is out, a floating surface's margin, and how wide the card is.
 const SLIVER = 6;
+const EDGE = TOKEN.FLOAT.margin;
 const WIDTH = 64;
-// The card's outer corners: an item's corner (12) plus the card's padding (8), so the two are concentric.
+// The card's corners, every one: an item's corner (12) plus the card's padding (8), so the two are concentric.
 const RADIUS = 20;
-// The card the items stand in, down the Dock and centred on the desktop's height: its padding, the size of an item, the
-// room between items, and between the items kept and those running, a hairline with that room above and below it.
+// The card the items stand in, down the Dock and centred on the desktop's height, EDGE clear of its top and bottom:
+// its padding, the size of an item, the room between items, and between the items kept and those running, a hairline
+// with that room above and below it.
 const CARD = Object.freeze({ padding: 8, item: 48, gap: 4 });
 // How far the pointer goes from its press on an item kept in the Dock before it drags the item.
 const SLOP = 4;
@@ -35,11 +40,13 @@ function dragged(ids, id, to) {
 
 // Where the Dock takes the pointer on `desktop` with `items`, as items() answers them, its rects: the sliver at the
 // desktop's left edge, down all of it, which brings it out and keeps it out while the pointer stays there, while it
-// is `out` its card too, where it is drawn, and the `menu` of an item, as menuOf() answers it, while one is open. A
-// window under the rest of the column takes the pointer there.
+// is `out` its card too, where it is drawn, with the room between it and the edge, and the `menu` of an item, as
+// menuOf() answers it, while one is open. A window under the rest of the column takes the pointer there.
 function inputOf(desktop, out, items, menu = null) {
     const sliver = { x: desktop.x, y: desktop.y, width: SLIVER, height: desktop.height };
-    return [sliver, ...(out ? [cardOf(desktop, items)] : []), ...(menu ? [menu.frame] : [])];
+    const card = cardOf(desktop, items);
+    const reach = { ...card, x: desktop.x, width: card.x + card.width - desktop.x };
+    return [sliver, ...(out ? [reach] : []), ...(menu ? [menu.frame] : [])];
 }
 
 // The id of the item of `items` that stands at `point` on `desktop` with the Dock out, or null.
@@ -82,7 +89,7 @@ function menuOf(desktop, items, id) {
     if (!item) return null;
     const listed = entriesOf(item);
     const height = 2 * MENU.padding + listed.reduce((sum, entry) => sum + (entry ? MENU.entry : MENU.rule), 0);
-    const x = desktop.x + WIDTH + MENU.beside;
+    const x = desktop.x + EDGE + WIDTH + MENU.beside;
     const lowest = desktop.y + desktop.height - MENU.margin - height;
     const y = Math.max(desktop.y + MENU.margin, Math.min(tileOf(desktop, items, id).y, lowest));
     const [entries, rules] = [[], []];
@@ -111,27 +118,26 @@ function tileOf(desktop, items, id) {
     const step = CARD.item + CARD.gap;
     const top = cardOf(desktop, items).y + CARD.padding;
     const y = at < kept ? top + at * step : top + runOf(kept) + CARD.gap + dividerOf(items) + (at - kept) * step;
-    const x = desktop.x + (WIDTH - CARD.item) / 2;
+    const x = desktop.x + EDGE + (WIDTH - CARD.item) / 2;
     return { x, y: Math.round(y), width: CARD.item, height: CARD.item };
 }
 
-// The card the Dock's `items` stand in on `desktop`, out, as its view lays it: centred down the desktop, its padding
-// clear of the desktop's top and bottom, and no taller than the room between them.
+// The card the Dock's `items` stand in on `desktop`, out, as its view lays it: EDGE in from the desktop's left edge,
+// centred down the desktop, EDGE clear of its top and bottom, and no taller than the room between them.
 function cardOf(desktop, items) {
     const kept = items.filter(({ pinned }) => pinned).length;
     const tall = 2 * CARD.padding + runOf(kept) + CARD.gap + dividerOf(items) + runOf(items.length - kept);
-    const height = Math.min(tall, Math.max(0, desktop.height - 2 * CARD.padding));
-    const y = desktop.y + Math.max(CARD.padding, (desktop.height - tall) / 2);
-    return { x: desktop.x, y: Math.round(y), width: WIDTH, height: Math.round(height) };
+    const height = Math.min(tall, Math.max(0, desktop.height - 2 * EDGE));
+    const y = desktop.y + Math.max(EDGE, (desktop.height - tall) / 2);
+    return { x: desktop.x + EDGE, y: Math.round(y), width: WIDTH, height: Math.round(height) };
 }
 
 // What the Dock's card covers of `desktop` with `items`, `{ frame, radius }`: its card while `out`, and while it is in
-// that card slid off the desktop's left edge but for its sliver. The frame reaches RADIUS past the left edge, so that
-// corners of that radius round its outer side alone.
+// that card slid left until only its sliver shows inside the desktop's left edge.
 function coverOf(desktop, out, items) {
     const { x, y, width, height } = cardOf(desktop, items);
-    const left = out ? x : x - (WIDTH - SLIVER);
-    return { frame: { x: left - RADIUS, y, width: width + RADIUS, height }, radius: RADIUS };
+    const left = out ? x : desktop.x + SLIVER - width;
+    return { frame: { x: left, y, width, height }, radius: RADIUS };
 }
 
 // MARK: - Private
@@ -153,6 +159,7 @@ function dividerOf(items) {
 
 export {
     SLIVER,
+    EDGE,
     WIDTH,
     RADIUS,
     CARD,

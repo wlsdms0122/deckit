@@ -23,49 +23,38 @@ const STYLE = `
         gap: ${MODEL.GAP}px;
         box-sizing: border-box;
         height: 100%;
-        padding: ${MODEL.ROOM.center}px;
+        padding: ${MODEL.ROOM}px;
         overflow-y: auto;
         color: var(--deckit-text);
         font: var(--deckit-type-body);
     }
-    .notifications-card {
+    /* Each view is one surface, the material the shell draws under it, and a notification is an item on it, the same
+       in both. Toasts lower than the view's least height stand in its middle. */
+    .notifications-toasts { justify-content: safe center; overflow: hidden; }
+    .notifications-item {
         position: relative;
         display: flex;
         flex: 0 0 auto;
         align-items: flex-start;
         gap: 8px;
         box-sizing: border-box;
-        padding: 12px 36px 12px 12px;
-        border-radius: var(--deckit-radius-card);
-        background: var(--deckit-elevated);
-        box-shadow: var(--deckit-rim);
+        padding: ${MODEL.INSET}px 36px ${MODEL.INSET}px ${MODEL.INSET}px;
+        border-radius: var(--deckit-radius-medium);
         cursor: default;
     }
-    /* Both views lie on the material the shell draws: the center's head and the empty record on it, the rows and
-       the toasts on cards. A toast alone in a view higher than it fills the view. */
-    .notifications-toasts { padding: ${MODEL.ROOM.toasts}px; overflow: hidden; }
-    .notifications-toasts .notifications-card { flex: 1 0 auto; }
     .notifications-head {
         display: flex;
         flex: 0 0 auto;
         align-items: center;
         justify-content: space-between;
         min-height: ${MODEL.HEAD}px;
+        padding: 0 ${MODEL.INSET}px;
         font: 600 var(--deckit-type-heading);
     }
     .notifications-rows { display: flex; flex: 0 0 auto; flex-direction: column; gap: ${MODEL.GAP}px; }
-    /* A row under the pointer or the keys is washed over its card, pressed deeper, and ringed while the keys moved
-       to it. */
-    .notifications-rows .notifications-card[data-active] {
-        background: linear-gradient(var(--deckit-hover), var(--deckit-hover)), var(--deckit-elevated);
-    }
-    .notifications-rows .notifications-card:active {
-        background: linear-gradient(var(--deckit-pressed), var(--deckit-pressed)), var(--deckit-elevated);
-    }
-    .notifications-rows[data-keyed] .notifications-card[data-active] {
-        outline: 2px solid var(--deckit-focus);
-        outline-offset: 2px;
-    }
+    /* A row under the pointer or the keys is a step of fill, pressed a step deeper. */
+    .notifications-rows .notifications-item[data-active] { background: var(--deckit-hover); }
+    .notifications-rows .notifications-item:active { background: var(--deckit-pressed); }
     .notifications-words { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; }
     .notifications-title-row { display: flex; align-items: baseline; gap: 8px; min-height: 20px; }
     .notifications-title {
@@ -90,7 +79,7 @@ const STYLE = `
         font-variant-numeric: tabular-nums;
     }
     .notifications-actions { display: flex; gap: 6px; margin-top: 4px; }
-    .notifications-close { position: absolute; top: 10px; right: 6px; }
+    .notifications-close { position: absolute; top: 6px; right: 6px; }
 `;
 
 function screen(shell, center) {
@@ -105,11 +94,11 @@ function screen(shell, center) {
     shell.ui.addStyle(STYLE);
     // The center's rows, by the notification's id, and the one the pointer or the keys are on. A row that shows what
     // it showed is left as it is, so what a reader named in it stands while the record changes around it.
-    const drew = new Map(); // a row's notification id -> what its card showed as it was last drawn (shows)
+    const drew = new Map(); // a row's notification id -> what its item showed as it was last drawn (shows)
     const rows = ui.list({
         role: 'listbox',
         key: (notification) => notification.id,
-        create: (notification) => card(notification, { row: true }),
+        create: (notification) => item(notification, { row: true }),
         update: (made, notification) => {
             if (drew.get(notification.id) !== shows(notification)) fill(made, notification, { row: true });
         },
@@ -126,13 +115,12 @@ function screen(shell, center) {
         hint: 'Notifications from your mods appear here.',
     }).element;
     let shown = []; // the notifications the rows show, in order
-    // A row is pressed as the press is let go, by its card's click, not as the list picks on the press.
+    // A row is pressed as the press is let go, by its item's click, not as the list picks on the press.
     const choice = ui.listbox(rows.element, {
         onPick: () => {},
-        onActivate: (_index, { pointer }) => rows.element.toggleAttribute('data-keyed', !pointer),
     });
     const toasts = new Map(); // id -> { notification, timer, leaving }
-    const toastCards = new Map(); // id -> its toast's card, kept while it shows
+    const toastItems = new Map(); // id -> its toast's item, kept while it shows
     const icons = new Map(); // a sending mod's id -> its app icon, as the shell reads it
     let window = null; // the toasts' view, while it holds any
     let panel = null; // the center's view, once it opened
@@ -221,9 +209,9 @@ function screen(shell, center) {
             if (told) center.toastGone(id);
             ui.motion.glide([...content.children], toToasts);
         };
-        const card = toastCards.get(id);
-        if (!card?.isConnected) return gone();
-        ui.motion.go(card, { x: SLIDE }).finished.then(gone);
+        const shown = toastItems.get(id);
+        if (!shown?.isConnected) return gone();
+        ui.motion.go(shown, { x: SLIDE }).finished.then(gone);
     }
 
     // The toasts' view, open while it holds any.
@@ -244,9 +232,9 @@ function screen(shell, center) {
         const view = content.ownerDocument.defaultView;
         view.requestAnimationFrame(() => {
             if (!window || !content.isConnected) return;
-            const cards = [...content.children].map((card) => card.getBoundingClientRect().height);
-            if (cards.some((height) => !height)) return;
-            const { width, height } = MODEL.toastsSize(cards);
+            const items = [...content.children].map((shown) => shown.getBoundingClientRect().height);
+            if (items.some((height) => !height)) return;
+            const { width, height } = MODEL.toastsSize(items);
             window.resize(width, height);
         });
     }
@@ -267,8 +255,8 @@ function screen(shell, center) {
     }
 
     function drawToasts() {
-        for (const id of toastCards.keys()) if (!toasts.has(id)) toastCards.delete(id);
-        content.replaceChildren(...[...toasts.values()].map(({ notification }) => toastCard(notification)));
+        for (const id of toastItems.keys()) if (!toasts.has(id)) toastItems.delete(id);
+        content.replaceChildren(...[...toasts.values()].map(({ notification }) => toastItem(notification)));
     }
 
     // The row the pointer or the keys are on stays on its index as rows come and go.
@@ -292,41 +280,40 @@ function screen(shell, center) {
         parent.replaceChildren(...children);
     }
 
-    // What the card of `notification` shows (MODEL.cardOf), a row's with when it came, as one text.
+    // What the item of `notification` shows (MODEL.itemOf), a row's with when it came, as one text.
     function shows(notification, { row = true } = {}) {
         const given = { icon: icons.get(notification.mod.id) ?? '', time: row ? when(notification) : '' };
-        return JSON.stringify(MODEL.cardOf(notification, given));
+        return JSON.stringify(MODEL.itemOf(notification, given));
     }
 
     // Made once per toast, coming in from the right edge, where it lives, by the kit's `come`; it leaves by its `go`
     // the same way, and those staying glide over its place.
-    function toastCard(notification) {
-        const kept = toastCards.get(notification.id);
+    function toastItem(notification) {
+        const kept = toastItems.get(notification.id);
         if (kept) return kept;
-        const made = card(notification, { row: false });
-        toastCards.set(notification.id, made);
+        const made = item(notification, { row: false });
+        toastItems.set(notification.id, made);
         ui.motion.come(made, { x: SLIDE });
         return made;
     }
 
-    // A press on the card runs what it names; its close button takes a toast off the screen, and a row of the center
+    // A press on the item runs what it names; its close button takes a toast off the screen, and a row of the center
     // out of the record.
-    function card(notification, { row }) {
-        const made = element('div', 'notifications-card');
-        made.dataset.deckitSolid = ''; // opaque on the panel's material: the plain inks
+    function item(notification, { row }) {
+        const made = element('div', 'notifications-item');
         if (!row) made.setAttribute('role', 'alert');
         fill(made, notification, { row });
         made.addEventListener('click', () => center.press(notification.id));
         return made;
     }
 
-    // A card called by its title and its body, holding what it shows.
+    // An item called by its title and its body, holding what it shows.
     function fill(made, notification, { row }) {
         made.setAttribute('aria-label', JSON.parse(shows(notification, { row })).name);
         made.replaceChildren(...partsOf(notification, { row }));
     }
 
-    // What a card shows (MODEL.cardOf): the sender's icon, the title, the body, the actions and the close button. A row
+    // What an item shows (MODEL.itemOf): the sender's icon, the title, the body, the actions and the close button. A row
     // tells when its notification came, and what it shows is kept to tell whether it is to be drawn anew.
     function partsOf(notification, { row }) {
         const text = shows(notification, { row });
@@ -365,7 +352,7 @@ function screen(shell, center) {
         return made;
     }
 
-    // A button in a card is pressed alone, not the card around it.
+    // A button in an item is pressed alone, not the item around it.
     function heldBack(made) {
         for (const type of ['mousedown', 'click']) made.addEventListener(type, (event) => event.stopPropagation());
     }

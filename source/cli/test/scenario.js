@@ -3145,8 +3145,8 @@ async function walk({
             const rowsNow = async () =>
                 (await centerPage())?.evaluate(`(() => ({
                 titles: [...document.querySelectorAll('.notifications-rows .notifications-title')].map((node) => node.textContent),
-                active: [...document.querySelectorAll('.notifications-rows .notifications-card')].findIndex((node) => node.hasAttribute('data-active')),
-                high: [...document.querySelectorAll('.notifications-rows .notifications-card')].reduce((sum, node) => sum + node.getBoundingClientRect().height, 0),
+                active: [...document.querySelectorAll('.notifications-rows .notifications-item')].findIndex((node) => node.hasAttribute('data-active')),
+                high: [...document.querySelectorAll('.notifications-rows .notifications-item')].reduce((sum, node) => sum + node.getBoundingClientRect().height, 0),
                 empty: document.querySelector('.deckit-empty')?.textContent ?? null,
             }))()`);
             const bellAt = await bell();
@@ -3154,7 +3154,7 @@ async function walk({
             const centerOpened = await until(async () => {
                 const [now, bar, rows] = [await centerNow(), (await capsuleNow()).bar, await rowsNow()];
                 const right = bar && bellAt && bar.x + bellAt.x + bellAt.width;
-                const high = rows && 16 + 32 + 8 + rows.high + 8 + 16;
+                const high = rows && 4 + 32 + 4 + rows.high + 4 + 4;
                 const under = now && rows?.titles.length === 2 && { x: right - 360, y: 60, width: 360, height: high };
                 return under && near(now.rect, under) && now.responder && { rect: now.rect, under, rows };
             }, 6000);
@@ -3180,7 +3180,7 @@ async function walk({
             );
             const lower = await until(async () => {
                 const [now, rows] = [await centerNow(), await rowsNow()];
-                return now && rows && Math.abs(now.rect.height - (16 + 32 + 8 + rows.high + 16)) <= 1;
+                return now && rows && Math.abs(now.rect.height - (4 + 32 + 4 + rows.high + 4)) <= 1;
             }, 4000);
             check(
                 'in the center the arrows move along the rows and Command-Delete removes one: the view is as high as what is left',
@@ -3237,7 +3237,7 @@ async function walk({
                 const toastsPage = async () => {
                     for (const each of await pages('about:blank'))
                         if (
-                            await each.evaluate(`!!document.querySelector('.notifications-toasts .notifications-card')`)
+                            await each.evaluate(`!!document.querySelector('.notifications-toasts .notifications-item')`)
                         )
                             return each;
                     return null;
@@ -3263,7 +3263,7 @@ async function walk({
                 const counted = await until(async () => /^Notifications, 1\b/.test((await bell())?.name ?? ''), 4000);
                 const toastSays = await (
                     await toastsPage()
-                )?.evaluate(`document.querySelector('.notifications-card .notifications-title')?.textContent ?? null`);
+                )?.evaluate(`document.querySelector('.notifications-item .notifications-title')?.textContent ?? null`);
                 check(
                     'a post stands as a toast at the top right of the stage, in a view that takes no keyboard, and the item counts it',
                     toastStood && counted && toastSays === TOAST.title && (await keyMod()) === keyBefore,
@@ -3277,7 +3277,7 @@ async function walk({
                         key: [keyBefore, await keyMod()],
                     })
                 );
-                await (await toastsPage())?.press('.notifications-card .notifications-title');
+                await (await toastsPage())?.press('.notifications-item .notifications-title');
                 const toastRan = await until(async () => (await mark(joinsPage, 'noted')) === TOAST.args.word, 6000);
                 const toastGone = await until(
                     async () => !(await centerNow()) && (await bell())?.name === 'Notifications',

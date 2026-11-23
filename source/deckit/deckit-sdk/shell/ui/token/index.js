@@ -39,9 +39,10 @@ const MOTION = Object.freeze({
 // at over what is behind it, blurred through. `rim` is the hairline inside a floating surface's edge, and `float` the
 // shadow it casts. `sidebar` is the sidebar's material over the window's. `scrim` dims the page under a dialog. The
 // shadow `icon` is a filter, laid under an app icon drawn at 32px and up, following the tile's shape. A window's
-// shadows, `key` for the one with the keyboard and `inactive` for the rest, hold its ring: a wide ambient shadow and a
-// tight contact one in light, and in dark, where a drop shadow reads as glow, a light rim besides, the key window's
-// outside its edge, where the content does not cover it, and a deeper shadow.
+// shadows, `key` for the one with the keyboard and `inactive` for the rest, are its one rim, the same in both, outside
+// its edge where the content does not cover it, and a shadow in two steps: the key window stands higher, its shadow
+// wide and deep, the rest lie close. Each stays within the frame's SHADOW of 48. In dark, where a drop shadow reads as
+// glow, the rim is light.
 const LOOKS = Object.freeze({
     light: {
         accent: '#2a6fdb',
@@ -57,8 +58,8 @@ const LOOKS = Object.freeze({
             control: '0 1px 2px rgba(0,0,0,.3)',
             sidebar: 'inset 0 1px 0 rgba(255,255,255,.8), 0 1px 2px rgba(0,0,0,.08)',
             icon: 'drop-shadow(0 2px 3px rgba(0,0,0,.20))',
-            key: '0 0 0 1px rgba(0,0,0,.10), 0 12px 36px rgba(0,0,0,.22), 0 2px 6px rgba(0,0,0,.10)',
-            inactive: '0 0 0 1px rgba(0,0,0,.08), 0 4px 14px rgba(0,0,0,.10)',
+            key: '0 0 0 1px rgba(0,0,0,.12), 0 12px 36px rgba(0,0,0,.26), 0 2px 6px rgba(0,0,0,.1)',
+            inactive: '0 0 0 1px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08)',
         },
     },
     dark: {
@@ -75,10 +76,8 @@ const LOOKS = Object.freeze({
             control: '0 1px 2px rgba(0,0,0,.5)',
             sidebar: 'inset 0 1px 0 rgba(255,255,255,.09), 0 1px 2px rgba(0,0,0,.35)',
             icon: 'drop-shadow(0 2px 3px rgba(0,0,0,.45))',
-            key:
-                '0 0 0 1px rgba(255,255,255,.2), 0 0 0 2px rgba(0,0,0,.6), 0 16px 48px rgba(0,0,0,.65), ' +
-                '0 2px 6px rgba(0,0,0,.4)',
-            inactive: '0 0 0 1px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.06), 0 4px 14px rgba(0,0,0,.35)',
+            key: '0 0 0 1px rgba(255,255,255,.14), 0 12px 36px rgba(0,0,0,.6), 0 2px 6px rgba(0,0,0,.4)',
+            inactive: '0 0 0 1px rgba(255,255,255,.14), 0 1px 3px rgba(0,0,0,.4)',
         },
     },
 });
@@ -144,6 +143,9 @@ const TYPE = Object.freeze({
 // The sizes in px an app icon is drawn at, one per role: in a menu, a bar or a sidebar heading; in a row; leading the
 // top match or a mod's own head; in the Dock; in a launcher's grid.
 const APP_ICON = Object.freeze({ small: 16, row: 20, lead: 32, dock: 40, grid: 56 });
+// A floating surface over the desktop (the Dock, the status bar's capsule): how far in px it stands from the edge of the
+// camera nearest it.
+const FLOAT = Object.freeze({ margin: 8 });
 // A neutral grey over any background, light or dark.
 const WASH = (amount) => `rgba(128,128,128,${amount})`;
 // The quieter inks: how much of `text` over `background` each is, and the least contrast it keeps on glass.
@@ -234,6 +236,7 @@ function tokenOf(theme, fonts = {}) {
         },
         radius: { small: 4, control: 6, medium: 8, large: 10, card: 12, round: 999 },
         appIcon: { ...APP_ICON },
+        float: { ...FLOAT },
         rim: rimOf(look.rim),
         shadow: {
             lifted: '0 8px 22px rgba(0,0,0,.28), 0 1px 3px rgba(0,0,0,.2)',
@@ -276,6 +279,10 @@ function propertiesOf(token) {
         ...prefixed(
             'app-icon-',
             mapped(token.appIcon, (value) => value + 'px')
+        ),
+        ...prefixed(
+            'float-',
+            mapped(token.float, (value) => value + 'px')
         ),
         glass: look.glass * 100 + '%',
         blur: BLUR,
@@ -435,6 +442,7 @@ export {
     SPRING,
     MOTION,
     APP_ICON,
+    FLOAT,
     SEAT_COLOURS,
     tokenOf,
     propertiesOf,

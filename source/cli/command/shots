@@ -591,14 +591,14 @@ async function draw(app, look, shots, origin) {
     await surface('notifications', async (name) => {
         await bell.press();
         const list = await center();
-        await until(() => list?.evaluate(`!!document.querySelector('.notifications-card')`), 2000);
+        await until(() => list?.evaluate(`!!document.querySelector('.notifications-item')`), 2000);
         await sleep(600);
         if (list) await backed(name);
     });
     await surface('notifications-empty', async (name) => {
         const list = await center();
         await list?.press('.notifications-head button');
-        await until(() => list?.evaluate(`!document.querySelector('.notifications-card')`), 2000);
+        await until(() => list?.evaluate(`!document.querySelector('.notifications-item')`), 2000);
         await sleep(400);
         if (list) await backed(name);
         // The item's press lands before the Dock's: a Dock press first puts the center away, and the item's then
@@ -731,7 +731,7 @@ async function draw(app, look, shots, origin) {
         if ((await main(`return require('electron').Notification.isSupported()`)) !== false) return;
         const toast = async () => {
             for (const each of await pages('about:blank'))
-                if (await each.evaluate(`!!document.querySelector('.notifications-toasts .notifications-card')`))
+                if (await each.evaluate(`!!document.querySelector('.notifications-toasts .notifications-item')`))
                     return each;
             return null;
         };

@@ -4,12 +4,12 @@ import * as MOTION from '../../../deckit-sdk/shell/ui/motion/index.js';
 import * as DOCK from './model/dock.js';
 
 // MARK: - Property
-const { SLIVER, WIDTH, RADIUS, CARD } = DOCK;
+const { SLIVER, EDGE, WIDTH, RADIUS, CARD } = DOCK;
 // How long the Dock stays out once the pointer has left it.
 const HIDE_DELAY = 400;
-// An item: square, as wide as the card inside its padding, the icon 4px in from its edges; the running dot in the
-// card's padding beside it, its centre `dot` px from the card's edge, `running` across, or `asking` where its mod asks
-// for attention.
+// An item: square, as wide as the card inside its padding, the icon 4px in from its edges; its mark in the card's
+// padding beside it, its centre `dot` px in from the card's edge, `running` across, or `asking` where its mod asks for
+// attention.
 const ITEM = Object.freeze({ size: CARD.item, inset: 4, dot: 4 });
 const DOT = Object.freeze({ running: 4, asking: 6 });
 // The card's padding around its items.
@@ -24,10 +24,10 @@ const STYLE = `
         display: flex;
         flex-direction: column;
         justify-content: center;
-        width: ${WIDTH}px;
+        width: ${EDGE + WIDTH}px;
         box-sizing: border-box;
-        padding: 8px 0;
-        transform: translateX(-${WIDTH - SLIVER}px);
+        padding: ${EDGE}px 0 ${EDGE}px ${EDGE}px;
+        transform: translateX(-${EDGE + WIDTH - SLIVER}px);
         transition: transform var(--deckit-exit) var(--deckit-exit-curve);
     }
     .deckit-dock[data-out] { transform: none; transition: transform var(--deckit-enter) var(--deckit-enter-curve); }
@@ -50,7 +50,7 @@ const STYLE = `
         box-sizing: border-box;
         padding: ${CARD_PADDING}px;
         overflow-y: auto;
-        border-radius: 0 ${RADIUS}px ${RADIUS}px 0;
+        border-radius: ${RADIUS}px;
         background-color: var(--deckit-elevated);
         transition: background-color var(--deckit-press-fade) var(--deckit-press-curve);
         box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
@@ -73,13 +73,13 @@ const STYLE = `
         cursor: pointer;
         transition: background-color var(--deckit-press-fade) var(--deckit-press-curve);
     }
-    .deckit-dock-item[data-active] { background: var(--deckit-selected); }
+    .deckit-dock-item:hover { background: var(--deckit-hover); }
+    .deckit-dock-item:active { background: var(--deckit-pressed); }
     .deckit-dock-item[data-held] {
         z-index: 1;
         scale: 1.02;
         box-shadow: inset 0 0 0 100vmax var(--deckit-lifted), var(--deckit-shadow-lifted);
     }
-    .deckit-dock-item:active .deckit-app-icon { filter: var(--deckit-shadow-icon) brightness(.85); }
     .deckit-dock-item[data-running]::after {
         content: '';
         position: absolute;
@@ -88,9 +88,10 @@ const STYLE = `
         width: ${DOT.running}px;
         height: ${DOT.running}px;
         border-radius: var(--deckit-radius-round);
-        background: var(--deckit-muted);
+        background: var(--deckit-tertiary);
         transition: background-color var(--deckit-press-fade) var(--deckit-press-curve);
     }
+    .deckit-dock-item[data-active]::after { background: var(--deckit-text); }
     .deckit-dock-item[data-attention]::after {
         top: calc(50% - ${DOT.asking / 2}px);
         left: ${ITEM.dot - DOT.asking / 2 - CARD_PADDING}px;
@@ -101,8 +102,8 @@ const STYLE = `
     .deckit-dock-label {
         position: fixed;
         transform: translateY(-50%);
-        padding: 4px 8px;
-        border-radius: var(--deckit-radius-control);
+        padding: 4px 10px;
+        border-radius: var(--deckit-radius-round);
         background: var(--deckit-elevated);
         box-shadow: var(--deckit-rim), var(--deckit-shadow-float);
         color: var(--deckit-text);
@@ -122,7 +123,7 @@ const STYLE = `
         animation: deckit-dock-label-in var(--deckit-press-fade) var(--deckit-press-curve);
     }
     .deckit-dock-menu[hidden] { display: none; }
-    .deckit-dock-menu[data-material] {
+    .deckit-dock-label[data-material], .deckit-dock-menu[data-material] {
         background-color: color-mix(in srgb, var(--deckit-elevated) var(--deckit-glass), transparent);
     }
     .deckit-dock-menu-entry {
@@ -154,20 +155,20 @@ const STYLE = `
 
 // MARK: - Initializer
 // MARK: - Public
-// The Dock, drawn in the desktop's page at the desktop's left edge, centred down it and as tall as its items: the items
-// kept there, then those running only, each its mod's app icon, in the order main tells, the one a seat drags lifted. A
-// running item has a dot at the card's edge beside its icon, larger and in the accent where its mod asks for attention,
-// and the active mod's item is marked; the item under the pointer has its name beside the card. It is in but for its
-// sliver until the pointer comes, and stays out while the pointer is over it, a press holds it or its menu is open; it
-// goes back in faster than it came out, and fades in where the system asks for reduced motion; `onOut(out)` hears it
-// slide out and back. Out and still, the card is glass, its colour a tint over a material laid under it, where the
-// system does not ask for less transparency, and so is the menu: `onGlass(materials)` hears `[{ material, x, y, width,
-// height, cornerRadius }]`, the card's rounded at every corner and reaching past the desktop's left edge by its radius
-// so its square corners stay so, none as it slides. The page recognizes nothing: `onPointer(event)` hears what the
-// pointer does on the Dock and on the menu, `{ part: 'dock', type, x, y, button, count }` in the page, on the card as
-// the Dock out has it, a context press as a press of button 2, and what the keyboard presses with `item`
-// (desktop/protocol.js pointer); the menu of an item is drawn where main tells it, beside what slides, its entries at
-// the rects the Dock's model gave them. `ui` is the page's kit.
+// The Dock, drawn in the desktop's page EDGE in from the desktop's left edge, centred down it and as tall as its items:
+// the items kept there, then those running only, each its mod's app icon, in the order main tells, the one a seat drags
+// lifted. A running item has a dot in the card's padding beside its icon, in the text's ink for the active mod's item,
+// larger and in the accent where its mod asks for attention; the item under the pointer has a step of fill and its
+// name beside the card, and a pressed one the next step. It is in but for its sliver until the pointer comes, and
+// stays out while the pointer is over it or the room between it and the edge, a press holds it or its menu is open;
+// it goes back in faster than it came out, and fades in where the system asks for reduced motion; `onOut(out)` hears
+// it slide out and back. Out and still, the card is glass, its colour a tint over a material laid under it, where the
+// system does not ask for less transparency, and so are the menu and the name label, a capsule: `onGlass(materials)`
+// hears `[{ material, x, y, width, height, cornerRadius }]`, the card's at its rect, none as it slides. The page
+// recognizes nothing: `onPointer(event)` hears what the pointer does on the Dock and on the menu, `{ part: 'dock',
+// type, x, y, button, count }` in the page, on the card as the Dock out has it, a context press as a press of button
+// 2, and what the keyboard presses with `item` (desktop/protocol.js pointer); the menu of an item is drawn where main
+// tells it, beside what slides, its entries at the rects the Dock's model gave them. `ui` is the page's kit.
 function make({ ui, onPointer, onOut, onGlass }) {
     ui.addStyle(STYLE);
     let items = [];
@@ -384,23 +385,26 @@ function make({ ui, onPointer, onOut, onGlass }) {
         if (lit) MOTION.swell(row, { backgroundColor: style.backgroundColor }, { backgroundColor: lit });
     }
 
-    // The name of the item `row` beside the card, centred on it, at once: the Dock's one sign of the pointer over an
-    // item, shown while the Dock is out and nothing holds it.
+    // The name of the item `row` beside the card, centred on it, at once, shown while the Dock is out and nothing holds
+    // it.
     function name(row) {
         if (!out) return;
         if (!named) {
             named = ui.layer(tag('div', 'deckit-dock-label'));
             named.element.setAttribute('aria-hidden', 'true');
+            named.element.dataset.deckitGlass = '';
         }
         const at = row.getBoundingClientRect();
         named.element.textContent = row.dataset.name;
-        named.element.style.left = WIDTH + BESIDE + 'px';
+        named.element.style.left = EDGE + WIDTH + BESIDE + 'px';
         named.element.style.top = at.top + at.height / 2 + 'px';
+        glaze();
     }
 
     function unname() {
         named?.remove();
         named = null;
+        glaze();
     }
 
     // Kept out until the returned release runs, once.
@@ -438,16 +442,20 @@ function make({ ui, onPointer, onOut, onGlass }) {
         Promise.all(running.map(({ finished }) => finished.catch(() => {}))).then(then);
     }
 
-    // The card as glass while it is still, opaque otherwise, the menu as glass with it, and main told where.
+    // The card as glass while it is still, opaque otherwise, the menu and the name label as glass with it, and main
+    // told where.
     function glaze() {
         const glass = still && !TOKEN.opaque();
         card.toggleAttribute('data-material', glass);
         menuBox.toggleAttribute('data-material', glass && !!menu);
+        named?.element.toggleAttribute('data-material', glass);
         if (!glass) return onGlass([]);
         const { x, y, width, height } = card.getBoundingClientRect();
+        const label = named?.element.getBoundingClientRect();
         onGlass([
-            { material: 'popover', x: x - RADIUS, y, width: width + RADIUS, height, cornerRadius: RADIUS },
+            { material: 'popover', x, y, width, height, cornerRadius: RADIUS },
             ...(menu ? [{ material: 'menu', ...menu.frame, cornerRadius: menu.radius }] : []),
+            ...(label ? [{ material: 'popover', ...rectOf(label), cornerRadius: label.height / 2 }] : []),
         ]);
     }
 
@@ -458,6 +466,11 @@ function make({ ui, onPointer, onOut, onGlass }) {
 // A slide or a fade, not the card's tint easing in or out.
 function isMove({ transitionProperty }) {
     return transitionProperty !== 'background-color';
+}
+
+// The rect of a DOMRect, as plain data.
+function rectOf({ x, y, width, height }) {
+    return { x, y, width, height };
 }
 
 // `node` at `rect` in what it is placed against.
