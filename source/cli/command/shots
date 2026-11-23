@@ -32,6 +32,8 @@ const FILES = {
     'notes.txt': Array.from({ length: 30 }, (_, index) => `line ${index + 1}`).join('\n') + '\n',
 };
 const SHOWN = 'source/main.js';
+// The test mod whose window is drawn in the style `titled`, seeded among the mods.
+const USER = 'window-user';
 // How far the material blurs what is behind it, and around the switcher's floating window, how much of what is behind
 // it its shot shows and the radius the system cuts its corners to, in points.
 const BLUR = 30;
@@ -162,6 +164,9 @@ function seedOf(origin, valueProblem) {
             fs.mkdirSync(path.dirname(path.join(files, name)), { recursive: true });
             fs.writeFileSync(path.join(files, name), text);
         }
+        fs.cpSync(path.join(root, 'source', 'cli', 'test', 'mods', USER), path.join(data, 'deckit', 'mods', USER), {
+            recursive: true,
+        });
         const shown = path.join(files, SHOWN);
         const records = path.join(data, 'deckit', 'records');
         const write = (name, value) => {
@@ -218,6 +223,7 @@ async function draw(app, look, shots, origin) {
         allowed,
         pressAt,
         seatsView,
+        openFromMods,
     } = seat({
         main,
         pageById,
@@ -526,8 +532,8 @@ async function draw(app, look, shots, origin) {
         await sleep(400);
         await tileKey('ArrowDown');
     });
-    // The half the Browser's window takes, shown as it is held by its toolbar with the pointer at the zoom area's left
-    // side, then dragged back to where it was pressed and let go there.
+    // The half the Browser's window takes, shown as it is held by its toolbar, on nothing in it, with the pointer at
+    // the zoom area's left side, then dragged back to where it was pressed and let go there.
     await surface('window-drop', async (name) => {
         await show('browser');
         await sleep(600);
@@ -535,11 +541,11 @@ async function draw(app, look, shots, origin) {
         const from = await (
             await pageById(held?.content)
         )?.evaluate(`(() => {
-            const bar = document.querySelector('.browser-toolbar').getBoundingClientRect();
+            const toolbar = document.querySelector('.browser-toolbar');
+            const bar = toolbar.getBoundingClientRect();
             const y = Math.round(bar.top + bar.height / 2);
             for (let x = Math.round(bar.left) + 96; x < bar.right; x += 4) {
-                const found = document.elementFromPoint(x, y);
-                if (found && getComputedStyle(found).getPropertyValue('--app-region').trim() === 'drag') return { x, y };
+                if (document.elementFromPoint(x, y) === toolbar) return { x, y };
             }
             return null;
         })()`);
@@ -814,6 +820,20 @@ async function draw(app, look, shots, origin) {
     await surface('quick-pick', quickPick('editor', 'l', 'KeyL'));
     await surface('open-quickly', quickPick('editor', 'p', 'KeyP', 'greet'));
     await surface('go-to-folder', quickPick('finder', 'l', 'KeyL'));
+    // A window in the style `titled`, the bar the shell draws holding its title: the window user's, opened from the
+    // Mods mod's window, its window opened by the event it hears. Last, so no shot before has it in the Dock.
+    await surface('window-titled', async (name) => {
+        await show('mods');
+        await openFromMods(USER);
+        const user = await until(() => page(`deckit://${USER}.mod`), 8000);
+        const send = (type, detail) =>
+            user?.evaluate(`document.dispatchEvent(new CustomEvent('${type}', { detail: ${JSON.stringify(detail)} }))`);
+        await send('test-window-open', { name: 'titled', width: 520, height: 320 });
+        await send('test-window-title', { name: 'titled', title: 'Window User' });
+        await until(async () => (await windowsNow()).some(({ mod }) => mod === USER), 4000);
+        await sleep(800);
+        await windowShot(name, USER);
+    });
     return missed;
 }
 
