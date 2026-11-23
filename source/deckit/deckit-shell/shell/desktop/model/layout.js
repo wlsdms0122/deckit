@@ -69,12 +69,12 @@ function tiledIn(desktop) {
     };
 }
 
-// A window's title bar from what it opened with: `style` 'unified', the content under a transparent bar that is its
-// toolbar, or 'titled', the bar the shell draws with the window's title over the content; `height`; `origin` `{ x, y }`
+// A window's title bar from what it opened with: `style` 'titled', the bar the shell draws with the window's title over
+// the content, or 'unified', the content under a transparent bar that is its toolbar; `height`; `origin` `{ x, y }`
 // where the buttons' group stands from the frame's top left, each left out for the default, INSET in and centred on
 // the height, a `y` past the bar's bottom standing it there; and `enabled`, whether each button acts. `areaX` is
 // where the title bar area starts, one gap past the group.
-function barOf({ style = 'unified', height = TITLE_BAR.height, origin = {}, enabled = {} } = {}) {
+function barOf({ style = 'titled', height = TITLE_BAR.height, origin = {}, enabled = {} } = {}) {
     const lowest = height - BUTTON.size;
     const x = Math.round(Math.max(0, origin.x ?? INSET));
     const y = Math.round(Math.min(lowest, Math.max(0, origin.y ?? lowest / 2)));

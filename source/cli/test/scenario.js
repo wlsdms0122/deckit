@@ -2274,6 +2274,9 @@ async function walk({
                     `document.dispatchEvent(new CustomEvent('${type}', { detail: ${JSON.stringify(detail)} }))`
                 );
             const userWindows = async () => (await windowsNow()).filter(({ mod }) => mod === 'window-user');
+            // A window of window-user's is titled where the test gives no style: its content lies under the bar.
+            const BAR = 48;
+            const underBar = (frame) => ({ ...frame, y: frame.y + BAR, height: frame.height - BAR });
             const toldNow = async () => (await mark(windowed, 'told')) || '';
             const keyContent = async () => pageById((await windowsNow()).find(({ key }) => key)?.content);
             // The pages a window on the desktop is laid in, its frame's to its buttons', and those a press reaches at
@@ -2342,7 +2345,7 @@ async function walk({
             );
             check(
                 "a mod's window opens at the size it gives",
-                one?.rect.width === 420 && one.rect.height === 300,
+                one?.rect.width === 420 && one.rect.height === 300 - BAR,
                 JSON.stringify(one?.rect)
             );
             check(
@@ -2427,12 +2430,12 @@ async function walk({
             const sizeName = 'size' + (front?.id === one?.id ? 'one' : 'two');
             const framesBefore = Number(await mark(windowed, 'frames'));
             await buttons?.press('[data-button="zoom"]');
-            const zoomedIn = {
+            const zoomedIn = underBar({
                 x: 8,
                 y: strip + 8,
                 width: area?.rect.width - 16,
                 height: area?.rect.height - strip - 16,
-            };
+            });
             const zoomed = await until(async () => near((await userWindows()).at(-1)?.rect, zoomedIn), 3000);
             const seen = await until(
                 async () => (await mark(windowed, sizeName)) === `${zoomedIn.width}x${zoomedIn.height}`,
@@ -2472,7 +2475,7 @@ async function walk({
             await send('test-window-resize', { name: 'one', width: 500, height: 320 });
             const resized = await until(async () => {
                 const found = (await userWindows()).find(({ id }) => id === one?.id);
-                return found?.rect.width === 500 && found.rect.height === 320 && found;
+                return found?.rect.width === 500 && found.rect.height === 320 - BAR && found;
             }, 3000);
             check("a mod's page resizes its window", !!resized, JSON.stringify(await userWindows()));
             const shut = await userWindows();
@@ -2577,7 +2580,13 @@ async function walk({
             );
             await send('test-window-close', 'titled');
             await until(async () => !(await userWindows()).length, 3000);
-            const style = { titleBarHeight: 64, controlsOrigin: { x: 30 }, minimizable: false, resizable: false };
+            const style = {
+                titleBar: 'unified',
+                titleBarHeight: 64,
+                controlsOrigin: { x: 30 },
+                minimizable: false,
+                resizable: false,
+            };
             await send('test-window-open', { name: 'tall', ...style });
             const tall = await atRest(async () => (await userWindows()).at(-1), 3000);
             const tallButtons = await pageById(

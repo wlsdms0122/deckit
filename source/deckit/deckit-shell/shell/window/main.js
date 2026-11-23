@@ -490,7 +490,7 @@ export function createWindows({
 // button where it is resizable.
 function barOf({ titleBar, titleBarHeight, controlsX, controlsY, closable, minimizable, resizable }) {
     return LAYOUT.barOf({
-        style: titleBar === 'titled' ? 'titled' : 'unified',
+        style: titleBar === 'unified' ? 'unified' : 'titled',
         height: titleBarHeight ?? LAYOUT.TITLE_BAR.height,
         origin: { x: controlsX ?? undefined, y: controlsY ?? undefined },
         enabled: { close: closable !== false, minimize: minimizable !== false, zoom: resizable !== false },
