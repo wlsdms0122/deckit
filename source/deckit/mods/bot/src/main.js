@@ -64,9 +64,6 @@ class Bot {
             font: 'var(--deckit-type-body)',
             overflow: 'hidden',
         });
-        // The kit's title bar, one height for every view, so nothing in it moves when the view changes.
-        const head = document.createElement('div');
-        ui.titleBar(head);
 
         const picker = sessionPicker({
             shell,
@@ -156,32 +153,19 @@ class Bot {
             for (const [key, row] of navRows) row.setActive(key === mode.key);
         };
 
-        // Every view's name in one cell, the one shown over the others, so the title is as wide as the longest and
-        // what follows it starts at one place.
-        const title = document.createElement('div');
-        title.className = 'deckit-title-bar-title';
-        Object.assign(title.style, { flex: '0 0 auto', display: 'grid', marginRight: '8px' });
-        const names = new Map(
-            MODES.map((entry) => {
-                const name = document.createElement('span');
-                name.textContent = entry.label;
-                name.style.gridArea = '1 / 1';
-                title.append(name);
-                return [entry, name];
-            })
-        );
-        head.append(title, picker.element, ...MODES.map((entry) => entry.view.bar));
-        content.append(head, ...MODES.map((entry) => entry.view.pane));
+        // The view's name is the title; the session picker and each view's own bar trail it, at the bar's end.
+        const head = ui.titleBar({ trailing: [picker.element, ...MODES.map((entry) => entry.view.bar)] });
+        content.append(head.element, ...MODES.map((entry) => entry.view.pane));
 
         const setMode = (key) => {
             const next = modeOf(key);
             if (visible && next !== mode) hide();
             mode = next;
             store.set('mode', mode.key);
+            head.set({ title: mode.label });
             renderNav();
             for (const entry of MODES) {
                 const on = entry === mode;
-                names.get(entry).style.visibility = on ? '' : 'hidden';
                 entry.view.bar.style.display = on ? 'flex' : 'none';
                 entry.view.pane.style.display = on ? 'flex' : 'none';
                 if (entry.view.side) entry.view.side.style.display = on ? 'flex' : 'none';
