@@ -10,13 +10,9 @@ function toolbar({ ui, trailing, onBack, onForward, onReload, onSitePermissions,
 
     let shownTab = null;
 
-    // The field is centred in the bar, as wide as the room between the two sides lets it be.
     ui.addStyle(`
-        .browser-toolbar { display: grid; grid-template-columns: 1fr minmax(0, 640px) 1fr; }
-        .browser-toolbar-side { display: flex; align-items: center; gap: 2px; }
-        .browser-toolbar-side[data-trailing] { justify-content: flex-end; }
-        /* A kit field, so it is drawn and ringed as one, holding buttons of its own. */
-        .browser-address-field { gap: 0; padding: 0 2px; cursor: default; }
+        /* A kit field, so it is drawn and ringed as one, holding buttons of its own, centred in the title's place. */
+        .browser-address-field { max-width: 640px; margin: 0 auto; gap: 0; padding: 0 2px; cursor: default; }
         .browser-address-field .browser-address-page { border-radius: var(--deckit-radius-round); }
         .browser-address-site {
             flex: 0 0 auto;
@@ -57,17 +53,12 @@ function toolbar({ ui, trailing, onBack, onForward, onReload, onSitePermissions,
         .browser-toolbar[data-editing] .browser-address-page { display: none; }
         .browser-toolbar[data-editing] .browser-address-input { display: block; }
     `);
-    const element = ui.element('div', { className: 'browser-toolbar' });
-    // The page under the bar is no kit content, so a rule marks the edge the kit's fade cannot.
-    ui.titleBar(element, { hairline: true });
     const back = ui.iconButton({ icon: ui.icon('chevronLeft', { size: ICON_SIZE }), title: 'Back', onClick: onBack });
     const forward = ui.iconButton({
         icon: ui.icon('chevronRight', { size: ICON_SIZE }),
         title: 'Forward',
         onClick: onForward,
     });
-    const leading = ui.element('div', { className: 'browser-toolbar-side' });
-    leading.append(back.element, forward.element);
 
     const field = ui.element('div', { className: 'deckit-field browser-address-field' });
     const site = ui.element('button', { className: 'browser-address-site' });
@@ -91,10 +82,14 @@ function toolbar({ ui, trailing, onBack, onForward, onReload, onSitePermissions,
     const star = ui.iconButton({ icon: starIcon(false), title: 'Bookmark', onClick: bookmark });
     for (const button of [reload, star]) button.element.classList.add('browser-address-page');
     field.append(site, address, input, reload.element, star.element);
-    const end = ui.element('div', { className: 'browser-toolbar-side' });
-    end.toggleAttribute('data-trailing', true);
-    end.append(trailing);
-    element.append(leading, field, end);
+    // The page under the bar is no kit content, so a rule marks the edge the kit's fade cannot.
+    const { element } = ui.titleBar({
+        leading: [back.element, forward.element],
+        title: field,
+        trailing: [trailing],
+        hairline: true,
+    });
+    element.classList.add('browser-toolbar');
 
     address.addEventListener('click', edit);
     input.addEventListener('blur', stopEditing);
