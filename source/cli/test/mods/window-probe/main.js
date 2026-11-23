@@ -133,8 +133,7 @@ function partsOf(ui) {
         { name: 'a.js', depth: 1 },
     ]);
     const crumbs = ui.breadcrumb();
-    const bar = ui.element('div');
-    ui.titleBar(bar, { title: 'Bar' });
+    const bar = ui.titleBar({ title: 'Bar' }).element;
     bar.style.position = 'static';
     const on = () => {};
     box.append(

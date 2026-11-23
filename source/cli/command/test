@@ -1,16 +1,16 @@
 #!/usr/bin/env node
-// Checks the conformance runner's matching, the channels between main and a page, the stage pages are laid on, what an
-// environment gives and connect answers, the seats main keeps, deck's client of the core, its runner, the exports a
-// page opens by interface, the mods a connection launches, the scope a lifecycle cuts and the events a page hears,
-// deckit as a layer on deck, the key map, the local sockets under a folder of a long path, the wire a party from
-// outside speaks, the mods as the core reads them, an address offered to its handlers in turn, the web pages a mod
-// shows, what the web engine tells a document of its own accord, what a page is told as it starts, the styles a page
-// wears, the regions mods give their children, forge's runs, the commands, urls, keymap and configuration mods, the
-// Switcher's list, the Browser's game, Settings' Activity and the Mods mod's search, runs the core's tests, then drives
-// Deckit.app, put together from the archive it builds first, through the scenario, with data of its own that is thrown
-// away. With areas named, only the unit files that go with them and their checks of the scenario run, with the areas
-// they need, in the scenario's order, on the app started once; `--list` prints the areas. Exits 1 with a line for each
-// check that failed. Screenshots and the app's log are left in .build/test/.
+// Checks the conformance runner's matching, the channels between main and a page, the stage pages are laid on, whether
+// a press of a page's drags its window, what an environment gives and connect answers, the seats main keeps, deck's
+// client of the core, its runner, the exports a page opens by interface, the mods a connection launches, the scope a
+// lifecycle cuts and the events a page hears, deckit as a layer on deck, the key map, the local sockets under a folder
+// of a long path, the wire a party from outside speaks, the mods as the core reads them, an address offered to its
+// handlers in turn, the web pages a mod shows, what the web engine tells a document of its own accord, what a page is
+// told as it starts, the styles a page wears, the regions mods give their children, forge's runs, the commands, urls,
+// keymap and configuration mods, the Switcher's list, the Browser's game, Settings' Activity and the Mods mod's search,
+// runs the core's tests, then drives Deckit.app, put together from the archive it builds first, through the scenario,
+// with data of its own that is thrown away. With areas named, only the unit files that go with them and their checks of
+// the scenario run, with the areas they need, in the scenario's order, on the app started once; `--list` prints the
+// areas. Exits 1 with a line for each check that failed. Screenshots and the app's log are left in .build/test/.
 const fs = require('fs');
 const path = require('path');
 
@@ -61,6 +61,7 @@ const main = async () => {
     const checks = [
         'channels.js',
         'stage.js',
+        'drag.js',
         'environment.js',
         'core.js',
         'runner.js',

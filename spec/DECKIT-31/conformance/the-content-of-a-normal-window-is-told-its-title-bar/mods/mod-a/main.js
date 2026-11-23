@@ -14,7 +14,7 @@ module.exports = class {
                 say(options.name + '/threw/' + error.kind);
             }
         };
-        for (const options of [{"name": "main"}]) open(options);
+        for (const options of [{"name": "main", "titleBar": "unified"}]) open(options);
         deckit.events.on('mod-a:go', (...commands) => {
             for (const command of commands) {
                 if (command.open) open(command.open);

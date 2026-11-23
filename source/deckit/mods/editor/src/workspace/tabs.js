@@ -31,7 +31,7 @@ const TABS_STYLE = `
     }
     .editor-tab:hover { background: var(--deckit-hover); }
     .editor-tab[data-active] { color: var(--deckit-text); }
-    /* The tab strip is the title bar: not key, its active tab goes to muted with the rest of it. */
+    /* The tab strip stands in the title's place: not key, its active tab goes to muted with the rest of the bar. */
     [data-deckit-key='false'] .editor-tab[data-active] { color: var(--deckit-muted); }
     .editor-tab-list[data-many] .editor-tab[data-active] {
         background: var(--deckit-thumb);
@@ -61,19 +61,20 @@ const TABS_STYLE = `
 `;
 
 // The front workspace's files as tabs, keyed by the open file, so a renamed file keeps its tab. A new tab fades in and
-// a closed one leaves at once, the tabs after it gliding over where a press closed it, and a tab dragged along the row is put in a new order (`onReorder(file, toFile)`). A
-// switch of workspace draws a new list, so the row is swapped whole and nothing plays. The row is the view's title
-// bar, there with no tab as well: the window is dragged by it.
+// a closed one leaves at once, the tabs after it gliding over where a press closed it, and a tab dragged along the row
+// is put in a new order (`onReorder(file, toFile)`). A switch of workspace draws a new list, so the row is swapped
+// whole and nothing plays. The row stands in the title's place of the view's title bar, there with no tab as well: the
+// window is dragged by it.
 function tabs({ ui, isDirty, onSelect, onKeep, onClose, onReorder, menuOf }) {
     let files = [];
     let shownFor = null; // the workspace whose tabs are drawn
     let pressedShut = null; // the file whose tab a press closed, until the tabs are drawn without it
 
     const element = ui.element('div', { className: 'editor-tabs' });
-    ui.titleBar(element);
     let rows = tabList();
 
     element.append(rows.element);
+    const bar = ui.titleBar({ title: element });
     ui.contextMenu(element, {
         rowAt: (target) => target.closest?.('[data-path]') || null,
         items: (tab) => {
@@ -82,7 +83,7 @@ function tabs({ ui, isDirty, onSelect, onKeep, onClose, onReorder, menuOf }) {
         },
     });
 
-    return { element, set };
+    return { element: bar.element, set };
 
     function set(list, { current, workspace }) {
         files = list;

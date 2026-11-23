@@ -116,9 +116,7 @@ class Settings {
         const contents = tableOfContents({ ui, theme: shell.theme, scroller: body, sections });
 
         body.append(...sections.map((section) => section.element));
-        const title = ui.element('div');
-        ui.titleBar(title, { title: 'Settings', scroller: body });
-        page.append(title, body);
+        page.append(ui.titleBar({ title: 'Settings', scroller: body }).element, body);
         // A mod's settings can be asked for by its command before the first visit draws anything.
         modSettings.draw();
         deckit.exports.register('settings/buttons', {
@@ -156,6 +154,7 @@ class Settings {
         const openWindow = () =>
             shell.windows.open({
                 name: 'main',
+                titleBar: 'unified',
                 content: split.element,
                 didAppear: () => {
                     shown = true;

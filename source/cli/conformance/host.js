@@ -9,23 +9,24 @@
 // look opened. On the base web it shows a mod's page in a window of its own once its layer shows a web page there, and
 // presses a web page its layer showed with WebKit's input, as a person's press comes. On the base shell it shows the
 // desktop in a host window the size of a screen of its own, under the bar the case names across its top, floats each
-// overlay window over it and hands a person's hand on a window or on the Dock as a host app hands it, nothing of either
-// on the person's screen, and presses a key in the page the shell gave the keyboard to, the app in front, never the
-// person's keyboard, or in another app, which reaches the chords the shell holds outside the app, held by the host,
-// never with the machine. It shows none of the system's notifications: it keeps each one, for the look shown, and
-// presses one when asked. It shows no dialog of folders: each answers the folders the case names. It shows no ask to
-// sit: on the base shell it holds each one, under the party the runner names, until the runner answers it in the place
-// of whoever is at the machine, and on the other bases it takes none. It shows no path
-// where it lies: it keeps each one, for the look revealed. It knows the app for an address of a scheme only where the
-// case names one. Its clipboard is a file of the run's, never the person's. A request fetched through a web session
-// reaches no address but on the loopback address. On the base shell it hands the shell the mods the case keeps in the
-// Dock at the first start, and the host app's look, light or dark, as the case names it, as it starts and as the look
-// changes; it reads what a page of the shell's wears, its colour scheme and the custom properties of its root. It keeps
-// what the shell lays on the desktop and in each overlay window, for the children's views laid over regions, and drops
-// files from outside the app on the page laid at a point of a window, through WebKit, as the machine drops them, never
-// in a drag of the machine's, and hands a person's scroll at a point of the host window as the machine's pointer's, in
-// the page laid there. It listens for parties as any host app does, on the socket in its folder of deckit: the
-// runner is each party, and after what one did the host says once the run its principal's proof hosts has settled.
+// overlay window over it and hands a person's hand on a window or on the Dock as a host app hands it, the drag of a
+// window's title bar as the machine's pointer drags it, nothing of either on the person's screen, and presses a key in
+// the page the shell gave the keyboard to, the app in front, never the person's keyboard, or in another app, which
+// reaches the chords the shell holds outside the app, held by the host, never with the machine. It shows none of the
+// system's notifications: it keeps each one, for the look shown, and presses one when asked. It shows no dialog of
+// folders: each answers the folders the case names. It shows no ask to sit: on the base shell it holds each one, under
+// the party the runner names, until the runner answers it in the place of whoever is at the machine, and on the other
+// bases it takes none. It shows no path where it lies: it keeps each one, for the look revealed. It knows the app for
+// an address of a scheme only where the case names one. Its clipboard is a file of the run's, never the person's. A
+// request fetched through a web session reaches no address but on the loopback address. On the base shell it hands the
+// shell the mods the case keeps in the Dock at the first start, and the host app's look, light or dark, as the case
+// names it, as it starts and as the look changes; it reads what a page of the shell's wears, its colour scheme and the
+// custom properties of its root. It keeps what the shell lays on the desktop and in each overlay window, for the
+// children's views laid over regions, and drops files from outside the app on the page laid at a point of a window,
+// through WebKit, as the machine drops them, never in a drag of the machine's, and hands a person's scroll at a point
+// of the host window as the machine's pointer's, in the page laid there. It listens for parties as any host app does,
+// on the socket in its folder of deckit: the runner is each party, and after what one did the host says once the run
+// its principal's proof hosts has settled.
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
@@ -533,12 +534,12 @@ function desktopSeen(seat) {
     return seat ? seen : { ...seen, title };
 }
 
-// What a person's hand on a window comes to: `{}`, or `{ none }` where the mod has no window of the name on screen,
-// a web page's window where `name` is null. On a window on the desktop, the host window taking the keyboard from an
-// overlay window: a press in it, a click of its button `action` (`close`, `minimize`, `zoom`), a drag of its title
-// bar by `by`, a drag of its edge `edge` by `by`, or a double click on its title bar; on a panel window,
-// a press alone. On one floating over every app, a press, or a drag by `by`, either taking it the keyboard, the shell
-// told the frame a drag leaves it at.
+// What a person's hand on a window comes to: `{}`, or `{ none }` where the mod has no window of the name on screen, a
+// web page's window where `name` is null. On a window on the desktop, the host window taking the keyboard from an
+// overlay window: a press in it, a click of its button `action` (`close`, `minimize`, `zoom`), a drag of its title bar
+// by `by` as the machine's pointer drags it (dragBar), a drag of its edge `edge` by `by`, or a double click on its
+// title bar; on a panel window, a press alone. On one floating over every app, a press, or a drag by `by`, either
+// taking it the keyboard, the shell told the frame a drag leaves it at.
 function hand({ mod, name, action, edge, by = { x: 0, y: 0 } }) {
     if (!controls) return { none: 'the shell has not started' };
     const on = (each) => each.mod === mod && each.name === name;
@@ -559,9 +560,9 @@ function hand({ mod, name, action, edge, by = { x: 0, y: 0 } }) {
         resignFloating();
         controls.desktop.focus();
         const { hand: person } = controls.desktop;
+        if (action === 'move') return dragBar(normal.frame, by);
         if (action === 'press') person.press(normal.id);
         else if (['close', 'minimize', 'zoom'].includes(action)) person.button(normal.id, action);
-        else if (action === 'move') person.move(normal.id, by.x, by.y);
         else if (action === 'resize') person.resize(normal.id, edge, by.x, by.y);
         else if (action === 'doubleClick') person.doubleClick(normal.id);
         return {};
@@ -888,6 +889,43 @@ async function scroll({ at, by }) {
     environment.input.put(hit.page, { ...event, source: machineSource });
     const told = Object.freeze({ ...event, buttons: [], modifiers: [], page: hit.page, carried: true });
     for (const listener of [...listening]) listener(told);
+    return {};
+}
+
+// Where in a window's title bar a drag of it is pressed, from the frame's top: the middle of a bar of the default height.
+const BAR_MIDDLE = 24;
+const RESTS = 50;
+
+// A person's drag of the title bar of a window at `frame` by `by`: the machine's pointer pressed on the bar's middle,
+// BAR_MIDDLE below the frame's top, moved by `by` and let go there, each put into the page the shell laid that took the
+// press, at its point of that page where the page is laid then, and told to what hears the machine's input as that
+// page's, the next once the mods' pages took what came of it; `{}`, or `{ none }` where no page takes the pointer
+// there.
+async function dragBar(frame, by) {
+    if (!machineSource) return { none: "the machine's input has no source" };
+    // The hand presses a window where it is drawn, so it drags once the window rests at its frame: drawn scaled or
+    // moving, it is laid anew a frame at a time, and it rests once nothing was laid anew for RESTS ms, within 2 s.
+    for (let seen = null, waited = 0; waited < 2000; waited += RESTS) {
+        const now = JSON.stringify(laid.map(({ rect, scale }) => [rect, scale]));
+        if (now === seen && !laid.some(({ scale }) => scale)) break;
+        seen = now;
+        await new Promise((resolve) => setTimeout(resolve, RESTS));
+    }
+    const from = { x: Math.round(frame.x + frame.width / 2), y: frame.y + BAR_MIDDLE };
+    const to = { x: from.x + by.x, y: from.y + by.y };
+    const hit = pageAt(from);
+    if (!hit) return { none: 'no page takes the pointer on the title bar' };
+    const pointer = async (type, at, buttons) => {
+        const { rect } = laid.find(({ page }) => page === hit.page) ?? hit;
+        const event = { event: 'pointer', type, x: at.x - rect.x, y: at.y - rect.y, button: 0, buttons, count: 1 };
+        environment.input.put(hit.page, { ...event, modifiers: [], source: machineSource });
+        const heard = Object.freeze({ ...event, modifiers: [], page: hit.page, carried: true });
+        for (const listener of [...listening]) listener(heard);
+        await told();
+    };
+    await pointer('down', from, [0]);
+    await pointer('move', to, [0]);
+    await pointer('up', to, []);
     return {};
 }
 

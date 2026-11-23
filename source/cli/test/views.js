@@ -63,7 +63,7 @@ separator "Sidebar"`,
     button "LLMemory"
     listbox "LLMemory"
 main
-  toolbar
+  toolbar "Services"
     combobox "Forge session"
 separator "Sidebar"`,
 };

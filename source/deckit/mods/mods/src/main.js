@@ -42,7 +42,7 @@ class Mods {
                 color: var(--deckit-text);
                 font: var(--deckit-type-body);
             }
-            .mods-search { flex: 1 1 auto; max-width: 320px; margin-left: auto; }
+            .mods-search { width: 320px; min-width: 160px; }
             .mods-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 14px 16px; }
             .mods-grid {
                 display: grid;
@@ -82,7 +82,6 @@ class Mods {
             .mods-none[hidden] { display: none; }
         `);
         const page = ui.element('div', { className: 'mods-page' });
-        const head = ui.element('div', { className: 'mods-head' });
         const field = ui.field({
             placeholder: 'Search',
             icon: ui.icon('search', { size: 13 }),
@@ -108,10 +107,8 @@ class Mods {
         // Why the mods could not be listed, where they would be.
         const failure = ui.notice({});
         failure.element.style.display = 'none';
-        head.append(field.element);
         body.append(failure.element, grid, none);
-        page.append(head, body);
-        ui.titleBar(head, { title: 'Mods', scroller: body });
+        page.append(ui.titleBar({ title: 'Mods', trailing: [field.element], scroller: body }).element, body);
         ui.contextMenu(grid, {
             rowAt: (target) => target?.closest?.('.mods-item'),
             items: (item) => {
@@ -123,6 +120,7 @@ class Mods {
         this.openWindow = () =>
             shell.windows.open({
                 name: 'main',
+                titleBar: 'unified',
                 content: page,
                 didAppear: () => {
                     draw();

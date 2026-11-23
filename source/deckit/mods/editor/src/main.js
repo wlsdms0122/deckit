@@ -329,6 +329,7 @@ class Editor {
         const openWindow = () =>
             shell.windows.open({
                 name: 'main',
+                titleBar: 'unified',
                 content: split.element,
                 // The engine puts its rules in the document it is told it is in, the window's, each time one opens.
                 didAppear() {

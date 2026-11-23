@@ -90,23 +90,15 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     const RELOAD = ui.icon('reload', { size: 16 });
     // Under this bar width the view switch is a pop-up button, so the title keeps its room.
     const NARROW = 560;
-    const head = document.createElement('div');
-    head.style.borderBottom = 'var(--deckit-border)';
-    ui.titleBar(head);
-    const title = document.createElement('div');
-    title.className = 'deckit-title-bar-title';
-    Object.assign(title.style, { flex: '0 0 auto', padding: '0 4px' });
-    // The status takes only the room left and is all that gives way: a date is never cut.
+    // The status, beside Refresh, is what gives way where the bar is narrow.
     const status = document.createElement('span');
     Object.assign(status.style, {
-        flex: '1 1 0',
         minWidth: '0',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',
         color: 'var(--deckit-muted)',
         font: 'var(--deckit-type-small)',
-        paddingLeft: '4px',
     });
     const modeBar = ui.segmented({
         items: MODES.map(([key, label]) => ({ key, label, title: label + ' view' })),
@@ -122,26 +114,30 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     });
     const reloadButton = ui.iconButton({ icon: RELOAD, title: 'Refresh', onClick: () => calendar.read(true) });
     let spinning = false;
-    head.append(
-        ui.iconButton({
-            icon: ui.icon('chevronLeft', { size: 16 }),
-            title: 'Previous',
-            onClick: () => shift(-1),
-        }).element,
-        ui.iconButton({ icon: ui.icon('chevronRight', { size: 16 }), title: 'Next', onClick: () => shift(1) }).element,
-        title,
-        status,
-        reloadButton.element,
-        ui.button({ label: 'Today', title: 'Jump to today', onClick: () => goTo(new Date()) }).element,
-        modeBar.element,
-        modeSelect.element
-    );
+    const head = ui.titleBar({
+        leading: [
+            ui.iconButton({
+                icon: ui.icon('chevronLeft', { size: 16 }),
+                title: 'Previous',
+                onClick: () => shift(-1),
+            }).element,
+            ui.iconButton({ icon: ui.icon('chevronRight', { size: 16 }), title: 'Next', onClick: () => shift(1) })
+                .element,
+        ],
+        trailing: [
+            status,
+            reloadButton.element,
+            ui.button({ label: 'Today', title: 'Jump to today', onClick: () => goTo(new Date()) }).element,
+            modeBar.element,
+            modeSelect.element,
+        ],
+    });
     modeSelect.element.style.display = 'none';
     new ResizeObserver(() => {
-        const narrow = head.clientWidth < NARROW;
+        const narrow = head.element.clientWidth < NARROW;
         modeBar.element.style.display = narrow ? 'none' : '';
         modeSelect.element.style.display = narrow ? '' : 'none';
-    }).observe(head);
+    }).observe(head.element);
 
     const body = document.createElement('div');
     Object.assign(body.style, {
@@ -177,7 +173,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     let failureSaid = '';
     Object.assign(failure.element.style, { display: 'none', flex: '0 0 auto', margin: '16px 16px 8px' });
 
-    content.append(head, failure.element, body, empty);
+    content.append(head.element, failure.element, body, empty);
 
     // The body's size is observed in the window it is shown in, from each time it appears.
     let resizing = null;
@@ -237,6 +233,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     function openWindow() {
         shell.windows.open({
             name: 'main',
+            titleBar: 'unified',
             content: split.element,
             didAppear() {
                 visible = true;
@@ -308,7 +305,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         }
         drawPending = false;
         const loading = reads.isLoading();
-        title.textContent = titleOf(mode, cursor);
+        head.set({ title: titleOf(mode, cursor) });
         modeBar.set(mode);
         modeSelect.set(mode);
         showSpinner(loading);
@@ -331,7 +328,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         const firstRead = !blank && loading && feeds.all().every((feed) => !reads.has(feed));
         showFirstLoad(firstRead, blank);
         // Hidden under the empty state, so the window's background material shows through it.
-        head.style.visibility = blank ? 'hidden' : '';
+        head.element.style.visibility = blank ? 'hidden' : '';
         body.style.visibility = blank ? 'hidden' : '';
 
         const [from, to] = rangeOf(mode, cursor);

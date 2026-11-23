@@ -1315,27 +1315,27 @@ async function walk({
                 bar: Math.round(bar.getBoundingClientRect().bottom),
                 page: Math.round(shown.getBoundingClientRect().top),
                 field: !!bar.querySelector('.browser-address-field'),
-                region: getComputedStyle(bar).getPropertyValue('--app-region'),
+                titled: document.documentElement.hasAttribute('data-deckit-title-bar'),
             };
         })()`);
         check(
-            "the browser's page starts under its toolbar, which holds the address and drags the window",
-            toolbar?.bar > 0 && toolbar.page >= toolbar.bar && toolbar.field && toolbar.region === 'drag',
+            "the browser's page starts under its toolbar, which holds the address in the window's title bar",
+            toolbar?.bar > 0 && toolbar.page >= toolbar.bar && toolbar.field && toolbar.titled,
             JSON.stringify(toolbar)
         );
         // WebKit's view of the front tab, in the Browser's page's view, where the tab's element is, while the Browser
         // is on screen.
         const onScreen = await keyMod();
         await show('browser');
-        // A press in the toolbar's drag area and a drag move the Browser's window with the pointer, and the frame it is
-        // left at is kept in the shell's state, by its mod and its window's name.
+        // A press on the toolbar in the window's title bar, on nothing in it, and a drag move the Browser's window with
+        // the pointer, and the frame it is left at is kept in the shell's state, by its mod and its window's name.
         const browserFrame = async () => (await windowsNow()).find(({ mod }) => mod === 'browser')?.rect;
         const dragFrom = await browser?.evaluate(`(() => {
-            const bar = document.querySelector('.browser-toolbar').getBoundingClientRect();
+            const toolbar = document.querySelector('.browser-toolbar');
+            const bar = toolbar.getBoundingClientRect();
             const y = Math.round(bar.top + bar.height / 2);
             for (let x = Math.round(bar.right) - 8; x > bar.left; x -= 4) {
-                const found = document.elementFromPoint(x, y);
-                if (found && getComputedStyle(found).getPropertyValue('--app-region').trim() === 'drag') return { x, y };
+                if (document.elementFromPoint(x, y) === toolbar) return { x, y };
             }
             return null;
         })()`);
@@ -1356,7 +1356,7 @@ async function walk({
             return movedBy(at) && at;
         }, 2000);
         check(
-            "a drag in a window's drag area moves the window with the pointer",
+            "a drag of a window's title bar over its content moves the window with the pointer",
             !!movedTo,
             JSON.stringify({ dragFrom, movedFrom, now: await browserFrame() })
         );
@@ -2274,6 +2274,9 @@ async function walk({
                     `document.dispatchEvent(new CustomEvent('${type}', { detail: ${JSON.stringify(detail)} }))`
                 );
             const userWindows = async () => (await windowsNow()).filter(({ mod }) => mod === 'window-user');
+            // A window of window-user's is titled where the test gives no style: its content lies under the bar.
+            const BAR = 48;
+            const underBar = (frame) => ({ ...frame, y: frame.y + BAR, height: frame.height - BAR });
             const toldNow = async () => (await mark(windowed, 'told')) || '';
             const keyContent = async () => pageById((await windowsNow()).find(({ key }) => key)?.content);
             // The pages a window on the desktop is laid in, its frame's to its buttons', and those a press reaches at
@@ -2342,7 +2345,7 @@ async function walk({
             );
             check(
                 "a mod's window opens at the size it gives",
-                one?.rect.width === 420 && one.rect.height === 300,
+                one?.rect.width === 420 && one.rect.height === 300 - BAR,
                 JSON.stringify(one?.rect)
             );
             check(
@@ -2427,12 +2430,12 @@ async function walk({
             const sizeName = 'size' + (front?.id === one?.id ? 'one' : 'two');
             const framesBefore = Number(await mark(windowed, 'frames'));
             await buttons?.press('[data-button="zoom"]');
-            const zoomedIn = {
+            const zoomedIn = underBar({
                 x: 8,
                 y: strip + 8,
                 width: area?.rect.width - 16,
                 height: area?.rect.height - strip - 16,
-            };
+            });
             const zoomed = await until(async () => near((await userWindows()).at(-1)?.rect, zoomedIn), 3000);
             const seen = await until(
                 async () => (await mark(windowed, sizeName)) === `${zoomedIn.width}x${zoomedIn.height}`,
@@ -2472,7 +2475,7 @@ async function walk({
             await send('test-window-resize', { name: 'one', width: 500, height: 320 });
             const resized = await until(async () => {
                 const found = (await userWindows()).find(({ id }) => id === one?.id);
-                return found?.rect.width === 500 && found.rect.height === 320 && found;
+                return found?.rect.width === 500 && found.rect.height === 320 - BAR && found;
             }, 3000);
             check("a mod's page resizes its window", !!resized, JSON.stringify(await userWindows()));
             const shut = await userWindows();
@@ -2577,7 +2580,13 @@ async function walk({
             );
             await send('test-window-close', 'titled');
             await until(async () => !(await userWindows()).length, 3000);
-            const style = { titleBarHeight: 64, controlsOrigin: { x: 30 }, minimizable: false, resizable: false };
+            const style = {
+                titleBar: 'unified',
+                titleBarHeight: 64,
+                controlsOrigin: { x: 30 },
+                minimizable: false,
+                resizable: false,
+            };
             await send('test-window-open', { name: 'tall', ...style });
             const tall = await atRest(async () => (await userWindows()).at(-1), 3000);
             const tallButtons = await pageById(

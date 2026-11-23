@@ -222,7 +222,7 @@ class Note {
         // Nothing is drawn until the place is reached, so a note path never flashes up as a gallery.
         notesGallery.element.hidden = true;
         notePane.hidden = true;
-        noteNavigation.trailing.append(noteSession.menuButton);
+        noteNavigation.trail(noteSession.menuButton);
         notePane.append(noteNavigation.element, noteSession.element, editor.element);
         content.append(notesGallery.element, notePane);
         applyTypeface();
@@ -260,6 +260,7 @@ class Note {
         const openWindow = () =>
             shell.windows.open({
                 name: 'main',
+                titleBar: 'unified',
                 content: split.element,
                 didAppear: () => {
                     editor.setRoot(content.ownerDocument);

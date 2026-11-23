@@ -132,11 +132,14 @@ const SHELL = Object.freeze({
     reveal: 'function',
 });
 
-// What an environment gives a UI shell on deckit on a page's side: the presses in drag regions. Where a document marks
-// itself `--app-region: drag`, a press moves the window it is shown in and a double click does what the person set a
-// title bar's to do, `no-drag` marking what inside takes presses itself. take(document, pressed(event)) -> off: those
-// in `document`, this page's or a surface it opened, each handed to `pressed` as its `mousedown` event instead, the
-// moves and the release that follow the document's
+// What an environment gives a UI shell on deckit on a page's side: the presses that drag. A press in a document moves
+// the window it is shown in and a double click does what the person set a title bar's to do: where its root is marked
+// `data-deckit-title-bar`, within `--deckit-title-bar-area-height` of its top, but on what the content takes there as
+// its own (a `button`, an `input`, a `textarea`, a `select`, an `a` with an `href`, an element of the role `button`,
+// with a `tabindex` or editable, or one marked `--app-region: no-drag`) and what lies in it; anywhere else, where it
+// marks itself `--app-region: drag`. take(document, pressed(event)) -> off: those in `document`, this page's or a
+// surface it opened, each handed to `pressed` as its `mousedown` event instead, the moves and the release that follow
+// the document's
 const SHELL_PAGE = Object.freeze({
     drags: { take: 'function' },
 });
@@ -151,10 +154,9 @@ const SHELL_PAGE = Object.freeze({
 // it without, as it would be seen were `laid` what is on it, made from what each page draws, a page under another
 // whole, a material drawn as on a screen, what is under it in the picture blurred within its rect, rounded by its
 // radius, a hidden page leaving nothing, `scale` pixels a point; `close()`, the stage ended, its pages
-// taken off and it out of its window. Where a page laid on it, or a surface it opened, marks itself with `--app-region:
-// drag`, a press drags the window it is in and a double click does what the person set a title bar's to do, unless what
-// draws in that document took its drags (SHELL_PAGE.drags); `--app-region: no-drag` marks what inside it takes presses
-// itself.
+// taken off and it out of its window. A press in a page laid on it, or in a surface it opened, that
+// drags as SHELL_PAGE.drags says drags the window it is in and a double click does what the person set a title bar's to
+// do, unless what draws in that document took its drags.
 const STAGE = Object.freeze({
     place: 'function',
     size: 'function',

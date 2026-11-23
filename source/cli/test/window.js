@@ -36,7 +36,7 @@ async function main() {
             opened.mod === 'a' &&
             opened.size.width === 720 &&
             opened.size.height === 480 &&
-            opened.bar.style === 'unified' &&
+            opened.bar.style === 'titled' &&
             opened.bar.height === 48 &&
             opened.title === '',
         opened

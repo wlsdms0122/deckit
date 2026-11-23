@@ -6,7 +6,7 @@ module.exports = class {
         let window = null;
         const open = () => {
             content = document.createElement('div');
-            window = shell.windows.open({ name: 'main', content, ...{} });
+            window = shell.windows.open({ name: 'main', content, ...{"titleBar": "unified"} });
         };
         open();
         const place = (element, box) => Object.assign(element.style, { position: 'fixed', left: box.x + 'px', top: box.y + 'px', width: box.width + 'px', height: box.height + 'px' });

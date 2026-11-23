@@ -151,7 +151,7 @@ function gallery({
         empty.element
     );
     element.append(navigation.element, body);
-    navigation.trailing.append(field.element);
+    navigation.trail(field.element);
     for (const [button, text, action] of [
         [newNoteAction.element, 'New note', 'newNote'],
         [newFolderAction.element, 'New folder', 'newFolder'],

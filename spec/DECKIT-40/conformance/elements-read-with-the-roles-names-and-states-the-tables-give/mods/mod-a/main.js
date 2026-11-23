@@ -15,6 +15,6 @@ module.exports = class {
                 'position:absolute;box-sizing:border-box;margin:0;border:0;padding:0;overflow:hidden;' +
                 `left:${(at % 6) * 115}px;top:${60 + Math.floor(at / 6) * 26}px;width:110px;height:22px`;
         });
-        shell.windows.open({ name: 'main', content });
+        shell.windows.open({ name: 'main', content, titleBar: 'unified' });
     }
 };

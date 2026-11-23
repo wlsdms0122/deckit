@@ -9,6 +9,6 @@ module.exports = class {
         deckit.events.on('mod-a:menu', () =>
             shell.ui.menu({ items: [{ label: 'Keep', run: () => {} }], point: { x: 100, y: 120 } })
         );
-        shell.windows.open({ name: 'main', content });
+        shell.windows.open({ name: 'main', content, titleBar: 'unified' });
     }
 };

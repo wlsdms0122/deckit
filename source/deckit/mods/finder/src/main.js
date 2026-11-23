@@ -311,6 +311,7 @@ class Finder {
         const openWindow = () =>
             shell.windows.open({
                 name: 'main',
+                titleBar: 'unified',
                 content: split.element,
                 didAppear: () => {
                     showing = true;

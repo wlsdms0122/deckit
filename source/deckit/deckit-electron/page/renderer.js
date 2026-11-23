@@ -1,13 +1,17 @@
-// What the Electron environment does in a page of deck's before deck's own code runs: where the page, or a surface it
-// opened, marks itself `--app-region: drag`, a press drags the window it is in and a double click does what the person
-// set a title bar's to do, `no-drag` marking what inside it takes presses itself, unless what draws in that document
-// took its drags (`drags.take`); main hears the name a window.open of deckit's world targets before the window is asked
-// for, which WebKit does not tell, and the name of the surface a drag or a web page's place is in; and what the page
-// says as an error is told to main.
+// What the Electron environment does in a page of deck's before deck's own code runs: a press in a document, the page's
+// or a surface it opened, that is a drag of its window (model/drag.js), the title bar over the document or a part of
+// it marked `--app-region: drag`, drags the window it is in and a double click does what the person set a title bar's
+// to do, unless what draws in that document took its drags (`drags.take`); main hears the name a window.open of
+// deckit's world targets before the window is asked for, which WebKit does not tell, and the name of the surface a drag
+// or a web page's place is in; and what the page says as an error is told to main.
 import { post, request, CHANNEL } from '../messages/renderer.js';
+import { TAKES, drags } from './model/drag.js';
 
 // MARK: - Property
 const REGION = '--app-region';
+// What the document's root is told of the title bar over it: that one lies there, and its height.
+const TITLE_BAR = 'data-deckit-title-bar';
+const BAR_HEIGHT = '--deckit-title-bar-area-height';
 const surfaces = new WeakMap(); // a surface's window -> the name it was opened by
 const takers = new WeakMap(); // a document -> pressed(event), what took its drags
 
@@ -19,7 +23,7 @@ function start() {
     reportErrors();
 }
 
-// The presses in the drag regions of `document`, this page's or a surface it opened, each handed to
+// The presses that drag the window of `document`, this page's or a surface it opened, each handed to
 // `pressed(event)`, its `mousedown`, instead of moving the window: the moves and the release that follow are the
 // document's. Answers the off, after which they move the window again.
 function take(document, pressed) {
@@ -33,13 +37,13 @@ function surfaceNameOf(view) {
 }
 
 // MARK: - Private
-// The left button's press in a drag region: the first drags, the second of a double click is the title bar's, each of
+// The left button's press that drags: the first drags, the second of a double click is the title bar's, each of
 // the window the document is shown in, which main finds by the surface's name.
 function watchDrags(target) {
     target.addEventListener(
         'mousedown',
         (event) => {
-            if (event.button !== 0 || !inDragRegion(event.target)) return;
+            if (event.button !== 0 || !isDrag(event)) return;
             const pressed = takers.get(target);
             if (pressed) return pressed(event);
             const surface = surfaceNameOf(target.defaultView);
@@ -49,15 +53,26 @@ function watchDrags(target) {
     );
 }
 
-function inDragRegion(node) {
+// Whether `event`, a press, drags its window, read from the pressed element and what it lies in (drags).
+function isDrag(event) {
+    const node = event.target;
     const element = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
     if (!element) return false;
     const view = element.ownerDocument.defaultView;
-    return view.getComputedStyle(element).getPropertyValue(REGION).trim() === 'drag';
+    const root = element.ownerDocument.documentElement;
+    const height = root.hasAttribute(TITLE_BAR)
+        ? parseFloat(view.getComputedStyle(root).getPropertyValue(BAR_HEIGHT))
+        : NaN;
+    const path = [];
+    for (let at = element; at; at = at.parentElement) {
+        const region = view.getComputedStyle(at).getPropertyValue(REGION).trim();
+        path.push({ takes: at.matches(TAKES) || at.isContentEditable, region });
+    }
+    return drags({ bar: Number.isFinite(height) ? height : null, y: event.clientY, path });
 }
 
 // What opens is a surface main lets the page have, by its name, or what main tells the page's watches of. A surface
-// is the opener's to draw in, so its drag regions are heard here too.
+// is the opener's to draw in, so its drags are heard here too.
 function wrapOpen() {
     const open = window.open;
     window.open = function (url, name, features) {

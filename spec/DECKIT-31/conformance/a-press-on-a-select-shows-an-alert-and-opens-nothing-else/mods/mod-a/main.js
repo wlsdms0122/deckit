@@ -8,6 +8,6 @@ module.exports = class {
         select.append(new Option('Apple', 'apple', true, true), new Option('Pear', 'pear'));
         content.append(select);
         for (const type of ['input', 'change']) content.addEventListener(type, (event) => say(type + '/' + event.target.value));
-        shell.windows.open({ name: 'main', content });
+        shell.windows.open({ name: 'main', content, titleBar: 'unified' });
     }
 };

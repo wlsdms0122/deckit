@@ -1,7 +1,7 @@
 module.exports = class {
     attach(shell, deckit) {
         const content = document.createElement('div');
-        shell.windows.open({ name: 'main', content });
+        shell.windows.open({ name: 'main', content, titleBar: 'unified' });
         const element = document.createElement('div');
         Object.assign(element.style, { position: 'fixed', left: '100px', top: '100px', width: '200px', height: '150px' });
         content.append(element);

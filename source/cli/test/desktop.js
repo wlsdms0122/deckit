@@ -515,7 +515,8 @@ async function main() {
     check(
         'a titled window tells its content no bar and lays it below its own; a unified one tells its bar',
         LAYOUT.guideOf(titled) === null &&
-            JSON.stringify(LAYOUT.guideOf(bar)) === JSON.stringify({ height: 48, controlsWidth: 78 }) &&
+            JSON.stringify(LAYOUT.guideOf(LAYOUT.barOf({ style: 'unified' }))) ===
+                JSON.stringify({ height: 48, controlsWidth: 78 }) &&
             LAYOUT.contentOf({ x: 0, y: 0, width: 100, height: 200 }, titled).y === 48 &&
             LAYOUT.framedSize({ width: 520, height: 700 }, titled).height === 748,
         LAYOUT.guideOf(titled)
@@ -535,7 +536,7 @@ async function main() {
         surface: { name: `content-${id}`, of: pages[mod] },
         size: { width: 300, height: 200 },
         minimum: { width: 0, height: 0 },
-        bar: LAYOUT.DEFAULT_BAR,
+        bar: LAYOUT.barOf({ style: 'unified' }),
     });
     const one = windowOf(1, 'a', 'main');
     const two = windowOf(2, 'a', 'other');
@@ -1246,8 +1247,14 @@ function seatChecks({ LAYOUT, DOCK, createDesktop }, check) {
     // A child laid over the content of window 1, in a region of it: the seat's keys go to the page it pressed last.
     const over = { name: 'page-c', mod: 'c' };
     desk.children.runs = [{ run: { mod: { id: 'c' }, state: 'running', summary: { view: true } }, page: over }];
-    desk.children.laid.set('a', new Map([['c', { window: 1, rect: { x: 60, y: 60, width: 80, height: 80 } }]]));
+    desk.children.laid.set('a', new Map([['c', { window: 1, rect: { x: 60, y: 12, width: 80, height: 80 } }]]));
     desk.desktop.update();
+    const rectOf = (name) => desk.laid().find(({ page }) => page.name === name)?.rect;
+    check(
+        "a child is laid at its region's rect in the content, below a titled window's bar",
+        rectOf('page-c')?.x === rectOf('content-1').x + 60 && rectOf('page-c')?.y === rectOf('content-1').y + 12,
+        { child: rectOf('page-c'), content: rectOf('content-1') }
+    );
     const pressThenKey = (at, code) => {
         desk.enter(me, pointer('down', at));
         desk.enter(me, pointer('up', at));
@@ -1854,7 +1861,7 @@ function tilingChecks({ WM, LAYOUT, DOCK, MOTION, createDesktop }, check) {
         surface: { name: `content-${id}`, of: page },
         size: { width: 400, height: 300 },
         minimum: { width: 0, height: 0 },
-        bar: LAYOUT.DEFAULT_BAR,
+        bar: LAYOUT.barOf({ style: 'unified' }),
     });
     desk.fromPage('motion', { reduced: false });
     desk.desktop.control.show();
@@ -2334,7 +2341,7 @@ async function anchorChecks({ LAYOUT, createDesktop }, check) {
             surface: { name: `content-${id}`, of: page },
             size: { width: 200, height: 20 },
             minimum: { width: 0, height: 0 },
-            bar: LAYOUT.DEFAULT_BAR,
+            bar: LAYOUT.barOf({ style: 'unified' }),
             ...more,
         };
     };
@@ -3427,7 +3434,7 @@ async function cameraChecks({ LAYOUT, createDesktop }, check) {
         surface: content,
         size: { width: 200, height: 200 },
         minimum: { width: 0, height: 0 },
-        bar: LAYOUT.DEFAULT_BAR,
+        bar: LAYOUT.barOf({ style: 'unified' }),
     };
     desk.desktop.open(opened);
     desk.openSurfaces(1);
@@ -3492,7 +3499,7 @@ async function cursorChecks({ LAYOUT, createDesktop }, check) {
             surface: { name: `content-${id}`, of: page },
             size: { width: 200, height: 20 },
             minimum: { width: 0, height: 0 },
-            bar: LAYOUT.DEFAULT_BAR,
+            bar: LAYOUT.barOf({ style: 'unified' }),
         };
     };
     desk.desktop.open(windowOf(1, 'a', 'normal'));
@@ -4313,7 +4320,7 @@ async function readingChecks({ LAYOUT, createDesktop }, check) {
     };
     const desk = desktopOver(createDesktop, { read });
     const page = { name: 'page-a', mod: 'a' };
-    const bar = { ...LAYOUT.DEFAULT_BAR, enabled: { close: true, minimize: true, zoom: false } };
+    const bar = { ...LAYOUT.barOf({ style: 'unified' }), enabled: { close: true, minimize: true, zoom: false } };
     const windowOf = (id, more = {}) => ({
         id,
         mod: 'a',
@@ -4643,7 +4650,11 @@ async function numberingChecks({ LAYOUT, createDesktop }, check) {
         for (const id of [1, 2]) {
             const page = { name: `page-${id}`, mod: 'a' };
             const surface = { name: `content-${id}`, of: page };
-            const [size, minimum, bar] = [{ width: 200, height: 200 }, { width: 0, height: 0 }, LAYOUT.DEFAULT_BAR];
+            const [size, minimum, bar] = [
+                { width: 200, height: 200 },
+                { width: 0, height: 0 },
+                LAYOUT.barOf({ style: 'unified' }),
+            ];
             desk.desktop.open({ id, mod: 'a', name: `w${id}`, level: 'normal', page, surface, size, minimum, bar });
             desk.openSurfaces(id);
         }

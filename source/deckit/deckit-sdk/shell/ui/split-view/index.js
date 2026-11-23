@@ -51,14 +51,6 @@ const STYLE = `
         padding: max(0px, var(--deckit-safe-area-inset-top, 0px) - ${INSET}px) ${GUTTER}px 0;
     }
     .deckit-split-list > * { flex-shrink: 0; --deckit-safe-area-inset-top: 0px; }
-    .deckit-split-bar {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: max(0px, var(--deckit-safe-area-inset-top, 0px) - ${INSET}px);
-    }
-    [data-deckit-title-bar] .deckit-split-bar { --app-region: drag; }
     .deckit-split-content {
         position: relative;
         display: flex;
@@ -82,7 +74,6 @@ const STYLE = `
         border: 0;
         background: transparent;
         cursor: col-resize;
-        --app-region: no-drag;
     }
     .deckit-split-handle::before {
         content: '';
@@ -125,7 +116,6 @@ function splitView(
     const column = tag('div', 'deckit-split-sidebar');
     const card = tag('div', 'deckit-split-card');
     const list = tag('div', 'deckit-split-list');
-    const bar = tag('div', 'deckit-split-bar');
     const room = tag('div', 'deckit-split-content');
     const handle = tag('button', 'deckit-split-handle');
     handle.type = 'button';
@@ -135,7 +125,7 @@ function splitView(
     column.setAttribute('aria-label', name);
     room.setAttribute('role', 'main');
     list.append(sidebar);
-    card.append(list, bar);
+    card.append(list);
     column.append(card);
     room.append(content);
     element.append(column, room, handle);
